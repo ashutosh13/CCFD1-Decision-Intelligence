@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CCFD1 Decision Intelligence Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   HOW TO CONNECT ARCGIS ELEMENTS
+   Scroll to the EMBEDS object in the <script> at the bottom.
+   Paste an ArcGIS embed URL (map, dashboard widget, Experience
+   Builder page) into any slot and it replaces the sample visual.
+   ============================================================ */
+:root{
+  --navy:#0F2744; --navy-2:#17365D; --blue:#2F6FB3; --blue-soft:#8FB3DC;
+  --tint:#E8EFF7; --bg:#F3F6FA; --card:#FFFFFF; --ink:#132033; --muted:#5B6B80;
+  --line:#D9E2EC; --alert:#B3261E; --ok:#1E7B4F;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+
+/* Sidebar */
+.side{background:var(--navy);color:#fff;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;align-self:start}
+.brand{display:flex;align-items:center;gap:10px;padding:22px 20px 18px;font-weight:700;font-size:17px}
+.brand svg{flex:none}
+.nav{list-style:none;margin:8px 0 0;padding:0}
+.nav a{display:flex;align-items:center;gap:12px;padding:11px 20px;text-decoration:none;color:#C9D6E6;font-size:14px;border-left:3px solid transparent}
+.nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav a[aria-current="true"]{background:var(--navy-2);color:#fff;border-left-color:var(--blue-soft);font-weight:600}
+.nav svg{width:18px;height:18px;flex:none}
+.side-foot{margin-top:auto;padding:20px;font-size:12px;color:#9FB3CB;line-height:1.6}
+
+/* Header */
+.main{min-width:0;display:flex;flex-direction:column}
+.top{background:var(--navy-2);color:#fff;padding:18px 28px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.top h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.top p{margin:2px 0 0;color:#BFD0E4;font-size:13.5px}
+.search{margin-left:auto;display:flex;align-items:center;gap:8px;background:#fff;border-radius:6px;padding:8px 12px;min-width:260px;flex:0 1 360px}
+.search input{border:0;outline:0;font:inherit;font-size:14px;width:100%;color:var(--ink);background:transparent}
+
+.content{padding:22px 28px 28px;display:grid;gap:18px}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:4px}
+.kpi .label{font-size:13px;color:var(--muted);font-weight:500}
+.kpi .value{font-size:24px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .value.alert{color:var(--alert)}
+.kpi .src{font-size:11.5px;color:var(--muted)}
+.kpi.primary{background:var(--navy-2);border-color:var(--navy-2);color:#fff}
+.kpi.primary .label,.kpi.primary .src{color:#BFD0E4}
+.kpi.primary .value{color:#fff}
+
+/* Panels */
+.row{display:grid;gap:18px}
+.row.a{grid-template-columns:1.25fr 1fr 1.35fr}
+.row.b{grid-template-columns:repeat(3,minmax(0,1fr))}
+.row.c{grid-template-columns:1.1fr 1fr}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-width:0;scroll-margin-top:16px}
+.panel header{display:flex;align-items:center;gap:8px;padding:14px 16px 10px}
+.panel h2{margin:0;font-size:15px;font-weight:600}
+.panel header .tag{margin-left:auto;font-size:11.5px;color:var(--muted);background:var(--tint);padding:3px 8px;border-radius:999px;white-space:nowrap}
+.body{padding:0 16px 16px;flex:1;display:flex;flex-direction:column;min-height:0}
+.slot{flex:1;min-height:220px;position:relative}
+.slot iframe{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:6px}
+.slot svg{width:100%;height:100%;display:block}
+.slot .livemap{position:absolute;inset:0;border-radius:6px;z-index:0}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+/* Scenario */
+.scn{display:grid;gap:14px}
+.scn label{display:flex;justify-content:space-between;font-size:13px;font-weight:500}
+.scn output{font-variant-numeric:tabular-nums;color:var(--blue);font-weight:600}
+.scn input[type=range]{width:100%;accent-color:var(--blue)}
+.scn .toggle{display:flex;align-items:center;justify-content:flex-start;gap:8px;font-size:13px;font-weight:400}
+.result{background:var(--tint);border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.result div span{display:block;font-size:12px;color:var(--muted)}
+.result div b{font-size:18px;font-variant-numeric:tabular-nums}
+
+/* Assistant */
+.chat{flex:1;display:flex;flex-direction:column;gap:10px}
+.msgs{flex:1;background:var(--tint);border-radius:8px;padding:12px;font-size:13.5px;overflow:auto;min-height:170px;display:flex;flex-direction:column;gap:8px}
+.msg{padding:8px 10px;border-radius:8px;max-width:92%}
+.msg.bot{background:#fff;border:1px solid var(--line)}
+.msg.me{background:var(--navy-2);color:#fff;align-self:flex-end}
+.ask{display:flex;gap:6px}
+.ask input{flex:1;min-width:0;border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:inherit;font-size:13.5px}
+.ask button{border:0;background:var(--navy-2);color:#fff;border-radius:6px;padding:0 14px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer}
+
+footer.foot{margin-top:auto;padding:12px 28px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 24px;background:#fff}
+footer.foot span:last-child{margin-left:auto}
+
+/* Responsive */
+@media (max-width:1280px){
+  .row.a{grid-template-columns:1fr 1fr}
+  .row.a .panel:last-child{grid-column:1 / -1}
+  .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side,.main{min-width:0}
+  .top h1{font-size:19px}
+  .kpi .value{font-size:20px}
+  .side{position:static;height:auto}
+  .nav{display:flex;overflow-x:auto}
+  .nav a{white-space:nowrap;border-left:0;border-bottom:3px solid transparent}
+  .nav a[aria-current="true"]{border-bottom-color:var(--blue-soft)}
+  .side-foot{display:none}
+  .row.a,.row.b,.row.c{grid-template-columns:1fr}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .content,.top{padding-left:16px;padding-right:16px}
+  .search{min-width:0;flex:1 1 100%}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <svg width="30" height="34" viewBox="0 0 30 34" aria-hidden="true"><path d="M15 1 28 6v10c0 8-5.6 14-13 17C7.6 30 2 24 2 16V6z" fill="none" stroke="#8FB3DC" stroke-width="2"/><path d="M15 9c3 3 5 5.5 5 9a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.3 1.6 1.2 2.5 2.2 2.5C13.5 13 14 11 15 9z" fill="#8FB3DC"/></svg>
+      CCFD1
+    </div>
+    <nav aria-label="Dashboard sections">
+      <ul class="nav" id="nav">
+        <li><a href="#overview" aria-current="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z"/></svg>Overview</a></li>
+        <li><a href="#financial"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 20h3V10H4zm6.5 0h3V4h-3zM17 20h3v-7h-3z"/></svg>Financial</a></li>
+        <li><a href="#staffing"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M2 19c0-3.3 2.7-6 6-6s6 2.7 6 6zm12.5 0c0-2-.6-3.8-1.7-5.2A5 5 0 0 1 22 18v1z"/></svg>Staffing</a></li>
+        <li><a href="#gis"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>GIS and service area</a></li>
+        <li><a href="#uncompensated"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v4H4zm0 6h10v4H4zm0 6h6v4H4z"/></svg>Uncompensated service</a></li>
+        <li><a href="#cad"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 3h10l2 2v16H5V5zm2 5v2h6V8zm0 4v2h6v-2zm0 4v2h4v-2z"/></svg>Incidents (CAD)</a></li>
+        <li><a href="#scenario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Scenario analysis</a></li>
+        <li><a href="#assistant"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12H8l-4 4z"/></svg>Ask the data</a></li>
+      </ul>
+    </nav>
+    <div class="side-foot">Prototype for Cass County Fire District No. 1.<br>Figures trace to the project source log.</div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <div>
+        <h1>CCFD1 Decision Intelligence Dashboard</h1>
+        <p>Financial, staffing, and service evidence for long-term planning</p>
+      </div>
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6B80" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+        <input type="search" placeholder="Search townships, figures, or sources" aria-label="Search dashboard"></label>
+    </header>
+
+    <main class="content">
+      <!-- KPIs: values from Scope Document v2.0, Section 1.1 -->
+      <section class="kpis" id="overview" aria-label="Key figures">
+        <div class="kpi primary"><span class="label">Structural operating gap, 2027</span><span class="value">$635,758</span><span class="src">Budget minus recurring revenue</span></div>
+        <div class="kpi"><span class="label">2027 proposed operating budget</span><span class="value">$1,795,950</span><span class="src">Gateway Form 1 proposal</span></div>
+        <div class="kpi"><span class="label">Recurring revenue</span><span class="value">$1,160,192</span><span class="src">Annual, current</span></div>
+        <div class="kpi"><span class="label">Fund balance, end of 2025</span><span class="value alert" id="fbv">$1,624,691</span><span class="src">Down $307,952 from 2023 peak</span></div>
+        <div class="kpi"><span class="label">Dispatched incidents</span><span class="value">8,936</span><span class="src">Sep 2025 to Sep 2026, Fire and EMS</span></div>
+      </section>
+
+      <div class="row a">
+        <section class="panel" id="financial">
+          <header><h2>Receipts and disbursements, 2011–2025</h2><span class="tag">Sample data</span></header>
+          <div class="body"><div class="slot" data-slot="revenue"><svg viewBox="0 0 420 220" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sample receipts and disbursements chart"><line x1="30" y1="196" x2="420" y2="196" stroke="#D9E2EC"></line><rect x="34" y="124.60000000000001" width="17.099999999999998" height="71.39999999999999" rx="2" fill="#8FB3DC"></rect><rect x="53" y="131.4" width="17.099999999999998" height="64.6" rx="2" fill="#17365D"></rect><text x="52.05" y="214" font-size="11" text-anchor="middle" fill="#5B6B80">2011</text><rect x="81.5" y="111" width="17.099999999999998" height="85" rx="2" fill="#8FB3DC"></rect><rect x="100.5" y="116.10000000000001" width="17.099999999999998" height="79.89999999999999" rx="2" fill="#17365D"></rect><text x="99.55" y="214" font-size="11" text-anchor="middle" fill="#5B6B80">2013</text><rect x="129" y="100.8" width="17.099999999999998" height="95.2" rx="2" fill="#8FB3DC"></rect><rect x="148" y="105.89999999999999" width="17.099999999999998" height="90.10000000000001" rx="2" fill="#17365D"></rect><text x="147.05" y="214" font-size="11" text-anchor="middle" fill="#5B6B80">2015</text><rect x="176.5" y="90.6" width="17.099999999999998" height="105.4" rx="2" fill="#8FB3DC"></rect><rect x="195.5" y="94" width="17.099999999999998" height="102" rx="2" fill="#17365D"></rect><text x="194.55" y="214" font-size="11" text-anchor="middle" fill="#5B6B80">2017</text><rect x="224" y="77.00000000000001" width="17.099999999999998" height="118.99999999999999" rx="2" fill="#8FB3DC"></rect><rect x="243" y="80.39999999999999" width="17.099999999999998" height="115.60000000000001" rx="2" fill="#17365D"></rect><text x="242.05" y="214" font-size="11" text-anchor="middle" fill="#5B6B80">2019</text><rect x="271.5" y="60" width="17.099999999999998" height="136" rx="2" fill="#8FB3DC"></rect><rect x="290.5" y="63.400000000000006" width="17.099999999999998" height="132.6" rx="2" fill="#17365D"></rect><text x="289.55" y="214" font-size="11" text-anchor="middle" fill="#5B6B80">2021</text><rect x="319" y="39.599999999999994" width="17.099999999999998" height="156.4" rx="2" fill="#8FB3DC"></rect><rect x="338" y="53.20000000000002" width="17.099999999999998" height="142.79999999999998" rx="2" fill="#17365D"></rect><text x="337.05" y="214" font-size="11" text-anchor="middle" fill="#5B6B80">2023</text><rect x="366.5" y="46.400000000000006" width="17.099999999999998" height="149.6" rx="2" fill="#8FB3DC"></rect><rect x="385.5" y="29.400000000000006" width="17.099999999999998" height="166.6" rx="2" fill="#17365D"></rect><text x="384.55" y="214" font-size="11" text-anchor="middle" fill="#5B6B80">2025</text></svg></div>
+            <div class="legend"><span><i style="background:var(--blue-soft)"></i>Receipts</span><span><i style="background:var(--navy-2)"></i>Disbursements</span></div></div>
+        </section>
+        <section class="panel">
+          <header><h2>Revenue by source</h2><span class="tag">Sample data</span></header>
+          <div class="body"><div class="slot" data-slot="funding"><svg viewBox="0 0 220 220" role="img" aria-label="Sample revenue by source"><path d="M110 20A90 90 0 1 1 66.64216933084565 188.86760120394774L83.02179425030396 159.07317408245638A56 56 0 1 0 110 54Z" fill="#17365D" stroke="#fff" stroke-width="2"></path><path d="M66.64216933084565 188.86760120394774A90 90 0 0 1 24.404913533436172 82.18847050625475L56.740835087471396 92.69504831500295A56 56 0 0 0 83.02179425030396 159.07317408245638Z" fill="#2F6FB3" stroke="#fff" stroke-width="2"></path><path d="M24.404913533436172 82.18847050625475A90 90 0 0 1 71.67986375914344 28.56556527805826L86.15635967235592 59.329685061902914A56 56 0 0 0 56.740835087471396 92.69504831500295Z" fill="#8FB3DC" stroke="#fff" stroke-width="2"></path><path d="M71.67986375914344 28.56556527805826A90 90 0 0 1 109.99999999999999 20L109.99999999999999 54A56 56 0 0 0 86.15635967235592 59.329685061902914Z" fill="#C8D6E7" stroke="#fff" stroke-width="2"></path></svg></div><div class="legend" id="fundLegend"><span><i style="background:#17365D"></i>Property tax 58%</span><span><i style="background:#2F6FB3"></i>Local income tax 22%</span><span><i style="background:#8FB3DC"></i>EMS billing 13%</span><span><i style="background:#C8D6E7"></i>Other 7%</span></div></div>
+        </section>
+        <section class="panel" id="gis">
+          <header><h2>Townships and service area</h2><span class="tag">Sample layout</span></header>
+          <div class="body"><div class="slot" data-slot="map"><svg viewBox="0 0 440 220" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sample township layout"><rect x="12" y="14" width="80" height="62" rx="3" fill="#E8EFF7" fill-opacity="1" stroke="#fff" stroke-width="2"></rect><rect x="96" y="14" width="80" height="62" rx="3" fill="#E8EFF7" fill-opacity="1" stroke="#fff" stroke-width="2"></rect><rect x="180" y="14" width="80" height="62" rx="3" fill="#E8EFF7" fill-opacity="1" stroke="#fff" stroke-width="2"></rect><rect x="264" y="14" width="80" height="62" rx="3" fill="#E8EFF7" fill-opacity="1" stroke="#fff" stroke-width="2"></rect><rect x="348" y="14" width="80" height="62" rx="3" fill="#E8EFF7" fill-opacity="1" stroke="#fff" stroke-width="2"></rect><rect x="20" y="80" width="80" height="62" rx="3" fill="#E8EFF7" fill-opacity="1" stroke="#fff" stroke-width="2"></rect><rect x="104" y="80" width="80" height="62" rx="3" fill="#2F6FB3" fill-opacity="0.85" stroke="#fff" stroke-width="2"></rect><rect x="188" y="80" width="80" height="62" rx="3" fill="#2F6FB3" fill-opacity="0.85" stroke="#fff" stroke-width="2"></rect><rect x="272" y="80" width="80" height="62" rx="3" fill="#E8EFF7" fill-opacity="1" stroke="#fff" stroke-width="2"></rect><rect x="356" y="80" width="80" height="62" rx="3" fill="#E8EFF7" fill-opacity="1" stroke="#fff" stroke-width="2"></rect><rect x="12" y="146" width="80" height="62" rx="3" fill="#E8EFF7" fill-opacity="1" stroke="#fff" stroke-width="2"></rect><rect x="96" y="146" width="80" height="62" rx="3" fill="#2F6FB3" fill-opacity="0.85" stroke="#fff" stroke-width="2"></rect><rect x="180" y="146" width="80" height="62" rx="3" fill="#E8EFF7" fill-opacity="1" stroke="#fff" stroke-width="2"></rect><rect x="264" y="146" width="80" height="62" rx="3" fill="#E8EFF7" fill-opacity="1" stroke="#fff" stroke-width="2"></rect><path d="M0 150 C80 120,140 170,220 130 S360 90,440 120" fill="none" stroke="#9CC3E6" stroke-width="7" stroke-linecap="round"></path><circle cx="250" cy="120" r="7" fill="#fff" stroke="#B3261E" stroke-width="3"></circle></svg></div>
+            <div class="legend"><span><i style="background:var(--blue)"></i>CCFD1 taxing townships</span><span><i style="background:var(--tint);border:1px solid var(--line)"></i>Other Cass County townships</span><span><i style="background:#fff;border:2px solid var(--alert);border-radius:50%"></i>Station</span></div></div>
+        </section>
+      </div>
+
+      <div class="row b">
+        <section class="panel" id="staffing">
+          <header><h2>Staffed hours by shift</h2><span class="tag">Sample data</span></header>
+          <div class="body"><div class="slot" data-slot="staffing"><svg viewBox="0 0 300 186" preserveAspectRatio="xMinYMid meet" role="img" aria-label="Sample bar chart"><text x="0" y="20" font-size="12" fill="#5B6B80">A shift</text><rect x="0" y="26" width="300" height="12" rx="6" fill="#E8EFF7"></rect><rect x="0" y="26" width="276" height="12" rx="6" fill="#17365D"></rect><text x="0" y="64" font-size="12" fill="#5B6B80">B shift</text><rect x="0" y="70" width="300" height="12" rx="6" fill="#E8EFF7"></rect><rect x="0" y="70" width="264" height="12" rx="6" fill="#17365D"></rect><text x="0" y="108" font-size="12" fill="#5B6B80">C shift</text><rect x="0" y="114" width="300" height="12" rx="6" fill="#E8EFF7"></rect><rect x="0" y="114" width="285" height="12" rx="6" fill="#17365D"></rect><text x="0" y="152" font-size="12" fill="#5B6B80">Overtime share</text><rect x="0" y="158" width="300" height="12" rx="6" fill="#E8EFF7"></rect><rect x="0" y="158" width="54" height="12" rx="6" fill="#17365D"></rect></svg></div></div>
+        </section>
+        <section class="panel" id="uncompensated">
+          <header><h2>Responses outside the District</h2><span class="tag">Sample data</span></header>
+          <div class="body"><div class="slot" data-slot="uncompensated"><svg viewBox="0 0 300 186" preserveAspectRatio="xMinYMid meet" role="img" aria-label="Sample bar chart"><text x="0" y="20" font-size="12" fill="#5B6B80">Primary (in District)</text><rect x="0" y="26" width="300" height="12" rx="6" fill="#E8EFF7"></rect><rect x="0" y="26" width="192" height="12" rx="6" fill="#2F6FB3"></rect><text x="0" y="64" font-size="12" fill="#5B6B80">Automatic aid</text><rect x="0" y="70" width="300" height="12" rx="6" fill="#E8EFF7"></rect><rect x="0" y="70" width="42.00000000000001" height="12" rx="6" fill="#2F6FB3"></rect><text x="0" y="108" font-size="12" fill="#5B6B80">Mutual aid</text><rect x="0" y="114" width="300" height="12" rx="6" fill="#E8EFF7"></rect><rect x="0" y="114" width="51.00000000000001" height="12" rx="6" fill="#2F6FB3"></rect><text x="0" y="152" font-size="12" fill="#5B6B80">Contract</text><rect x="0" y="158" width="300" height="12" rx="6" fill="#E8EFF7"></rect><rect x="0" y="158" width="15" height="12" rx="6" fill="#2F6FB3"></rect></svg></div></div>
+        </section>
+        <section class="panel" id="cad">
+          <header><h2>Incidents by hour of day</h2><span class="tag">Sample data</span></header>
+          <div class="body"><div class="slot" data-slot="cad"><svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sample incidents by hour"><rect x="99.91304347826087" y="10" width="122.43478260869566" height="166" fill="#E8EFF7"></rect><text x="161.1304347826087" y="24" font-size="11" text-anchor="middle" fill="#5B6B80">Daytime</text><polyline points="22,137 33.130434782608695,150 44.26086956521739,150 55.391304347826086,150 66.52173913043478,150 77.65217391304347,137 88.78260869565217,111 99.91304347826087,85 111.04347826086956,59 122.17391304347827,46 133.30434782608694,46 144.43478260869566,33 155.56521739130434,33 166.69565217391303,33 177.82608695652175,46 188.95652173913044,46 200.08695652173913,59 211.2173913043478,59 222.34782608695653,72 233.47826086956522,85 244.6086956521739,98 255.7391304347826,111 266.8695652173913,124 278,137" fill="none" stroke="#17365D" stroke-width="2.5" stroke-linejoin="round"></polyline><text x="22" y="194" font-size="11" text-anchor="middle" fill="#5B6B80">0:00</text><text x="88.78260869565217" y="194" font-size="11" text-anchor="middle" fill="#5B6B80">6:00</text><text x="155.56521739130434" y="194" font-size="11" text-anchor="middle" fill="#5B6B80">12:00</text><text x="222.34782608695653" y="194" font-size="11" text-anchor="middle" fill="#5B6B80">18:00</text><text x="278" y="194" font-size="11" text-anchor="middle" fill="#5B6B80">23:00</text></svg></div><p class="note">Shows the daytime availability pattern.</p></div>
+        </section>
+      </div>
+
+      <div class="row c">
+        <section class="panel" id="scenario">
+          <header><h2>Scenario analysis</h2><span class="tag">Illustrative</span></header>
+          <div class="body"><div class="slot" data-slot="scenario" style="min-height:0">
+            <div class="scn">
+              <div><label for="pos">Positions added per shift <output id="posO">0</output></label>
+                <input type="range" id="pos" min="0" max="3" step="1" value="0"></div>
+              <div><label for="levy">Levy increase <output id="levyO">$0</output></label>
+                <input type="range" id="levy" min="0" max="1200000" step="50000" value="0"></div>
+              <label class="toggle"><input type="checkbox" id="lit" checked> Include 2028 income tax loss ($240K/yr)</label>
+              <div class="result">
+                <div><span>Annual gap</span><b id="gapO">–</b></div>
+                <div><span>Years of fund balance</span><b id="yrsO">–</b></div>
+              </div>
+              <p class="note" style="margin:0">Each position per shift means three hires at about $100,000 fully loaded. Not the G5 model.</p>
+            </div></div></div>
+        </section>
+        <section class="panel" id="assistant">
+          <header><h2>Ask the data</h2><span class="tag">Not connected</span></header>
+          <div class="body"><div class="slot" data-slot="assistant" style="min-height:0">
+            <div class="chat">
+              <div class="msgs" id="msgs" aria-live="polite">
+                <div class="msg bot">Ask about any figure on this page. Answers will cite the source document for every number.</div>
+              </div>
+              <form class="ask" id="askForm"><input id="askIn" placeholder="Why is there a gap in 2027?" aria-label="Question"><button type="submit">Ask</button></form>
+            </div></div></div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <span>Prototype. Sample panels are placeholders for ArcGIS elements.</span>
+      <span>Last updated: September 25, 2026</span>
+      <span>Sources: CCFD1 annual reports, Indiana Gateway, Cass County E911</span>
+    </footer>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   EMBEDS: paste ArcGIS embed URLs here.
+   Leave a slot as "" to keep the sample visual.
+   Example: map: "https://arcgis.com/apps/mapviewer/index.html?webmap=XXXX"
+   ============================================================ */
+const EMBEDS = {
+  revenue: "",
+  funding: "",
+  map: "",
+  staffing: "",
+  uncompensated: "",
+  cad: "",
+  scenario: "",
+  assistant: ""
+};
+
+const C = {navy:"#17365D", blue:"#2F6FB3", soft:"#8FB3DC", tint:"#E8EFF7", line:"#D9E2EC", muted:"#5B6B80", alert:"#B3261E"};
+const $ = s => document.querySelector(s);
+const money = n => (n<0?"-":"") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
+
+/* Sample visuals (clearly labeled as sample data in the panel header) */
+function barsPaired(){
+  const yrs=[2011,2013,2015,2017,2019,2021,2023,2025];
+  const r=[.42,.5,.56,.62,.7,.8,.92,.88], d=[.38,.47,.53,.6,.68,.78,.84,.98];
+  const W=420,H=220,b=24,s=(W-40)/yrs.length;
+  let g=`<line x1="30" y1="${H-b}" x2="${W}" y2="${H-b}" stroke="${C.line}"/>`;
+  yrs.forEach((y,i)=>{const x=34+i*s;
+    g+=`<rect x="${x}" y="${H-b-r[i]*170}" width="${s*.36}" height="${r[i]*170}" rx="2" fill="${C.soft}"/>`;
+    g+=`<rect x="${x+s*.4}" y="${H-b-d[i]*170}" width="${s*.36}" height="${d[i]*170}" rx="2" fill="${C.navy}"/>`;
+    g+=`<text x="${x+s*.38}" y="${H-6}" font-size="11" text-anchor="middle" fill="${C.muted}">${y}</text>`;});
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sample receipts and disbursements chart">${g}</svg>`;
+}
+function donut(){
+  const parts=[["Property tax",.58,C.navy],["Local income tax",.22,C.blue],["EMS billing",.13,C.soft],["Other",.07,"#C8D6E7"]];
+  let a=-Math.PI/2,g="";const cx=110,cy=110,R=90,r=56;
+  parts.forEach(([n,v,c])=>{const a2=a+v*2*Math.PI,l=v>.5?1:0;
+    const p=(ang,rad)=>`${cx+rad*Math.cos(ang)} ${cy+rad*Math.sin(ang)}`;
+    g+=`<path d="M${p(a,R)}A${R} ${R} 0 ${l} 1 ${p(a2,R)}L${p(a2,r)}A${r} ${r} 0 ${l} 0 ${p(a,r)}Z" fill="${c}" stroke="#fff" stroke-width="2"/>`;a=a2;});
+  $("#fundLegend").innerHTML=parts.map(([n,v,c])=>`<span><i style="background:${c}"></i>${n} ${Math.round(v*100)}%</span>`).join("");
+  return `<svg viewBox="0 0 220 220" role="img" aria-label="Sample revenue by source">${g}</svg>`;
+}
+function townshipMap(){
+  const cols=5,rows=3,w=84,h=66,taxing=[6,7,11];let g="";let k=0;
+  for(let rI=0;rI<rows;rI++)for(let c=0;c<cols;c++){if(rI===2&&c===4)continue;
+    const x=12+c*w+(rI%2?8:0),y=14+rI*h,t=taxing.includes(k);
+    g+=`<rect x="${x}" y="${y}" width="${w-4}" height="${h-4}" rx="3" fill="${t?C.blue:C.tint}" fill-opacity="${t?.85:1}" stroke="#fff" stroke-width="2"/>`;k++;}
+  g+=`<path d="M0 150 C80 120,140 170,220 130 S360 90,440 120" fill="none" stroke="#9CC3E6" stroke-width="7" stroke-linecap="round"/>`;
+  g+=`<circle cx="250" cy="120" r="7" fill="#fff" stroke="${C.alert}" stroke-width="3"/>`;
+  return `<svg viewBox="0 0 440 220" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sample township layout">${g}</svg>`;
+}
+function hbars(items,color){
+  const H=items.length*44+10;let g="";
+  items.forEach(([n,v],i)=>{const y=8+i*44;
+    g+=`<text x="0" y="${y+12}" font-size="12" fill="${C.muted}">${n}</text>`;
+    g+=`<rect x="0" y="${y+18}" width="300" height="12" rx="6" fill="${C.tint}"/>`;
+    g+=`<rect x="0" y="${y+18}" width="${v*300}" height="12" rx="6" fill="${color}"/>`;});
+  return `<svg viewBox="0 0 300 ${H}" preserveAspectRatio="xMinYMid meet" role="img" aria-label="Sample bar chart">${g}</svg>`;
+}
+function hourly(){
+  const v=[3,2,2,2,2,3,5,7,9,10,10,11,11,11,10,10,9,9,8,7,6,5,4,3],W=300,H=200,m=12;let g="";
+  const sx=i=>22+i*(W-44)/23, sy=x=>H-24-(x/m)*(H-44);
+  g+=`<rect x="${sx(7)}" y="10" width="${sx(18)-sx(7)}" height="${H-34}" fill="${C.tint}"/>`;
+  g+=`<text x="${(sx(7)+sx(18))/2}" y="24" font-size="11" text-anchor="middle" fill="${C.muted}">Daytime</text>`;
+  g+=`<polyline points="${v.map((x,i)=>sx(i)+","+sy(x)).join(" ")}" fill="none" stroke="${C.navy}" stroke-width="2.5" stroke-linejoin="round"/>`;
+  [0,6,12,18,23].forEach(i=>g+=`<text x="${sx(i)}" y="${H-6}" font-size="11" text-anchor="middle" fill="${C.muted}">${i}:00</text>`);
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Sample incidents by hour">${g}</svg>`;
+}
+const SAMPLES={revenue:barsPaired,funding:donut,map:townshipMap,
+  staffing:()=>hbars([["A shift",.92],["B shift",.88],["C shift",.95],["Overtime share",.18]],C.navy),
+  uncompensated:()=>hbars([["Primary (in District)",.64],["Automatic aid",.14],["Mutual aid",.17],["Contract",.05]],C.blue),
+  cad:hourly};
+
+document.querySelectorAll("[data-slot]").forEach(el=>{
+  const key=el.dataset.slot,url=EMBEDS[key];
+  if(url){el.style.minHeight="260px";el.innerHTML=`<iframe src="${url}" title="${key} ArcGIS element" loading="lazy" allowfullscreen></iframe>`;}
+  else if(!el.innerHTML.trim() && SAMPLES[key]) el.innerHTML=SAMPLES[key]();
+});
+
+
+/* Live basemap of Cass County, Indiana (shown until EMBEDS.map is set).
+   If the map library can't load, the sample drawing stays in place. */
+if(!EMBEDS.map && window.L){
+  const slot=document.querySelector('[data-slot="map"]');
+  slot.innerHTML='<div class="livemap" role="region" aria-label="Map of Cass County, Indiana"></div>';
+  const m=L.map(slot.firstChild,{scrollWheelZoom:false}).fitBounds([[40.56,-86.59],[40.92,-86.16]]);
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    {maxZoom:16,attribution:"Tiles &copy; Esri"}).addTo(m);
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",{maxZoom:16}).addTo(m);
+  const lg=slot.parentElement.querySelector(".legend");
+  if(lg) lg.innerHTML="<span>Basemap only. Township boundaries and stations come from your ArcGIS web map.</span>";
+  const tag=slot.closest(".panel").querySelector(".tag"); if(tag) tag.textContent="Live basemap";
+}
+
+/* Illustrative scenario math (inputs from Scope Document v2.0) */
+const GAP=635758, FB=1624691, HIRE=100000;
+function runScenario(){
+  if(!$("#pos")) return;
+  const pos=+$("#pos").value, levy=+$("#levy").value, lit=$("#lit").checked;
+  $("#posO").textContent=pos; $("#levyO").textContent=money(levy);
+  const gap=GAP+pos*3*HIRE+(lit?240000:0)-levy;
+  $("#gapO").textContent=gap>0?money(gap):"Balanced";
+  $("#gapO").style.color=gap>0?C.alert:"#1E7B4F";
+  $("#yrsO").textContent=gap>0?(FB/gap).toFixed(1):"No drawdown";
+}
+["pos","levy","lit"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runScenario)});
+runScenario();
+
+/* Assistant placeholder */
+const form=$("#askForm");
+if(form) form.addEventListener("submit",e=>{e.preventDefault();const q=$("#askIn").value.trim();if(!q)return;
+  const m=$("#msgs");
+  m.insertAdjacentHTML("beforeend",`<div class="msg me"></div>`);m.lastElementChild.textContent=q;
+  m.insertAdjacentHTML("beforeend",`<div class="msg bot">The assistant is not connected yet. Once connected, it will answer from the verified project dataset and cite the source for each figure.</div>`);
+  $("#askIn").value="";m.scrollTop=m.scrollHeight;});
+
+/* Highlight nav item for the section in view */
+const links=[...document.querySelectorAll("#nav a")];
+const obs=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting){
+  links.forEach(l=>l.setAttribute("aria-current",l.getAttribute("href")==="#"+en.target.id?"true":"false"));}}),{rootMargin:"-40% 0px -55% 0px"});
+links.forEach(l=>{const t=document.querySelector(l.getAttribute("href"));if(t)obs.observe(t);});
+</script>
+</body>
+</html>
