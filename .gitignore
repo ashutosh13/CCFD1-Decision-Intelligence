@@ -367,3 +367,11 @@ data/
 __pycache__/
 ocr-pipe/**/*.jsonl
 reports/
+
+# Private working files - payroll and partner data, never commit
+private/
+*.xlsx
+*payroll*
+*Payroll*
+*timesheet*
+*Time Sheet*
