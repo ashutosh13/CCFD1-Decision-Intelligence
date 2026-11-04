@@ -362,7 +362,8 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 # Project data (contains PII)
-data/
+data/*
+!data/facts.json
 .venv/
 __pycache__/
 ocr-pipe/**/*.jsonl

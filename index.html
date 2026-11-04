@@ -74,6 +74,19 @@ a{color:inherit}
 .scn select,.scn input.exact{width:100%;margin-top:4px;border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit;font-size:13px;background:#fff}
 .result .sub{display:block;font-style:normal;font-size:11.5px;color:var(--muted)}
 .fchart svg{width:100%;height:auto;display:block}
+.srclink{align-self:flex-start;margin-top:10px;border:0;background:none;padding:0;font:inherit;font-size:12px;color:var(--blue);text-decoration:underline;cursor:pointer}
+.kpis + .srclink{margin:-6px 0 0}
+dialog.facts{border:1px solid var(--line);border-radius:10px;padding:0;width:min(760px,calc(100vw - 32px));max-height:80vh}
+dialog.facts::backdrop{background:rgba(19,32,51,.45)}
+dialog.facts header{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff}
+dialog.facts header h3{margin:0;font-size:15px}
+dialog.facts header button{margin-left:auto;border:0;background:var(--tint);border-radius:6px;padding:4px 10px;font:inherit;cursor:pointer}
+dialog.facts .flist{padding:8px 16px 16px;font-size:12.5px}
+dialog.facts .fact{padding:8px 0;border-bottom:1px solid var(--line)}
+dialog.facts .fact b{font-variant-numeric:tabular-nums}
+dialog.facts .fact small{display:block;color:var(--muted)}
+.st{display:inline-block;font-size:10.5px;font-weight:600;padding:0 6px;border-radius:999px;margin-left:6px;color:#fff;background:var(--muted)}
+.st.verified{background:var(--ok)}.st.model_output{background:#B26A00}.st.partner_stated{background:var(--blue)}
 .twmap .tw{stroke:#fff;stroke-width:1.2;transition:opacity .15s}
 .twmap .tw:hover{opacity:.75}
 .twmap text{font-size:9px;fill:#132033;pointer-events:none}
@@ -179,7 +192,7 @@ footer.foot span:last-child{margin-left:auto}
           <div class="body"><div class="slot" data-slot="revenue"></div>
             <div class="legend"><span><i style="background:var(--blue-soft)"></i>Receipts</span><span><i style="background:var(--navy-2)"></i>Disbursements</span></div></div>
         </section>
-        <section class="panel">
+        <section class="panel" id="revenue-sources">
           <header><h2>Revenue by source</h2><span class="tag">Sample data</span></header>
           <div class="body"><div class="slot" data-slot="funding"></div><div class="legend" id="fundLegend"></div></div>
         </section>
@@ -296,11 +309,12 @@ footer.foot span:last-child{margin-left:auto}
     </footer>
   </div>
 </div>
+<script src="shared/engine.js"></script>
 <script>
 /* ============================================================
    DATA: real figures. Edit here to update the page.
    Set any entry to null to fall back to the sample visual.
-   Source for all CAD figures: Cass County E911 CAD Daily Blotter
+   Source for all CAD figures: CCFD1 CAD extract (aggregated counts only)
    (Fire + EMS, de-duplicated), CCFD1 = CAD agency "DIST".
    ============================================================ */
 const DATA = {
@@ -582,28 +596,13 @@ function realMap(){
 }
 if(!EMBEDS.map){const el=document.querySelector('[data-slot="map"]'); el.style.minHeight="300px"; el.innerHTML=realMap();}
 
-/* ---------- Scenario: team staffing and compensation cost engine v2 ----------
-   Mirrors private/Scenario_Requirements_Workbook_v2.xlsx, Cost Engine tab.
-   Aggregates only - no individual pay. Per-employee amounts are rounded to whole
-   dollars, as in the workbook. */
-const ENG={AVG_SALARY:56204, LINE_FF:12, POSTS_NOW:4, PAYROLL_TAX:0.0765, OT_COST_CAP:61569,
-  BASE_GAP:635758, AV:307471175, CURRENT_RATE:0.2907, CEILING:0.40, HOUSEHOLD_AV:150000, FUND_BALANCE:1624691};
-function costEngine(i){
-  const E=ENG, R=Math.round;
-  const peoplePerPost=E.LINE_FF/E.POSTS_NOW;
-  const hires=(i.posts-E.POSTS_NOW)*peoplePerPost;
-  const adjSalary=R(E.AVG_SALARY*(1+i.adj));
-  const perEmployee=adjSalary+(i.perf?R(adjSalary*i.perfRate):0)+R(adjSalary*E.PAYROLL_TAX)+i.premium;
-  const layer1=E.LINE_FF*perEmployee-E.LINE_FF*(E.AVG_SALARY+R(E.AVG_SALARY*E.PAYROLL_TAX));
-  const gross=hires*perEmployee;
-  const layer2=gross-(i.otd?Math.min(E.OT_COST_CAP*(1+i.adj),gross):0);
-  const total=layer1+layer2, gap=E.BASE_GAP+total;
-  const addRate=gap/E.AV*100, totalRate=E.CURRENT_RATE+addRate;
-  return {hires,perEmployee,layer1,layer2,total,gap,addRate,totalRate,
-    household:E.HOUSEHOLD_AV/100*addRate, years:gap>0?E.FUND_BALANCE/gap:Infinity};
-}
-/* Years of fund balance, shared by both scenario panels */
-function yearsLabel(y){ return !isFinite(y)?"No drawdown":(y>10?"10+ years":y.toFixed(1)); }
+/* ---------- Scenario math: shared/engine.js ----------
+   costEngine (Scenario 3&4), fundingEngine (Scenario 1), their constants and yearsLabel live in
+   shared/engine.js, which assistant/tools.js also uses, so the panels and the assistant can
+   never disagree. This page only reads the controls and displays the results. */
+const {ENG,S1,costEngine,fundingEngine,yearsLabel}=window.CCFD1Engine;
+
+/* ---------- Scenario: team staffing and compensation cost engine v2 ---------- */
 function runScenario(){
   if(!$("#posts")) return;
   const i={posts:+$("#posts").value, perf:$("#perf").checked, perfRate:+$("#perfRate").value/100,
@@ -627,32 +626,13 @@ function runScenario(){
 ["posts","perf","perfRate","prem","sal","otd"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runScenario)});
 runScenario();
 
-/* ---------- Scenario 1: funding change ----------
-   Same basis as the staffing engine (ENG). Revenue-source amounts are 2024 AFR figures.
+/* ---------- Scenario 1: funding change (math in shared/engine.js) ----------
    Never adds staffing costs itself; it can only start from the staffing panel's gap. */
-const S1={BUDGET_2027:1795950, RECURRING_REVENUE:1160192, BASE_GAP:ENG.BASE_GAP, FUND_BALANCE:ENG.FUND_BALANCE,
-  START_YEAR:2025, YEARS:[2026,2027,2028,2029,2030],
-  SOURCES:{propertyTax:["Property tax",882965], incomeTax:["Local income tax",212041],
-           excise:["Vehicle excise tax",64785], contracts:["Fire protection contracts",21042]}};
-/* Current resulting gap from the staffing panel, read from its controls (engine unchanged) */
+/* Current resulting gap from the staffing panel, read from its controls */
 function staffingGap(){
   if(!$("#posts")) return S1.BASE_GAP;
   return costEngine({posts:+$("#posts").value, perf:$("#perf").checked, perfRate:+$("#perfRate").value/100,
     premium:+$("#prem").value, adj:+$("#sal").value/100, otd:$("#otd").checked}).gap;
-}
-function fundingEngine(i){
-  const src=S1.SOURCES[i.source];
-  const sourceEffect=src?Math.round(src[1]*i.pct):0;                 // recurring
-  const recurring=(i.oneTime?0:i.funding)+sourceEffect;
-  const oneTime=i.oneTime?i.funding:0;                                // year 1 only
-  const revenueChange=recurring+oneTime;
-  const startGap=i.useStaffing?i.staffingGap:S1.BASE_GAP;
-  const year1Gap=startGap-revenueChange, laterGap=startGap-recurring;
-  let bal=S1.FUND_BALANCE; const balances=[];
-  S1.YEARS.forEach((y,k)=>{bal-=(k===0?year1Gap:laterGap); balances.push(bal);});
-  const firstNegative=S1.YEARS.find((y,k)=>balances[k]<0)||null;
-  return {sourceEffect,recurring,oneTime,revenueChange,adjustedRevenue:S1.RECURRING_REVENUE+recurring,
-    startGap,year1Gap,laterGap,balances,firstNegative,years:laterGap>0?S1.FUND_BALANCE/laterGap:Infinity};
 }
 function fundChart(r){
   const ys=[S1.START_YEAR,...S1.YEARS], vs=[S1.FUND_BALANCE,...r.balances];
@@ -709,6 +689,87 @@ if($("#fund")){
   ["posts","perf","perfRate","prem","sal","otd"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runFunding)});
   runFunding();
 }
+
+/* ---------- Sources: data/facts.json ----------
+   facts.json lists every number on the page with its source and status. DATA stays as is;
+   this check compares each number the page uses ("check" path) with facts.json and logs
+   mismatches to the console. Browsers block reading local files, so the page must be served
+   over http (GitHub Pages, or `python -m http.server`) for this to load. */
+const FACTS_URL="data/facts.json";
+let FACTS=null, FACTS_ERR=null;
+const FACT_PANELS={overview:"Key figures",financial:"Receipts and disbursements","revenue-sources":"Revenue by source",gis:"Townships and service area",
+  staffing:"Personnel vs. contracted service cost",uncompensated:"Responses outside the District",cad:"Incidents by hour of day",
+  scenario:"Scenario analysis: staffing and compensation","funding-scenario":"Scenario 1: Funding change"};
+function factValue(path){
+  const [root,...keys]=path.split(".");
+  const walk=(o,ks)=>ks.reduce((v,k)=>v==null?undefined:v[k],o);
+  if(root==="KPI"){const el=document.querySelectorAll(".kpis .kpi .value")[+keys[0]];
+    return el?+el.textContent.replace(/[^0-9.-]/g,""):undefined;}
+  if(root==="DOM"){const el=document.getElementById(keys[0]);
+    return el?(keys[0]==="perfRate"?+el.defaultValue/100:+el.defaultValue):undefined;}
+  if(root==="MODEL"){
+    const m=keys[0]==="staffing"
+      ?costEngine({posts:5,perf:true,perfRate:0.265,premium:0,adj:0,otd:true})
+      :fundingEngine({funding:0,oneTime:false,source:"",pct:0,useStaffing:false,staffingGap:ENG.BASE_GAP});
+    return walk(m,keys.slice(1));}
+  const roots={DATA,ENG,S1};
+  return walk(roots[root],keys);
+}
+function checkFacts(facts){
+  let checked=0; const bad=[];
+  facts.forEach(f=>{ if(!f.check||f.value==null) return;
+    const got=factValue(f.check); checked++;
+    const want=f.value, dec=(String(want).split(".")[1]||"").length;
+    const same=typeof got==="number"&&Math.abs(got-want)<=0.5*Math.pow(10,-dec)+1e-9;
+    if(!same) bad.push({id:f.id,check:f.check,facts:want,page:got});
+  });
+  if(bad.length){console.warn(`facts.json check: ${bad.length} of ${checked} numbers differ from the page`); console.table(bad);}
+  else console.info(`facts.json check: all ${checked} mapped numbers match the page.`);
+  return {checked,bad};
+}
+function fmtFact(f){
+  if(f.value==null) return "Not yet available";
+  const v=f.value, u=f.unit||"";
+  if(Array.isArray(v)) return v.join("–")+(u==="percent"?"%":"");
+  if(u.startsWith("USD per $100")) return "$"+v.toFixed(4)+" per $100 AV";
+  if(u.startsWith("USD")) return (Number.isInteger(v)?money(v):"$"+v.toFixed(2))+(u==="USD per year"?" / yr":"");
+  if(u==="rate") return (v*100).toFixed(2).replace(/\.?0+$/,"")+"%";
+  if(u==="percent") return v+"%";
+  return num(v)+(u&&u!=="count"?" "+u:"");
+}
+function showFacts(panelId){
+  const dlg=$("#factsDlg"), list=dlg.querySelector(".flist");
+  dlg.querySelector("h3").textContent="Sources: "+(FACT_PANELS[panelId]||panelId);
+  list.textContent="";
+  if(!FACTS){
+    list.textContent=FACTS_ERR?"The source list could not be loaded ("+FACTS_ERR+"). Browsers block reading data/facts.json when the page is opened as a local file; view it on GitHub Pages or run `python -m http.server` in the repo folder.":"Loading…";
+  } else {
+    FACTS.filter(f=>f.panel===panelId).forEach(f=>{
+      const d=document.createElement("div"); d.className="fact";
+      const b=document.createElement("b"); b.textContent=f.label+": "+fmtFact(f); d.append(b);
+      const st=document.createElement("span"); st.className="st "+f.status; st.textContent=f.status.replace("_"," "); d.append(st);
+      const s=document.createElement("small"); s.textContent=[f.year_or_period, f.source, f.source_detail].filter(x=>x&&x!=="-").join(" · "); d.append(s);
+      if(f.note){const n=document.createElement("small"); n.textContent=f.note; d.append(n);}
+      list.append(d);
+    });
+  }
+  dlg.showModal();
+}
+(function initSources(){
+  document.body.insertAdjacentHTML("beforeend",'<dialog class="facts" id="factsDlg"><header><h3></h3><button type="button" aria-label="Close sources">Close</button></header><div class="flist"></div></dialog>');
+  const dlg=$("#factsDlg"); dlg.querySelector("header button").addEventListener("click",()=>dlg.close());
+  dlg.addEventListener("click",e=>{if(e.target===dlg)dlg.close();});
+  const addLink=(panelId,after)=>{const btn=document.createElement("button");btn.type="button";btn.className="srclink";
+    btn.textContent="Sources";btn.dataset.panel=panelId;btn.addEventListener("click",()=>showFacts(panelId));after(btn);return btn;};
+  Object.keys(FACT_PANELS).forEach(id=>{
+    if(id==="overview"){const k=$(".kpis"); if(k) addLink(id,b=>k.after(b)); return;}
+    const body=document.getElementById(id)?.querySelector(".body"); if(body) addLink(id,b=>body.append(b));
+  });
+  fetch(FACTS_URL).then(r=>{if(!r.ok) throw new Error("HTTP "+r.status); return r.json();})
+    .then(j=>{FACTS=j.facts; checkFacts(FACTS);
+      document.querySelectorAll(".srclink").forEach(b=>{const n=FACTS.filter(f=>f.panel===b.dataset.panel).length; b.textContent=`Sources (${n})`;});})
+    .catch(e=>{FACTS_ERR=e.message; console.info("facts.json not loaded ("+e.message+"); serve the page over http to enable the source check.");});
+})();
 
 /* ---------- Assistant placeholder ---------- */
 const form=$("#askForm");
