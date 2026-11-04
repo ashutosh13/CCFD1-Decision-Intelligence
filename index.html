@@ -71,6 +71,9 @@ a{color:inherit}
 .panel header .tag.model{color:#fff;background:#B26A00;font-weight:600}
 .panel.model{border-color:#B26A00;box-shadow:inset 0 3px 0 #B26A00}
 .foot .key.model{color:#B26A00}
+.scn select,.scn input.exact{width:100%;margin-top:4px;border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit;font-size:13px;background:#fff}
+.result .sub{display:block;font-style:normal;font-size:11.5px;color:var(--muted)}
+.fchart svg{width:100%;height:auto;display:block}
 .twmap .tw{stroke:#fff;stroke-width:1.2;transition:opacity .15s}
 .twmap .tw:hover{opacity:.75}
 .twmap text{font-size:9px;fill:#132033;pointer-events:none}
@@ -143,6 +146,7 @@ footer.foot span:last-child{margin-left:auto}
         <li><a href="#uncompensated"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v4H4zm0 6h10v4H4zm0 6h6v4H4z"/></svg>Uncompensated service</a></li>
         <li><a href="#cad"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 3h10l2 2v16H5V5zm2 5v2h6V8zm0 4v2h6v-2zm0 4v2h4v-2z"/></svg>Incidents (CAD)</a></li>
         <li><a href="#scenario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Scenario analysis</a></li>
+        <li><a href="#funding-scenario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2.2 2.7 5 3.3 5 1.4 5 3.4-2.2 3.3-5 3.3-5-1.2-5-3.2"/></svg>Scenario 1: Funding</a></li>
         <li><a href="#assistant"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12H8l-4 4z"/></svg>Ask the data</a></li>
       </ul>
     </nav>
@@ -232,6 +236,46 @@ footer.foot span:last-child{margin-left:auto}
               <p class="note" style="margin:0">Debt service is already inside the 2027 budget, so it is not added again. Rates are gross, before circuit-breaker caps, deductions and credits. PERF rate is partner-stated, not yet verified with INPRS. Health premium is a placeholder; see the workbook Sensitivity tab.</p>
             </div></div></div>
         </section>
+        <section class="panel model" id="funding-scenario">
+          <header><h2>Scenario 1: Funding change</h2><span class="tag model">Model: Scenario 1 funding</span></header>
+          <div class="body"><div class="slot" data-slot="fundingScenario" style="min-height:0">
+            <div class="scn">
+              <div><label for="fund">Funding change, $ per year <output id="fundO">$0</output></label>
+                <input type="range" id="fund" min="-500000" max="1000000" step="25000" value="0">
+                <input type="number" id="fundN" class="exact" min="-500000" max="1000000" step="1" value="0" aria-label="Funding change, exact dollars"></div>
+              <div class="ctrls">
+                <label class="toggle"><input type="radio" name="fundType" id="fundRec" value="recurring" checked> Recurring</label>
+                <label class="toggle"><input type="radio" name="fundType" id="fundOne" value="onetime"> One-time (year 1 only)</label>
+              </div>
+              <div class="ctrls">
+                <div><label for="srcSel">Change one revenue source</label>
+                  <select id="srcSel">
+                    <option value="">None</option>
+                    <option value="propertyTax">Property tax</option>
+                    <option value="incomeTax">Local income tax</option>
+                    <option value="excise">Vehicle excise tax</option>
+                    <option value="contracts">Fire protection contracts</option>
+                  </select></div>
+                <div><label for="srcPct">Source change <output id="srcPctO">0%</output></label>
+                  <input type="range" id="srcPct" min="-50" max="50" step="1" value="0"></div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="useStaff"> Start from the staffing scenario's gap</label>
+              <div class="result">
+                <div><span>Recurring revenue, starting</span><b id="f_revStart">–</b></div>
+                <div><span>Recurring revenue, adjusted</span><b id="f_revAdj">–</b><em class="sub" id="f_oneTime"></em></div>
+                <div><span>2027 proposed budget</span><b id="f_budget">–</b></div>
+                <div><span>Starting gap <em class="sub" id="f_basis"></em></span><b id="f_startGap">–</b></div>
+                <div><span id="f_gapLbl">Resulting annual gap</span><b id="f_gap">–</b><em class="sub" id="f_y1"></em></div>
+                <div><span>Years of fund balance</span><b id="f_yrs">–</b></div>
+              </div>
+              <div class="fchart" id="fundChart"></div>
+              <p class="note" style="margin:0" id="f_src"></p>
+              <p class="note" style="margin:0">Planning comparison, not a forecast. Expenses and other revenue held flat. Revenue sources use 2024 AFR amounts. Property tax changes are limited by levy controls and circuit breakers (Scenario 5, pending).</p>
+            </div></div></div>
+        </section>
+      </div>
+
+      <div class="row d">
         <section class="panel" id="assistant">
           <header><h2>Ask the data</h2><span class="tag">Not connected</span></header>
           <div class="body"><div class="slot" data-slot="assistant" style="min-height:0">
@@ -558,6 +602,8 @@ function costEngine(i){
   return {hires,perEmployee,layer1,layer2,total,gap,addRate,totalRate,
     household:E.HOUSEHOLD_AV/100*addRate, years:gap>0?E.FUND_BALANCE/gap:Infinity};
 }
+/* Years of fund balance, shared by both scenario panels */
+function yearsLabel(y){ return !isFinite(y)?"No drawdown":(y>10?"10+ years":y.toFixed(1)); }
 function runScenario(){
   if(!$("#posts")) return;
   const i={posts:+$("#posts").value, perf:$("#perf").checked, perfRate:+$("#perfRate").value/100,
@@ -576,10 +622,93 @@ function runScenario(){
   $("#rateO").style.color=r.totalRate>ENG.CEILING?C.alert:"";
   $("#ceilO").hidden=!(r.totalRate>ENG.CEILING);
   $("#hhO").textContent="+$"+r.household.toFixed(2);
-  $("#yrsO").textContent=isFinite(r.years)?r.years.toFixed(1):"No drawdown";
+  $("#yrsO").textContent=yearsLabel(r.years);
 }
 ["posts","perf","perfRate","prem","sal","otd"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runScenario)});
 runScenario();
+
+/* ---------- Scenario 1: funding change ----------
+   Same basis as the staffing engine (ENG). Revenue-source amounts are 2024 AFR figures.
+   Never adds staffing costs itself; it can only start from the staffing panel's gap. */
+const S1={BUDGET_2027:1795950, RECURRING_REVENUE:1160192, BASE_GAP:ENG.BASE_GAP, FUND_BALANCE:ENG.FUND_BALANCE,
+  START_YEAR:2025, YEARS:[2026,2027,2028,2029,2030],
+  SOURCES:{propertyTax:["Property tax",882965], incomeTax:["Local income tax",212041],
+           excise:["Vehicle excise tax",64785], contracts:["Fire protection contracts",21042]}};
+/* Current resulting gap from the staffing panel, read from its controls (engine unchanged) */
+function staffingGap(){
+  if(!$("#posts")) return S1.BASE_GAP;
+  return costEngine({posts:+$("#posts").value, perf:$("#perf").checked, perfRate:+$("#perfRate").value/100,
+    premium:+$("#prem").value, adj:+$("#sal").value/100, otd:$("#otd").checked}).gap;
+}
+function fundingEngine(i){
+  const src=S1.SOURCES[i.source];
+  const sourceEffect=src?Math.round(src[1]*i.pct):0;                 // recurring
+  const recurring=(i.oneTime?0:i.funding)+sourceEffect;
+  const oneTime=i.oneTime?i.funding:0;                                // year 1 only
+  const revenueChange=recurring+oneTime;
+  const startGap=i.useStaffing?i.staffingGap:S1.BASE_GAP;
+  const year1Gap=startGap-revenueChange, laterGap=startGap-recurring;
+  let bal=S1.FUND_BALANCE; const balances=[];
+  S1.YEARS.forEach((y,k)=>{bal-=(k===0?year1Gap:laterGap); balances.push(bal);});
+  const firstNegative=S1.YEARS.find((y,k)=>balances[k]<0)||null;
+  return {sourceEffect,recurring,oneTime,revenueChange,adjustedRevenue:S1.RECURRING_REVENUE+recurring,
+    startGap,year1Gap,laterGap,balances,firstNegative,years:laterGap>0?S1.FUND_BALANCE/laterGap:Infinity};
+}
+function fundChart(r){
+  const ys=[S1.START_YEAR,...S1.YEARS], vs=[S1.FUND_BALANCE,...r.balances];
+  const W=420,H=170,L=48,T=12,B=22,step=500000;
+  const hi=Math.max(step,Math.ceil(Math.max(...vs)/step)*step), lo=Math.min(0,Math.floor(Math.min(...vs)/step)*step);
+  const sx=k=>L+8+k*(W-L-20)/(ys.length-1), sy=v=>T+(hi-v)/(hi-lo)*(H-T-B);
+  const lab=t=>t===0?"$0":(t<0?"-":"")+"$"+(Math.abs(t)/1e6).toFixed(1)+"M";
+  let g="";
+  for(let t=lo;t<=hi;t+=step){ if(t===0) continue;
+    g+=`<line x1="${L}" x2="${W}" y1="${sy(t)}" y2="${sy(t)}" stroke="${C.line}"/>`;
+    g+=`<text x="${L-4}" y="${sy(t)+4}" font-size="10" text-anchor="end" fill="${C.muted}">${lab(t)}</text>`;}
+  g+=`<line x1="${L}" x2="${W}" y1="${sy(0)}" y2="${sy(0)}" stroke="${C.muted}" stroke-dasharray="4 3"/>`;
+  g+=`<text x="${L-4}" y="${sy(0)+4}" font-size="10" text-anchor="end" fill="${C.muted}">$0</text>`;
+  g+=`<polyline points="${vs.map((v,k)=>sx(k)+","+sy(v)).join(" ")}" fill="none" stroke="${C.navy}" stroke-width="2" stroke-linejoin="round"/>`;
+  vs.forEach((v,k)=>{const neg=v<0, first=ys[k]===r.firstNegative;
+    g+=`<circle cx="${sx(k)}" cy="${sy(v)}" r="${first?5:3.2}" fill="${neg?C.alert:C.navy}" stroke="#fff" stroke-width="1"><title>${ys[k]}${k?" projected":" actual"} end-of-year fund balance: ${money(v)}</title></circle>`;
+    g+=`<text x="${sx(k)}" y="${H-6}" font-size="10" text-anchor="middle" fill="${C.muted}">${ys[k]}</text>`;
+    if(first) g+=`<text x="${sx(k)-9}" y="${Math.min(sy(v)+15,H-B-3)}" font-size="10.5" font-weight="600" text-anchor="end" fill="${C.alert}">Below $0 in ${ys[k]}</text>`;});
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Projected fund balance ${S1.YEARS[0]} to ${S1.YEARS[S1.YEARS.length-1]}">${g}</svg>`;
+}
+function runFunding(){
+  if(!$("#fundN")) return;
+  const i={funding:+$("#fundN").value||0, oneTime:$("#fundOne").checked, source:$("#srcSel").value,
+    pct:+$("#srcPct").value/100, useStaffing:$("#useStaff").checked, staffingGap:staffingGap()};
+  const r=fundingEngine(i);
+  const signed=v=>(v>0?"+":"")+money(v);
+  $("#fundO").textContent=signed(i.funding)+(i.oneTime?" once":"");
+  $("#srcPctO").textContent=(i.pct>0?"+":"")+Math.round(i.pct*100)+"%";
+  $("#srcPct").disabled=!i.source;
+  $("#f_revStart").textContent=money(S1.RECURRING_REVENUE);
+  $("#f_revAdj").textContent=money(r.adjustedRevenue);
+  $("#f_oneTime").textContent=r.oneTime?`Plus one-time ${signed(r.oneTime)} in ${S1.YEARS[0]} only`:"";
+  $("#f_budget").textContent=money(S1.BUDGET_2027);
+  $("#f_basis").textContent=i.useStaffing?"(from staffing scenario)":"(budget minus recurring revenue)";
+  $("#f_startGap").textContent=money(r.startGap);
+  const surplus=r.laterGap<0;
+  $("#f_gapLbl").textContent=surplus?"Resulting annual surplus":"Resulting annual gap";
+  $("#f_gap").textContent=money(Math.abs(r.laterGap));
+  $("#f_gap").style.color=r.laterGap>0?C.alert:"#1E7B4F";
+  $("#f_y1").textContent=r.oneTime?`Year 1 (${S1.YEARS[0]}): ${r.year1Gap<0?"surplus "+money(-r.year1Gap):"gap "+money(r.year1Gap)}`:"";
+  $("#f_yrs").textContent=yearsLabel(r.years);
+  const s=S1.SOURCES[i.source];
+  $("#f_src").textContent=s?`${s[0]}: 2024 AFR amount ${money(s[1])}; ${(i.pct>0?"+":"")+Math.round(i.pct*100)}% = ${signed(r.sourceEffect)} per year (recurring).`:"";
+  $("#f_src").hidden=!s;
+  $("#fundChart").innerHTML=fundChart(r);
+  return r;
+}
+if($("#fund")){
+  $("#fund").addEventListener("input",()=>{$("#fundN").value=$("#fund").value;runFunding();});
+  $("#fundN").addEventListener("input",()=>{$("#fund").value=$("#fundN").value;runFunding();});
+  ["fundRec","fundOne","srcSel","srcPct","useStaff"].forEach(id=>$("#"+id).addEventListener("input",runFunding));
+  $("#srcSel").addEventListener("change",runFunding);
+  /* follow the staffing panel live */
+  ["posts","perf","perfRate","prem","sal","otd"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runFunding)});
+  runFunding();
+}
 
 /* ---------- Assistant placeholder ---------- */
 const form=$("#askForm");
