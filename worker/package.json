@@ -1,0 +1,26 @@
+{
+  "name": "ccfd1-assistant-worker",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker that proxies the CCFD1 dashboard assistant to the Anthropic Messages API.",
+  "scripts": {
+    "sync-tools": "node scripts/sync-tools.mjs",
+    "check-tools": "node scripts/sync-tools.mjs --check",
+    "test": "node scripts/sync-tools.mjs --check && node --test test/*.test.mjs",
+    "dev": "wrangler dev --port 8787",
+    "deploy": "node scripts/sync-tools.mjs --check && node --test test/*.test.mjs && wrangler deploy"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.5.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.158.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20261104.1": true
+  }
+}

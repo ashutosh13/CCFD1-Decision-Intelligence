@@ -376,3 +376,11 @@ private/
 *Payroll*
 *timesheet*
 *Time Sheet*
+
+# Cloudflare Worker (assistant proxy): local secrets and build output - never commit
+worker/node_modules/
+worker/.dev.vars*
+worker/.env*
+worker/.wrangler/
+worker/dist/
+.dev.vars*
