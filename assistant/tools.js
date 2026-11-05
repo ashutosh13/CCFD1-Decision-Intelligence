@@ -267,6 +267,9 @@
         projection: [{ year: S1.START_YEAR, fund_balance: S1.FUND_BALANCE, kind: "partner-stated end-2025 balance" },
           ...S1.YEARS.map((y, k) => ({ year: y, fund_balance: dollars(r.balances[k]), kind: "projected" }))],
         first_year_below_zero: r.firstNegative,
+        baseline_no_change: (() => { const b = fundingEngine(DEFAULTS.funding);
+          return { annual_gap: dollars(b.laterGap), years_of_fund_balance: r1(b.years), first_year_below_zero: b.firstNegative,
+            note: "Same model with no funding change, starting from the $635,758 structural gap." }; })(),
         staffing_scenario: staffingResult ? { inputs: p.staffing.v, ...summarize34(p.staffing.v, staffingResult),
           input_status: s34InputStatus(p.staffing.v) } : null,
         input_status: inputStatus,
@@ -287,6 +290,9 @@
         resulting_gap: dollars(r.gap),
         additional_rate_per_100_av: r4(r.addRate),
         total_rate_per_100_av: r4(r.totalRate),
+        rate_explanation: `The increase is $${r4(r.addRate).toFixed(4)} per $100 AV. Added to the current $${ENG.CURRENT_RATE.toFixed(4)}, ` +
+          `the total operating rate would be $${r4(r.totalRate).toFixed(4)} per $100 AV, ` +
+          `${r.totalRate > ENG.CEILING ? "above" : "within"} the $${ENG.CEILING.toFixed(2)} ceiling. Rates are gross, before circuit-breaker caps.`,
         above_ceiling: r.totalRate > ENG.CEILING,
         ceiling: ENG.CEILING,
         household_increase_150k_av: r2(r.household),

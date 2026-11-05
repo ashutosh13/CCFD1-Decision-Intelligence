@@ -45,6 +45,10 @@ test("run_scenario_1: defaults 635758; +10000 recurring 625758; one-time +500000
   assert.equal(plus.result.annual_gap, 625758);
   assert.equal(d.result.annual_gap - plus.result.annual_gap, 10000);
 
+  assert.deepEqual(plus.result.baseline_no_change.first_year_below_zero, 2028);
+  assert.equal(plus.result.baseline_no_change.annual_gap, 635758);
+  assert.equal(tools.run_scenario_1({ funding_change: 250000 }).result.first_year_below_zero, 2030);
+
   const once = tools.run_scenario_1({ funding_change: 500000, recurring: false });
   assert.equal(once.result.year1_gap, 135758);
   assert.equal(once.result.annual_gap, 635758, "later years return to the baseline");
