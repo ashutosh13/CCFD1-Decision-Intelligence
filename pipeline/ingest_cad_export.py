@@ -23,7 +23,7 @@ MAX_REJECT_RATE = 0.05
 
 def validate_file(path: Path, required: list[str], validator, key: str):
     """Return dict with header errors, valid rows, rejects [(row_no, incident_no, rule, sev)], warns."""
-    res = {"file": path.name, "read": 0, "valid": [], "rejects": [], "warns": Counter(), "file_errors": []}
+    res = {"file": path.name, "table": path.stem, "read": 0, "clean": 0, "warn_only": 0, "fired": Counter(), "valid": [], "rejects": [], "warns": Counter(), "file_errors": []}
     if not path.exists():
         res["file_errors"].append("file_missing")
         return res
@@ -36,7 +36,12 @@ def validate_file(path: Path, required: list[str], validator, key: str):
         findings = validator(row)
         incident_no = (row.get("incident_id") or "").strip()
         errors = [r for r, s in findings if s == v.ERROR]
+        if not findings:
+            res["clean"] += 1
+        elif not errors:
+            res["warn_only"] += 1
         for r, s in findings:
+            res["fired"][r] += 1
             if s == v.ERROR:
                 res["rejects"].append((row_no, incident_no, r, s))
             else:
@@ -75,7 +80,10 @@ def to_int(s):
 def load(conn, inc, resp, township_name: str, run_id: int):
     township_id = get_or_create(conn, "dim_township", "township_id", {"township_name": township_name})
 
+    inc["inserted"] = inc["updated"] = 0
     for _, r in inc["valid"]:
+        exists = conn.execute("SELECT 1 FROM fact_incident WHERE incident_no=?", (r["incident_id"].strip(),)).fetchone()
+        inc["updated" if exists else "inserted"] += 1
         conn.execute(
             """INSERT INTO fact_incident (incident_no, township_id, case_number, event_type,
                    incident_datetime, event_location, latitude, longitude, source_group)
@@ -92,6 +100,7 @@ def load(conn, inc, resp, township_name: str, run_id: int):
 
     inc_ids = {no: i for no, i in conn.execute("SELECT incident_no, incident_id FROM fact_incident")}
     loaded = orphans = 0
+    resp["inserted"] = resp["updated"] = 0
     for row_no, r in resp["valid"]:
         incident_no = r["incident_id"].strip()
         if incident_no not in inc_ids:  # not in this batch nor already in the DB
@@ -104,6 +113,10 @@ def load(conn, inc, resp, township_name: str, run_id: int):
                                 {"department_type": group})
         app_id = get_or_create(conn, "dim_apparatus", "apparatus_id",
                                {"apparatus_name": r["unit_id"].strip(), "department_id": dept_id})
+        exists = conn.execute(
+            "SELECT 1 FROM fact_unit_response WHERE incident_id=? AND apparatus_id IS ? AND dispatch_datetime IS ?",
+            (inc_ids[incident_no], app_id, (r.get("dispatch_datetime") or "").strip() or None)).fetchone()
+        resp["updated" if exists else "inserted"] += 1
         conn.execute(
             """INSERT INTO fact_unit_response (incident_id, apparatus_id, department_id, dispatch_datetime,
                    enroute_datetime, onscene_datetime, clear_datetime, response_seconds, travel_seconds)
@@ -129,7 +142,14 @@ def inc_group(conn, incident_pk):
 
 
 def summarize(res, loaded):
+    fired = Counter(res["fired"])
+    fired.update(r[2] for r in res["rejects"] if r[2] == "orphan_incident")
+    rule_counts = {r: {"severity": sev, "fired": fired.get(r, 0)} for r, sev in v.RULES.get(res["table"], [])}
+    rejected = len({r[0] for r in res["rejects"]})
     return {
+        "rows_inserted_new": res.get("inserted"), "rows_overwrote_existing": res.get("updated"),
+        "rows_clean": res["clean"], "rows_warn_only": res["warn_only"],
+        "rows_rejected_total": rejected, "rule_counts": rule_counts,
         "file": res["file"], "rows_read": res["read"], "rows_loaded": loaded,
         "rows_rejected": len({r[0] for r in res["rejects"]}),
         "file_errors": res["file_errors"],
@@ -185,10 +205,13 @@ def main(argv=None) -> int:
 
     summary = [summarize(inc, inc_loaded), summarize(resp, resp_loaded)]
     args.report_dir.mkdir(parents=True, exist_ok=True)
-    report = args.report_dir / f"ingest_{datetime.now():%Y%m%d_%H%M%S}.json"
+    report = args.report_dir / f"ingest_{datetime.now():%Y%m%d_%H%M%S}_{args.folder.resolve().name.replace(' ', '_')}.json"
     report.write_text(json.dumps({"folder": args.folder.name, "dry_run": args.dry_run, "files": summary}, indent=2))
 
     for s in summary:
+        print(f"{s['file']} | clean={s['rows_clean']} warn_only={s['rows_warn_only']} "
+              f"rejected={s['rows_rejected_total']} (of {s['rows_read']}) | zero-fire rules: "
+              f"{[r for r, c in s['rule_counts'].items() if c['fired'] == 0]}")
         print(f"{s['file']}: read={s['rows_read']} loaded={s['rows_loaded']} rejected={s['rows_rejected']} "
               f"warn_rules={s['warn_rules']} reject_rules={s['reject_rules']} file_errors={s['file_errors']}")
     print(f"report: {report}")

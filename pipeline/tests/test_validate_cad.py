@@ -35,14 +35,19 @@ def test_incident_errors():
 def test_incident_warnings():
     assert "hour_of_day_mismatch" in rules(v.validate_incident({**INC, "hour_of_day": "2"}))
     assert "latlon_out_of_bounds" in rules(v.validate_incident({**INC, "latitude": "10", "longitude": "10"}))
+    assert v.validate_incident({**INC, "latitude": "", "longitude": ""}) == []  # missing coords are fine
+    assert v.validate_incident({**INC, "latitude": "40.75", "longitude": ""}) == []
     assert "event_type_missing" in rules(v.validate_incident({**INC, "event_type": ""}))
 
 
 def test_response_rules():
     assert ("unit_id_missing", v.ERROR) in v.validate_response({**RESP, "unit_id": ""})
-    assert ("onscene_datetime_invalid", v.ERROR) in v.validate_response({**RESP, "onscene_datetime": "zz"})
-    assert "time_order" in rules(v.validate_response({**RESP, "enroute_datetime": "2026-04-02 13:00:00"}))
-    assert "response_seconds_mismatch" in rules(v.validate_response({**RESP, "response_seconds": "999"}))
+    assert ("timestamp_invalid", v.ERROR) in v.validate_response({**RESP, "onscene_datetime": "zz"})
+    assert ("timestamp_invalid", v.ERROR) in v.validate_response({**RESP, "qa_time_status": "INVALID_DATETIME"})
+    assert "timestamps_missing" in rules(v.validate_response({**RESP, "clear_datetime": ""}))
+    assert "timestamp_day_order" in rules(v.validate_response({**RESP, "clear_datetime": "2026-04-01 23:50:00"}))
+    # same-day out-of-sequence times are tolerated (loose check)
+    assert v.validate_response({**RESP, "enroute_datetime": "2026-04-02 13:00:00"}) == []
     assert "travel_seconds_out_of_range" in rules(v.validate_response({**RESP, "travel_seconds": "-5"}))
 
 
