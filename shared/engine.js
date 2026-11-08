@@ -28,7 +28,7 @@
     const total=layer1+layer2, gap=E.BASE_GAP+total;
     const addRate=gap/E.AV*100, totalRate=E.CURRENT_RATE+addRate;
     return {hires,perEmployee,layer1,layer2,total,gap,addRate,totalRate,
-      household:E.HOUSEHOLD_AV/100*addRate, years:gap>0?E.FUND_BALANCE/gap:Infinity};
+      household:E.HOUSEHOLD_AV/100*addRate, householdPct:addRate/E.CURRENT_RATE*100, years:gap>0?E.FUND_BALANCE/gap:Infinity};
   }
 
   /* ---------- Scenario 1: funding change ----------

@@ -62,13 +62,9 @@ a{color:inherit}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-width:0;scroll-margin-top:16px}
 .panel header{display:flex;align-items:center;gap:8px;padding:14px 16px 10px}
 .panel h2{margin:0;font-size:15px;font-weight:600}
-.panel header .tag{margin-left:auto;font-size:11.5px;color:var(--muted);background:var(--tint);padding:3px 8px;border-radius:999px;white-space:nowrap}
-.panel header .tag.real{color:#fff;background:var(--ok);font-weight:600}
 .panel.updated{border-color:var(--ok);box-shadow:inset 0 3px 0 var(--ok)}
 .kpi.updated{border-color:var(--ok);box-shadow:inset 0 3px 0 var(--ok)}
-.kpi .badge{align-self:flex-start;font-size:11px;font-weight:600;color:#fff;background:var(--ok);padding:1px 7px;border-radius:999px}
 .foot .key{color:var(--ok);font-weight:600}
-.panel header .tag.model{color:#fff;background:#B26A00;font-weight:600}
 .panel.model{border-color:#B26A00;box-shadow:inset 0 3px 0 #B26A00}
 .foot .key.model{color:#B26A00}
 .scn select,.scn input.exact{width:100%;margin-top:4px;border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit;font-size:13px;background:#fff}
@@ -193,6 +189,7 @@ footer.foot span:last-child{margin-left:auto}
       <section class="kpis" id="overview" aria-label="Key figures">
         <div class="kpi primary"><span class="label">Structural operating gap, 2027</span><span class="value">$635,758</span><span class="src">Budget minus recurring revenue</span></div>
         <div class="kpi"><span class="label">2027 proposed operating budget</span><span class="value">$1,795,950</span><span class="src">Gateway Form 1 proposal</span></div>
+        <!-- SOURCING OPEN ITEM: $1,160,192 is ~$119K below 2024 AFR operating revenue ($1,279,649). Basis not yet traced; see tmp/sourcing-open-items.html -->
         <div class="kpi"><span class="label">Recurring revenue</span><span class="value">$1,160,192</span><span class="src">2027 orientation basis; 2024 AFR operating revenue was $1,279,649 incl. interest</span></div>
         <div class="kpi"><span class="label">Fund balance, end of 2025</span><span class="value alert" id="fbv">$1,624,691</span><span class="src">Per CCFD1 2025 annual report; down $307,952 from 2023 peak</span></div>
         <div class="kpi" id="kpiIncCard"><span class="label">CCFD1 incidents</span><span class="value" id="kpiIncidents">–</span><span class="src" id="kpiIncidentsSrc">CAD, Fire and EMS</span></div>
@@ -200,16 +197,16 @@ footer.foot span:last-child{margin-left:auto}
 
       <div class="row a">
         <section class="panel" id="financial">
-          <header><h2>Receipts and disbursements, 2011–2025</h2><span class="tag">Sample data</span></header>
+          <header><h2>Receipts and disbursements, 2011–2025</h2></header>
           <div class="body"><div class="slot" data-slot="revenue"></div>
             <div class="legend"><span><i style="background:var(--blue-soft)"></i>Receipts</span><span><i style="background:var(--navy-2)"></i>Disbursements</span></div></div>
         </section>
         <section class="panel" id="revenue-sources">
-          <header><h2>Revenue by source</h2><span class="tag">Sample data</span></header>
+          <header><h2>Revenue by source</h2></header>
           <div class="body"><div class="slot" data-slot="funding"></div><div class="legend" id="fundLegend"></div></div>
         </section>
         <section class="panel" id="gis">
-          <header><h2>Townships and service area</h2><span class="tag">Sample layout</span></header>
+          <header><h2>Townships and service area</h2></header>
           <div class="body"><div class="slot" data-slot="map"></div>
             <div class="legend"><span><i style="background:var(--blue)"></i>CCFD1 taxing townships</span><span><i style="background:var(--tint);border:1px solid var(--line)"></i>Other Cass County townships</span></div></div>
         </section>
@@ -217,22 +214,22 @@ footer.foot span:last-child{margin-left:auto}
 
       <div class="row b">
         <section class="panel" id="staffing">
-          <header><h2>Personnel vs. contracted service cost, 2011–2024</h2><span class="tag">Sample data</span></header>
+          <header><h2>Personnel vs. contracted service cost, 2011–2024</h2></header>
           <div class="body"><div class="slot" data-slot="staffing"></div></div>
         </section>
         <section class="panel" id="uncompensated">
-          <header><h2>Responses outside the District</h2><span class="tag">Sample data</span></header>
+          <header><h2>Responses outside the District</h2></header>
           <div class="body"><div class="slot" data-slot="uncompensated"></div><p class="note" id="uncompNote"></p></div>
         </section>
         <section class="panel" id="cad">
-          <header><h2>Incidents by hour of day</h2><span class="tag">Sample data</span></header>
+          <header><h2>Incidents by hour of day</h2></header>
           <div class="body"><div class="slot" data-slot="cad"></div><p class="note" id="cadNote">Shows the daytime availability pattern.</p></div>
         </section>
       </div>
 
       <div class="row c">
         <section class="panel model" id="scenario">
-          <header><h2>Scenario analysis: staffing and compensation</h2><span class="tag model">Model: team cost engine v2</span></header>
+          <header><h2>Scenario analysis: staffing and compensation</h2></header>
           <div class="body"><div class="slot" data-slot="scenario" style="min-height:0">
             <div class="scn">
               <div class="ctrls">
@@ -240,7 +237,7 @@ footer.foot span:last-child{margin-left:auto}
                   <input type="range" id="posts" min="4" max="8" step="1" value="5"></div>
                 <div><label for="sal">Base salary adjustment <output id="salO">0%</output></label>
                   <input type="range" id="sal" min="0" max="10" step="0.5" value="0"></div>
-                <div><label for="perfRate">PERF 77 employer rate <output id="perfRateO">26.5%</output></label>
+                <div><label for="perfRate"><span><a href="https://www.in.gov/inprs/" target="_blank" rel="noopener">PERF 77</a> employer rate</span> <output id="perfRateO">26.5%</output></label>
                   <input type="range" id="perfRate" min="20" max="30" step="0.5" value="26.5"></div>
                 <div><label for="prem">Health premium per employee <output id="premO">No quote exists - placeholder</output></label>
                   <input type="range" id="prem" min="0" max="30000" step="1000" value="0"></div>
@@ -254,18 +251,18 @@ footer.foot span:last-child{margin-left:auto}
                 <div><span>Total annual change</span><b id="totO">–</b></div>
                 <div><span>Resulting operating gap</span><b id="gapO">–</b></div>
                 <div><span>Additional rate per $100 AV</span><b id="addO">–</b></div>
-                <div><span>Total operating rate</span><b id="rateO">–</b><em class="flag" id="ceilO" hidden>Above the $0.40 ceiling</em></div>
-                <div><span>Household increase at $150,000 AV, per year</span><b id="hhO">–</b></div>
+                <div><span>Total operating rate</span><b id="rateO">–</b></div>
+                <div><span>Household tax increase at $150,000 AV, per year</span><b id="hhO">–</b><em class="sub" id="hhSub"></em></div>
                 <div><span>Years of fund balance</span><b id="yrsO">–</b></div>
               </div>
               <p class="note" style="margin:0">Debt service is already inside the 2027 budget, so it is not added again. Rates are gross, before circuit-breaker caps, deductions and credits. PERF rate is partner-stated, not yet verified with INPRS. Health premium is a placeholder; see the workbook Sensitivity tab.</p>
             </div></div></div>
         </section>
         <section class="panel model" id="funding-scenario">
-          <header><h2>Scenario 1: Funding change</h2><span class="tag model">Model: Scenario 1 funding</span></header>
+          <header><h2>Scenario 1: Funding change</h2></header>
           <div class="body"><div class="slot" data-slot="fundingScenario" style="min-height:0">
             <div class="scn">
-              <div><label for="fund">Funding change, $ per year <output id="fundO">$0</output></label>
+              <div><label for="fund">Additional funding (new money), $ per year <output id="fundO">$0</output></label>
                 <input type="range" id="fund" min="-500000" max="1000000" step="25000" value="0">
                 <input type="number" id="fundN" class="exact" min="-500000" max="1000000" step="1" value="0" aria-label="Funding change, exact dollars"></div>
               <div class="ctrls">
@@ -273,7 +270,7 @@ footer.foot span:last-child{margin-left:auto}
                 <label class="toggle"><input type="radio" name="fundType" id="fundOne" value="onetime"> One-time (year 1 only)</label>
               </div>
               <div class="ctrls">
-                <div><label for="srcSel">Change one revenue source</label>
+                <div><label for="srcSel">Or change an existing revenue source (2024 amount)</label>
                   <select id="srcSel">
                     <option value="">None</option>
                     <option value="propertyTax">Property tax</option>
@@ -302,7 +299,7 @@ footer.foot span:last-child{margin-left:auto}
 
       <div class="row d">
         <section class="panel" id="assistant">
-          <header><h2>Ask the data</h2><span class="tag">Not connected</span></header>
+          <header><h2>Ask the data</h2></header>
           <div class="body"><div class="slot" data-slot="assistant" style="min-height:0">
             <div class="chat">
               <div class="msgs" id="msgs" aria-live="polite">
@@ -317,7 +314,7 @@ footer.foot span:last-child{margin-left:auto}
     </main>
 
     <footer class="foot">
-      <span>Prototype. <span class="key">Green = real data, source named on the tag.</span> <span class="key model">Amber = model output from the team cost engine.</span> Grey = sample or not connected.</span>
+      <span>Prototype. <span class="key">Green outline = real data.</span> <span class="key model">Amber outline = model output from the team cost engine.</span> No outline = sample or not connected.</span>
       <span id="footUpdated">Last updated: –</span>
       <span>Sources: Indiana Gateway AFRs 2011–2024 (reconciled), Cass County E911 CAD (Sep 2025–Sep 2026), CCFD1 payroll aggregates.</span>
     </footer>
@@ -407,8 +404,6 @@ const $ = s => document.querySelector(s);
 const money = n => (n<0?"-":"") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
 const num = n => Math.round(n).toLocaleString("en-US");
 function markReal(slotKey, text){
-  const tag=document.querySelector(`[data-slot="${slotKey}"]`)?.closest(".panel")?.querySelector(".tag");
-  if(tag){tag.textContent=text; tag.classList.add("real");}
   document.querySelector(`[data-slot="${slotKey}"]`)?.closest(".panel")?.classList.add("updated");
 }
 
@@ -572,12 +567,12 @@ const SAMPLES={revenue:finBars,funding:finDonut,map:townshipMap,
 if(DATA.incidents!=null){
   $("#kpiIncidents").textContent=num(DATA.incidents);
   $("#kpiIncidentsSrc").textContent=`${DATA.cadPeriod}, CAD, Fire and EMS`;
-  const kc=$("#kpiIncCard"); kc.classList.add("updated"); kc.insertAdjacentHTML("afterbegin",'<span class="badge">Updated</span>');
+  const kc=$("#kpiIncCard"); kc.classList.add("updated"); 
 }
-/* Financial KPI cards: sourced figures, so they get the same Updated badge; each keeps its .src line */
+/* Financial KPI cards: sourced figures, so they get the green outline; each keeps its .src line */
 document.querySelectorAll(".kpis .kpi").forEach(k=>{
   if(k.id==="kpiIncCard"||k.classList.contains("updated")) return;
-  k.classList.add("updated"); k.insertAdjacentHTML("afterbegin",'<span class="badge">Updated</span>');
+  k.classList.add("updated"); 
 });
 $("#footUpdated").textContent="Last updated: "+(DATA.updated||"–");
 
@@ -637,9 +632,8 @@ function runScenario(){
   $("#gapO").textContent=money(r.gap); $("#gapO").style.color=r.gap>0?C.alert:"#1E7B4F";
   $("#addO").textContent="$"+r.addRate.toFixed(4);
   $("#rateO").textContent="$"+r.totalRate.toFixed(4);
-  $("#rateO").style.color=r.totalRate>ENG.CEILING?C.alert:"";
-  $("#ceilO").hidden=!(r.totalRate>ENG.CEILING);
-  $("#hhO").textContent="+$"+r.household.toFixed(2);
+  $("#hhO").textContent="+"+r.householdPct.toFixed(1)+"%";
+  $("#hhSub").textContent="+$"+r.household.toFixed(2)+" on the current operating rate of $"+ENG.CURRENT_RATE.toFixed(4);
   $("#yrsO").textContent=yearsLabel(r.years);
 }
 ["posts","perf","perfRate","prem","sal","otd"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runScenario)});
@@ -679,7 +673,8 @@ function runFunding(){
   const r=fundingEngine(i);
   const signed=v=>(v>0?"+":"")+money(v);
   $("#fundO").textContent=signed(i.funding)+(i.oneTime?" once":"");
-  $("#srcPctO").textContent=(i.pct>0?"+":"")+Math.round(i.pct*100)+"%";
+  const pctTxt=(i.pct>0?"+":"")+Math.round(i.pct*100)+"%", base=S1.SOURCES[i.source];
+  $("#srcPctO").textContent=base?`${money(base[1])} → ${money(base[1]+r.sourceEffect)} (${pctTxt})`:pctTxt;
   $("#srcPct").disabled=!i.source;
   $("#f_revStart").textContent=money(S1.RECURRING_REVENUE);
   $("#f_revAdj").textContent=money(r.adjustedRevenue);
@@ -700,6 +695,7 @@ function runFunding(){
   return r;
 }
 if($("#fund")){
+  [...$("#srcSel").options].forEach(o=>{const s=S1.SOURCES[o.value]; if(s) o.textContent=`${s[0]} (${money(s[1])})`;});
   $("#fund").addEventListener("input",()=>{$("#fundN").value=$("#fund").value;runFunding();});
   $("#fundN").addEventListener("input",()=>{$("#fund").value=$("#fundN").value;runFunding();});
   ["fundRec","fundOne","srcSel","srcPct","useStaff"].forEach(id=>$("#"+id).addEventListener("input",runFunding));
@@ -959,8 +955,8 @@ function setAskBusy(b){
   const form=$("#askForm"); if(!form) return;
   form.addEventListener("submit",e=>{e.preventDefault();const q=$("#askIn").value.trim();if(!q||askBusy)return;$("#askIn").value="";askQuestion(q);});
   if(!ASSISTANT_URL) return;   // not connected: keep today's behaviour
-  const panel=$("#assistant"), tag=panel.querySelector(".tag");
-  panel.classList.add("model"); tag.className="tag model"; tag.textContent="AI assistant (beta)";
+  const panel=$("#assistant");
+  panel.classList.add("model");
   $("#askNote").hidden=false;
   const s=$("#askSuggest"); s.hidden=false;
   ASK.suggestions.forEach(q=>{const b=document.createElement("button");b.type="button";b.textContent=q;

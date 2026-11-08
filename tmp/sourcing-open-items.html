@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCFD1 dashboard: sourcing open items</title>
+<style>
+body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;max-width:860px;margin:32px auto;padding:0 16px;color:#132033}
+h1{font-size:22px}h2{font-size:17px;margin-top:28px}
+table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+th,td{border:1px solid #D9E2EC;padding:6px 9px;text-align:left;vertical-align:top}
+th{background:#E8EFF7}td.n{text-align:right;font-variant-numeric:tabular-nums}
+.q{background:#FFF6E0;padding:8px 12px;border-left:4px solid #B26A00;margin:10px 0}
+</style>
+</head>
+<body>
+<h1>CCFD1 dashboard: sourcing open items</h1>
+<p>Prepared 2026-11-05 from reading the dashboard code. Nothing here was checked against the source documents themselves.</p>
+
+<h2>1. Recurring revenue basis ($1,160,192)</h2>
+<table>
+<tr><th>Figure</th><th>Value</th><th>Where it appears</th></tr>
+<tr><td>Recurring revenue (2027 orientation basis)</td><td class="n">$1,160,192</td><td>Overview KPI, and the starting point of both scenario models</td></tr>
+<tr><td>2024 AFR operating revenue, incl. interest</td><td class="n">$1,279,649</td><td>Financial panel, <code>DATA.finance</code></td></tr>
+<tr><td>Difference</td><td class="n">$119,457</td><td>Makes the 2027 gap ($635,758) about 19% larger than it would be on 2024 actuals ($516,301)</td></tr>
+</table>
+<div class="q"><b>To investigate:</b> what is $1,160,192 derived from (Gateway budget filing, scope document, or a team estimate), and which 2024 items does it leave out? The KPI card says only "2027 orientation basis".</div>
+<p>Both scenario models use this figure and the $1,795,950 budget, so any correction changes every gap, years-of-fund-balance and tax-rate result.</p>
+
+<h2>2. Personnel shows $0 for 2011-2018</h2>
+<p>The contracted series is the comparison. Personnel and contracted cost swap places in 2019-2020:</p>
+<table>
+<tr><th>Year</th><th>Personnel</th><th>Contracted and professional</th><th>Sum</th></tr>
+<tr><td>2018</td><td class="n">$0</td><td class="n">$677,458</td><td class="n">$677,458</td></tr>
+<tr><td>2019</td><td class="n">$1,300</td><td class="n">$727,980</td><td class="n">$729,280</td></tr>
+<tr><td>2020</td><td class="n">$565,791</td><td class="n">$57,217</td><td class="n">$623,008</td></tr>
+<tr><td>2021</td><td class="n">$648,290</td><td class="n">$57,195</td><td class="n">$705,485</td></tr>
+</table>
+<ul>
+<li>Contracted cost sat at roughly $620-730K a year for 2011-2019, then fell about 92% in 2020, the same year personnel appeared. The combined total is similar either side of the change (about $680K in 2018, $623K in 2020).</li>
+<li>Contracted cost was about 86-87% of operating spending in 2011 and 2018. That fits the idea that staffing was bought as a contracted service before the District hired its own staff.</li>
+<li>So the zeros most likely mean "not on the District payroll yet", not "no staffing cost". This is an inference. The dashboard note already says the district moved from contracted service to its own staff in 2020.</li>
+<li>The $57-65K left in contracted cost after 2020 is probably real professional services (legal, accounting, and so on). The series label is "contracted and professional services", so it is not purely staffing.</li>
+</ul>
+<div class="q"><b>To confirm in the AFRs:</b> the 2011-2019 contracted line items (who the contract was with), the 2019 partial-year payroll, and what the "Employee Benefits" line covers (the dashboard note says this is still being confirmed).</div>
+
+<h2>3. Other items from the review</h2>
+<table>
+<tr><th>Item</th><th>Detail</th><th>Needed</th></tr>
+<tr><td>Incident count definition</td><td>Dashboard shows 604 (CAD agency "DIST", Sep 2025 - Sep 2026). DATA_DICTIONARY.md says 8,936 for a similar window.</td><td>Confirm which definition each document means and fix the dictionary.</td></tr>
+<tr><td>Fund balance vs. flows</td><td>Ending balance does not equal prior balance + revenue - spending in 2013, 2019 (gap $400,000) and 2023 (gap $690,000). Likely excluded loan proceeds or transfers.</td><td>Name the excluded item per year in the sources.</td></tr>
+<tr><td>2025 balance source</td><td>$1,624,691 comes from the annual report; the 2025 AFR is pending.</td><td>Replace with the AFR figure when it exists.</td></tr>
+<tr><td>2024 revenue sources</td><td>The five sources sum to $1,279,648, $1 under the $1,279,649 total.</td><td>Rounding in the AFR, or a transcription slip.</td></tr>
+<tr><td>PERF 77 rate</td><td>26.5% is partner-stated, not verified with INPRS. "PERF" and "77 Fund" are different INPRS plans.</td><td>Confirm the plan name and rate with INPRS.</td></tr>
+<tr><td>Health premium</td><td>$0 placeholder; no quote exists. Understates cost.</td><td>Obtain a quote.</td></tr>
+</table>
+</body>
+</html>
