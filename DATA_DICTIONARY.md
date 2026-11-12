@@ -63,7 +63,9 @@ numbers or individual pay.
 | `LINE_FF` | 12 | Line firefighters |
 | `POSTS_NOW` | 4 | Continuously staffed posts today |
 | `PAYROLL_TAX` | 7.65% | |
-| `OT_COST_CAP` | $61,569 | Overtime actually recorded; caps the overtime offset |
+| `OT_COST_CAP` | $61,569 | Overtime recorded in the 2026 timesheet; reference only, no longer used in the math |
+| `FTE_PER_POST` | 3.179 | Derived: 8,760 post hours / 2,756 FLSA hours |
+| `BASE_PERSONNEL` | $726,036 | 12 x $60,503 (salary + payroll tax); source of truth for the existing personnel line |
 | `BASE_GAP` | $635,758 | = structural gap |
 | `AV` | $307,471,175 | 2027 assessed value |
 | `CURRENT_RATE` | $0.2907 per $100 AV | |
@@ -72,8 +74,11 @@ numbers or individual pay.
 | `FUND_BALANCE` | $1,624,691 | Partner-stated |
 
 User inputs: posts (4–8), fund PERF 77 pension, PERF rate (20–30%, default 26.5% **partner-stated, not
-verified with INPRS**), health premium per employee ($0–30,000, default $0 is a **placeholder**, no quote
-exists), salary adjustment (0–10%), overtime displacement.
+verified with INPRS**), health premium per employee ($0–30,000, default $10,000 is an **assumption**: there is no
+health insurance today and no quote exists), salary adjustment (0–10%), firefighters employed (12–32;
+follows the posts until set directly). Overtime is computed in the baseline and the scenario and
+differenced; zero scenario overtime is a target pending partner investigation. Outputs include the
+per-firefighter loaded cost, total health program cost and total personnel cost for the whole service.
 
 **Scenario 1 (`S1`)** — fact ids `s1.*`
 

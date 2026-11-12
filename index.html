@@ -261,19 +261,24 @@ footer.foot span:last-child{margin-left:auto}
               <div class="ctrls">
                 <div><label for="posts">Posts staffed, proposed (now 4) <output id="postsO">5</output></label>
                   <input type="range" id="posts" min="4" max="8" step="1" value="5"></div>
+                <div><label for="ffs">Firefighters employed (now 12) <output id="ffsO">16</output></label>
+                  <input type="range" id="ffs" min="12" max="32" step="1" value="16"></div>
                 <div><label for="sal">Base salary adjustment <output id="salO">0%</output></label>
                   <input type="range" id="sal" min="0" max="10" step="0.5" value="0"></div>
                 <div><label for="perfRate"><span><a href="https://www.in.gov/inprs/" target="_blank" rel="noopener">PERF 77</a> employer rate</span> <output id="perfRateO">26.5%</output></label>
                   <input type="range" id="perfRate" min="20" max="30" step="0.5" value="26.5"></div>
-                <div><label for="prem">Health premium per employee <output id="premO">No quote exists - placeholder</output></label>
-                  <input type="range" id="prem" min="0" max="30000" step="1000" value="0"></div>
+                <div><label for="prem">Health premium per employee <output id="premO">$10,000 (assumption)</output></label>
+                  <input type="range" id="prem" min="0" max="30000" step="1000" value="10000"></div>
                 <label class="toggle"><input type="checkbox" id="perf" checked> Fund PERF 77</label>
-                <label class="toggle"><input type="checkbox" id="otd" checked> Apply overtime displacement</label>
               </div>
               <div class="result">
                 <div class="wide"><span>Hires required</span><b id="hiresO">–</b></div>
+                <div class="wide"><span>Cost per firefighter, loaded</span><b id="perO">–</b><em class="sub" id="perSub"></em></div>
+                <div><span>Total health program cost (whole service)</span><b id="healthO">–</b><em class="sub" id="healthSub"></em></div>
+                <div><span>Total personnel cost (whole service)</span><b id="persTotO">–</b><em class="sub" id="persTotSub"></em></div>
                 <div><span>Compensation decision (existing staff)</span><b id="l1O">–</b></div>
-                <div><span>Net staffing decision (new hires)</span><b id="l2O">–</b></div>
+                <div><span>New hires</span><b id="l2O">–</b></div>
+                <div><span>Overtime change</span><b id="otO">–</b><em class="sub" id="otSub"></em></div>
                 <div><span>Total annual change</span><b id="totO">–</b></div>
                 <div><span>Resulting operating gap</span><b id="gapO">–</b></div>
                 <div><span>Additional rate per $100 AV</span><b id="addO">–</b></div>
@@ -281,7 +286,7 @@ footer.foot span:last-child{margin-left:auto}
                 <div><span>Household tax increase at $150,000 AV, per year</span><b id="hhO">–</b><em class="sub" id="hhSub"></em></div>
                 <div><span>Years of fund balance</span><b id="yrsO">–</b></div>
               </div>
-              <p class="note" style="margin:0">Debt service is already inside the 2027 budget, so it is not added again. Rates are gross, before circuit-breaker caps, deductions and credits. PERF rate is partner-stated, not yet verified with INPRS. Health premium is a placeholder; see the workbook Sensitivity tab.</p>
+              <p class="note" style="margin:0">Debt service is already inside the 2027 budget, so it is not added again. Rates are gross, before circuit-breaker caps, deductions and credits. PERF rate is partner-stated, not yet verified with INPRS. The health premium is an assumption: there is no health insurance today and no quote exists. Payroll tax is inside the $726,036 baseline, and items no scenario changes are held at 2026 levels. Zero overtime is a staffing target pending partner investigation, not a guaranteed result.</p>
             </div></div></div>
         </section>
         <section class="panel model" id="funding-scenario">
@@ -657,20 +662,34 @@ if(!EMBEDS.map){const el=document.querySelector('[data-slot="map"]'); el.style.m
    costEngine (Scenario 3&4), fundingEngine (Scenario 1), their constants and yearsLabel live in
    shared/engine.js, which assistant/tools.js also uses, so the panels and the assistant can
    never disagree. This page only reads the controls and displays the results. */
-const {ENG,S1,costEngine,fundingEngine,yearsLabel}=window.CCFD1Engine;
+const {ENG,S1,costEngine,fundingEngine,defaultFirefighters,yearsLabel}=window.CCFD1Engine;
 
-/* ---------- Scenario: team staffing and compensation cost engine v2 ---------- */
-function runScenario(){
+/* ---------- Scenario: staffing and compensation cost engine (spec v3) ---------- */
+let ffsAuto=true;   // firefighters follow the posts until the user sets headcount directly
+function staffingInput(){
+  return {posts:+$("#posts").value, firefighters:+$("#ffs").value, perf:$("#perf").checked, perfRate:+$("#perfRate").value/100,
+    premium:+$("#prem").value, adj:+$("#sal").value/100};
+}
+function runScenario(ev){
   if(!$("#posts")) return;
-  const i={posts:+$("#posts").value, perf:$("#perf").checked, perfRate:+$("#perfRate").value/100,
-    premium:+$("#prem").value, adj:+$("#sal").value/100, otd:$("#otd").checked};
-  $("#postsO").textContent=i.posts; $("#salO").textContent=(i.adj*100).toFixed(1).replace(/\.0$/,"")+"%";
+  if(ev&&ev.target&&ev.target.id==="ffs") ffsAuto=false;
+  if(ffsAuto) $("#ffs").value=defaultFirefighters(+$("#posts").value);
+  const i=staffingInput();
+  $("#postsO").textContent=i.posts; $("#ffsO").textContent=i.firefighters; $("#salO").textContent=(i.adj*100).toFixed(1).replace(/\.0$/,"")+"%";
   $("#perfRateO").textContent=(i.perfRate*100).toFixed(1).replace(/\.0$/,"")+"%";
   $("#perfRate").disabled=!i.perf;
-  $("#premO").textContent=i.premium?money(i.premium):"No quote exists - placeholder";
-  const r=costEngine(i);
+  $("#premO").textContent=i.premium?money(i.premium)+" (assumption)":"$0 (no insurance)";
+  const r=costEngine(i), pp=r.perPerson;
   $("#hiresO").textContent=num(r.hires);
+  $("#perO").textContent=money(r.perEmployee);
+  $("#perSub").textContent="salary "+money(pp.salary)+" + PERF "+money(pp.perf)+" + payroll tax "+money(pp.tax)+" + health "+money(pp.health);
+  $("#healthO").textContent=money(r.healthTotal);
+  $("#healthSub").textContent=r.firefighters+" firefighters x "+money(pp.health)+" = "+r.healthShare.toFixed(1)+"% of personnel cost";
+  $("#persTotO").textContent=money(r.personnelTotal);
+  $("#persTotSub").textContent="today: "+money(ENG.BASE_PERSONNEL)+" plus "+money(r.otBase.cost)+" overtime";
   $("#l1O").textContent=money(r.layer1); $("#l2O").textContent=money(r.layer2);
+  $("#otO").textContent=money(r.otChange);
+  $("#otSub").textContent=num(Math.round(r.otBase.hours))+" hrs now, "+num(Math.round(r.otScen.hours))+" hrs in scenario"+(r.otScen.hours===0?" (target, to be confirmed with partner)":"");
   $("#totO").textContent=money(r.total);
   $("#gapO").textContent=money(r.gap); $("#gapO").style.color=r.gap>0?C.alert:"#1E7B4F";
   $("#addO").textContent="$"+r.addRate.toFixed(4);
@@ -679,7 +698,7 @@ function runScenario(){
   $("#hhSub").textContent="+$"+r.household.toFixed(2)+" on the current operating rate of $"+ENG.CURRENT_RATE.toFixed(4);
   $("#yrsO").textContent=yearsLabel(r.years);
 }
-["posts","perf","perfRate","prem","sal","otd"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runScenario)});
+["posts","ffs","perf","perfRate","prem","sal"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runScenario)});
 runScenario();
 
 /* ---------- Scenario 1: funding change (math in shared/engine.js) ----------
@@ -687,8 +706,7 @@ runScenario();
 /* Current resulting gap from the staffing panel, read from its controls */
 function staffingGap(){
   if(!$("#posts")) return S1.BASE_GAP;
-  return costEngine({posts:+$("#posts").value, perf:$("#perf").checked, perfRate:+$("#perfRate").value/100,
-    premium:+$("#prem").value, adj:+$("#sal").value/100, otd:$("#otd").checked}).gap;
+  return costEngine(staffingInput()).gap;
 }
 function fundChart(r){
   const ys=[S1.START_YEAR,...S1.YEARS], vs=[S1.FUND_BALANCE,...r.balances];
@@ -744,7 +762,7 @@ if($("#fund")){
   ["fundRec","fundOne","srcSel","srcPct","useStaff"].forEach(id=>$("#"+id).addEventListener("input",runFunding));
   $("#srcSel").addEventListener("change",runFunding);
   /* follow the staffing panel live */
-  ["posts","perf","perfRate","prem","sal","otd"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runFunding)});
+  ["posts","ffs","perf","perfRate","prem","sal"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runFunding)});
   runFunding();
 }
 
@@ -767,7 +785,7 @@ function factValue(path){
     return el?(keys[0]==="perfRate"?+el.defaultValue/100:+el.defaultValue):undefined;}
   if(root==="MODEL"){
     const m=keys[0]==="staffing"
-      ?costEngine({posts:5,perf:true,perfRate:0.265,premium:0,adj:0,otd:true})
+      ?costEngine(window.CCFD1Engine.DEFAULTS.staffing)
       :fundingEngine({funding:0,oneTime:false,source:"",pct:0,useStaffing:false,staffingGap:ENG.BASE_GAP});
     return walk(m,keys.slice(1));}
   const roots={DATA,ENG,S1};

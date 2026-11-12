@@ -144,7 +144,13 @@ export const TOOL_SCHEMAS = [
               "type": "integer",
               "minimum": 4,
               "maximum": 8,
-              "description": "Continuously staffed posts after the change. Whole number 4-8; the district staffs 4 now. Default 5. Each added post needs 3 hires."
+              "description": "Continuously staffed posts after the change. Whole number 4-8; the district staffs 4 now. Default 5. Each added post needs 3.18 firefighters (8,760 / 2,756 hours)."
+            },
+            "firefighters": {
+              "type": "integer",
+              "minimum": 12,
+              "maximum": 32,
+              "description": "Line firefighters employed, 12-32. Omit to size the roster automatically to cover the posts (12 at 4 posts, 16 at 5). Fewer than 3.18 per post leaves overtime."
             },
             "fund_perf": {
               "type": "boolean",
@@ -160,17 +166,13 @@ export const TOOL_SCHEMAS = [
               "type": "number",
               "minimum": 0,
               "maximum": 30000,
-              "description": "Health premium per employee in US dollars per year, 0-30000 (dashboard steps of 1000). Default 0, a placeholder because no quote exists - it understates cost."
+              "description": "Health premium per employee in US dollars per year, 0-30000 (dashboard steps of 1000). Default 10000, an assumption: there is no health insurance today and no quote exists. 0 is the no-benefit case."
             },
             "salary_adj": {
               "type": "number",
               "minimum": 0,
               "maximum": 10,
               "description": "Base salary adjustment in percent, 0-10 (dashboard steps of 0.5). Default 0. Applied before PERF."
-            },
-            "ot_displacement": {
-              "type": "boolean",
-              "description": "Let new hires displace overtime, capped at the overtime actually recorded ($61,569 a year, scaled by any salary adjustment). Default true."
             }
           },
           "required": [],
@@ -184,7 +186,7 @@ export const TOOL_SCHEMAS = [
   },
   {
     "name": "run_scenario_34",
-    "description": "Scenario 3&4 team cost engine v2: annual cost of adding staffed posts and/or funding PERF 77 pension and health benefits for existing firefighters, and the gross tax rate needed to fund it. Use it for questions about hiring, adding a post or shift position, benefits, pension, or what a change would do to the tax rate or a $150,000 household. Results are model_output; inputs carry their own status.",
+    "description": "Scenario 3&4 cost engine (spec v3): annual cost of adding staffed posts and/or funding PERF 77 pension and health benefits for existing firefighters, and the gross tax rate needed to fund it. Use it for questions about hiring, adding a post or shift position, benefits, pension, or what a change would do to the tax rate or a $150,000 household. Results are model_output; inputs carry their own status.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -192,7 +194,13 @@ export const TOOL_SCHEMAS = [
           "type": "integer",
           "minimum": 4,
           "maximum": 8,
-          "description": "Continuously staffed posts after the change. Whole number 4-8; the district staffs 4 now. Default 5. Each added post needs 3 hires."
+          "description": "Continuously staffed posts after the change. Whole number 4-8; the district staffs 4 now. Default 5. Each added post needs 3.18 firefighters (8,760 / 2,756 hours)."
+        },
+        "firefighters": {
+          "type": "integer",
+          "minimum": 12,
+          "maximum": 32,
+          "description": "Line firefighters employed, 12-32. Omit to size the roster automatically to cover the posts (12 at 4 posts, 16 at 5). Fewer than 3.18 per post leaves overtime."
         },
         "fund_perf": {
           "type": "boolean",
@@ -208,17 +216,13 @@ export const TOOL_SCHEMAS = [
           "type": "number",
           "minimum": 0,
           "maximum": 30000,
-          "description": "Health premium per employee in US dollars per year, 0-30000 (dashboard steps of 1000). Default 0, a placeholder because no quote exists - it understates cost."
+          "description": "Health premium per employee in US dollars per year, 0-30000 (dashboard steps of 1000). Default 10000, an assumption: there is no health insurance today and no quote exists. 0 is the no-benefit case."
         },
         "salary_adj": {
           "type": "number",
           "minimum": 0,
           "maximum": 10,
           "description": "Base salary adjustment in percent, 0-10 (dashboard steps of 0.5). Default 0. Applied before PERF."
-        },
-        "ot_displacement": {
-          "type": "boolean",
-          "description": "Let new hires displace overtime, capped at the overtime actually recorded ($61,569 a year, scaled by any salary adjustment). Default true."
         }
       },
       "required": [],
@@ -227,7 +231,7 @@ export const TOOL_SCHEMAS = [
   },
   {
     "name": "compare_to_baseline",
-    "description": "Compare a scenario's resulting annual gap with the $635,758 structural gap and break the difference into its components (compensation vs staffing for Scenario 3&4; funding, source change and starting point for Scenario 1). Use it when the user asks how much a change adds or removes, or why the gap moved.",
+    "description": "Compare a scenario's resulting annual gap with the $635,758 structural gap and break the difference into its components (compensation, new hires and overtime for Scenario 3&4; funding, source change and starting point for Scenario 1). Use it when the user asks how much a change adds or removes, or why the gap moved.",
     "input_schema": {
       "type": "object",
       "properties": {

@@ -68,18 +68,19 @@
       perf_rate: p.perf_rate ?? d.perfRate * 100,
       premium: p.premium ?? d.premium,
       salary_adj: p.salary_adj ?? d.adj * 100,
-      ot_displacement: p.ot_displacement ?? d.otd
+      firefighters: p.firefighters ?? null
     };
     const errs = [];
     if (!Number.isInteger(v.posts_proposed) || v.posts_proposed < 4 || v.posts_proposed > 8)
       errs.push(`posts_proposed must be a whole number from 4 to 8 (got ${v.posts_proposed})`);
     if (typeof v.fund_perf !== "boolean") errs.push("fund_perf must be true or false");
-    if (typeof v.ot_displacement !== "boolean") errs.push("ot_displacement must be true or false");
+    if (v.firefighters !== null && (!Number.isInteger(v.firefighters) || v.firefighters < 12 || v.firefighters > 32))
+      errs.push(`firefighters must be a whole number from 12 to 32 (got ${v.firefighters})`);
     [["perf_rate", v.perf_rate, 20, 30], ["premium", v.premium, 0, 30000], ["salary_adj", v.salary_adj, 0, 10]]
       .forEach(([n, x, lo, hi]) => { const e = checkRange(n, x, lo, hi); if (e) errs.push(e); });
     if (errs.length) return { errs };
     return { v, engineInput: { posts: v.posts_proposed, perf: v.fund_perf, perfRate: v.perf_rate / 100,
-      premium: v.premium, adj: v.salary_adj / 100, otd: v.ot_displacement } };
+      premium: v.premium, adj: v.salary_adj / 100, firefighters: v.firefighters } };
   }
   function s34InputStatus(v) {
     return [
@@ -87,11 +88,12 @@
       { input: "perf_rate", value: v.fund_perf ? v.perf_rate : null,
         status: v.fund_perf ? (v.perf_rate === 26.5 ? "partner_stated" : "user_input") : "not_used",
         note: "26.5% is partner-stated, not yet verified with INPRS." },
-      { input: "premium", value: v.premium, status: v.premium === 0 ? "placeholder" : "user_input",
-        note: v.premium === 0 ? "No quote exists - placeholder. $0 understates cost; it is not an estimate." : "Premium supplied by the user; no quote exists." },
+      { input: "premium", value: v.premium, status: v.premium === 0 ? "placeholder" : "assumption",
+        note: v.premium === 0 ? "No health insurance today, so $0 is the no-benefit case; it understates the cost of funding health cover." :
+          "Assumed premium per employee; there is no insurance today and no quote exists. It is the one input not derived from a document." },
       { input: "salary_adj", value: v.salary_adj, status: "user_input" },
-      { input: "ot_displacement", value: v.ot_displacement, status: "user_input",
-        note: "When on, the overtime offset is capped at the overtime actually recorded." }
+      { input: "firefighters", value: v.firefighters ?? "auto", status: v.firefighters === null ? "derived" : "user_input",
+        note: "Auto sizes the roster to cover the posts with no overtime (8,760 / 2,756 = 3.179 per post). Zero overtime is a target, not a guarantee; it needs partner investigation." }
     ];
   }
 
@@ -282,10 +284,20 @@
     /* 5. run_scenario_34 */
     function summarize34(v, r) {
       return {
+        firefighters_employed: r.firefighters,
         hires_required: r.hires,
         per_employee_cost: dollars(r.perEmployee),
+        per_employee_breakdown: { salary: dollars(r.perPerson.salary), perf: dollars(r.perPerson.perf),
+          payroll_tax: dollars(r.perPerson.tax), health_premium: dollars(r.perPerson.health) },
         compensation_cost: dollars(r.layer1),
-        staffing_net_cost: dollars(r.layer2),
+        new_hires_cost: dollars(r.layer2),
+        overtime_hours_baseline: Math.round(r.otBase.hours),
+        overtime_hours_scenario: Math.round(r.otScen.hours),
+        overtime_change: dollars(r.otChange),
+        overtime_note: "Overtime is computed in the baseline and the scenario and differenced. Zero scenario overtime is a staffing target, not a guarantee; partner investigation is needed.",
+        total_health_program_cost: dollars(r.healthTotal),
+        total_personnel_cost: dollars(r.personnelTotal),
+        health_share_of_personnel_pct: r1(r.healthShare),
         total_annual_change: dollars(r.total),
         resulting_gap: dollars(r.gap),
         additional_rate_per_100_av: r4(r.addRate),
@@ -314,7 +326,7 @@
         depends_on_placeholder: inputStatus.some(x => x.status === "placeholder"),
         caveats: "Debt service is already inside the 2027 budget, so it is not added again. Rates are gross, before " +
           "circuit-breaker caps, deductions and credits. PERF rate is partner-stated, not yet verified with INPRS. " +
-          "Health premium is a placeholder; see the workbook Sensitivity tab."
+          "The health premium is an assumption (no insurance exists today and no quote has been obtained). Zero overtime is a target pending partner investigation."
       }, sources, "model_output");
     }
 
@@ -326,15 +338,13 @@
         const out = run_scenario_34(params);
         if (out.status === "error") return out;
         const p = s34Inputs(params); const r = costEngine(p.engineInput);
-        const gross = r.hires * r.perEmployee;
         return ok({
           scenario: "3&4", baseline_gap: baseline, scenario_gap: out.result.resulting_gap,
           difference: out.result.resulting_gap - baseline,
           components: [
             { component: "Compensation decision (existing staff)", amount: out.result.compensation_cost },
-            { component: "Net staffing decision (new hires)", amount: out.result.staffing_net_cost,
-              detail: [{ part: "Gross cost of new hires", amount: dollars(gross) },
-                       { part: "Less overtime displaced", amount: dollars(r.layer2 - gross) }] }
+            { component: "New hires", amount: out.result.new_hires_cost },
+            { component: "Overtime change", amount: out.result.overtime_change }
           ],
           check: "difference = sum of components",
           scenario_result: out.result
@@ -441,16 +451,16 @@
      also enforced in code (strict mode is not used because it does not support minimum/maximum). */
   const S34_PROPS = {
     posts_proposed: { type: "integer", minimum: 4, maximum: 8,
-      description: "Continuously staffed posts after the change. Whole number 4-8; the district staffs 4 now. Default 5. Each added post needs 3 hires." },
+      description: "Continuously staffed posts after the change. Whole number 4-8; the district staffs 4 now. Default 5. Each added post needs 3.18 firefighters (8,760 / 2,756 hours)." },
+    firefighters: { type: "integer", minimum: 12, maximum: 32,
+      description: "Line firefighters employed, 12-32. Omit to size the roster automatically to cover the posts (12 at 4 posts, 16 at 5). Fewer than 3.18 per post leaves overtime." },
     fund_perf: { type: "boolean", description: "Fund PERF 77 pension for firefighters. Default true. False reproduces today's cost basis." },
     perf_rate: { type: "number", minimum: 20, maximum: 30,
       description: "PERF 77 employer rate in percent, 20-30 (dashboard steps of 0.5). Default 26.5, which is partner-stated and not yet verified with INPRS. Ignored when fund_perf is false." },
     premium: { type: "number", minimum: 0, maximum: 30000,
-      description: "Health premium per employee in US dollars per year, 0-30000 (dashboard steps of 1000). Default 0, a placeholder because no quote exists - it understates cost." },
+      description: "Health premium per employee in US dollars per year, 0-30000 (dashboard steps of 1000). Default 10000, an assumption: there is no health insurance today and no quote exists. 0 is the no-benefit case." },
     salary_adj: { type: "number", minimum: 0, maximum: 10,
       description: "Base salary adjustment in percent, 0-10 (dashboard steps of 0.5). Default 0. Applied before PERF." },
-    ot_displacement: { type: "boolean",
-      description: "Let new hires displace overtime, capped at the overtime actually recorded ($61,569 a year, scaled by any salary adjustment). Default true." }
   };
   const obj = (properties, required, extra) => ({ type: "object", properties, required: required || [], additionalProperties: false, ...(extra || {}) });
 
@@ -493,10 +503,10 @@
         staffing: obj(S34_PROPS, [], { description: "Scenario 3&4 settings to start from, used only when start_from_staffing is true. Omitted fields use the dashboard defaults." })
       }) },
     { name: "run_scenario_34",
-      description: "Scenario 3&4 team cost engine v2: annual cost of adding staffed posts and/or funding PERF 77 pension and health benefits for existing firefighters, and the gross tax rate needed to fund it. Use it for questions about hiring, adding a post or shift position, benefits, pension, or what a change would do to the tax rate or a $150,000 household. Results are model_output; inputs carry their own status.",
+      description: "Scenario 3&4 cost engine (spec v3): annual cost of adding staffed posts and/or funding PERF 77 pension and health benefits for existing firefighters, and the gross tax rate needed to fund it. Use it for questions about hiring, adding a post or shift position, benefits, pension, or what a change would do to the tax rate or a $150,000 household. Results are model_output; inputs carry their own status.",
       input_schema: obj(S34_PROPS) },
     { name: "compare_to_baseline",
-      description: "Compare a scenario's resulting annual gap with the $635,758 structural gap and break the difference into its components (compensation vs staffing for Scenario 3&4; funding, source change and starting point for Scenario 1). Use it when the user asks how much a change adds or removes, or why the gap moved.",
+      description: "Compare a scenario's resulting annual gap with the $635,758 structural gap and break the difference into its components (compensation, new hires and overtime for Scenario 3&4; funding, source change and starting point for Scenario 1). Use it when the user asks how much a change adds or removes, or why the gap moved.",
       input_schema: obj({
         scenario: { type: "string", enum: ["3&4", "1"], description: "\"3&4\" for staffing and compensation, \"1\" for funding change." },
         params: { type: "object", description: "The same parameters as run_scenario_34 or run_scenario_1. Omitted fields use the dashboard defaults." }
