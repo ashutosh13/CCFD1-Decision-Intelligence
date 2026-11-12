@@ -11,23 +11,50 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  /* ---------- Scenario 3&4: staffing and compensation (team cost engine v2) ---------- */
+  /* ---------- Scenario 3&4: staffing and compensation (Scenario Build Specification v3, adapted) ----------
+     Baseline personnel cost is the loaded 12 x $60,503 = $726,036 (salary + 7.65% payroll tax), which is
+     the source of truth for what the 2026/2027 appropriation already carries. Items no scenario touches
+     are held at 2026 levels for 2027. OT_COST_CAP is the overtime recorded in the 2026 timesheet; it is
+     kept as a reference and no longer enters the math. */
   const ENG = {AVG_SALARY:56204, LINE_FF:12, POSTS_NOW:4, PAYROLL_TAX:0.0765, OT_COST_CAP:61569,
+    POST_HOURS:8760, FLSA_DIVISOR:2756, OT_MULT:1.5,
     BASE_GAP:635758, AV:307471175, CURRENT_RATE:0.2907, CEILING:0.40, HOUSEHOLD_AV:150000, FUND_BALANCE:1624691};
+  ENG.FTE_PER_POST = ENG.POST_HOURS/ENG.FLSA_DIVISOR;                    // 3.179 - derived, never hard-coded as 3
+  ENG.BASE_LOADED = ENG.AVG_SALARY+Math.floor(ENG.AVG_SALARY*ENG.PAYROLL_TAX);   // 60,503 (tax truncated to whole dollars)
+  ENG.BASE_PERSONNEL = ENG.LINE_FF*ENG.BASE_LOADED;                       // 726,036
 
-  /* i = {posts, perf (bool), perfRate (0.20-0.30), premium ($/yr), adj (0-0.10), otd (bool)} */
+  /* Firefighters needed to cover `posts` with no overtime; today's 12 when nothing changes */
+  function defaultFirefighters(posts){
+    return posts<=ENG.POSTS_NOW?ENG.LINE_FF:Math.ceil(posts*ENG.FTE_PER_POST-1e-9);
+  }
+
+  /* Structural overtime for a state: hours not covered by employed staff, at the FLSA 1.5x rate.
+     Computed independently for the baseline and the scenario, then differenced. */
+  function overtime(posts,firefighters,salary){
+    const E=ENG, hours=Math.max(0,posts*E.FTE_PER_POST-firefighters)*E.FLSA_DIVISOR;
+    return {hours, cost:hours*E.OT_MULT*(salary/E.FLSA_DIVISOR)};
+  }
+
+  /* i = {posts, firefighters (optional, line firefighters employed), perf (bool), perfRate (0.20-0.30),
+          premium ($/yr per employee), adj (0-0.10)} */
   function costEngine(i){
     const E=ENG, R=Math.round;
-    const peoplePerPost=E.LINE_FF/E.POSTS_NOW;
-    const hires=(i.posts-E.POSTS_NOW)*peoplePerPost;
-    const adjSalary=R(E.AVG_SALARY*(1+i.adj));
-    const perEmployee=adjSalary+(i.perf?R(adjSalary*i.perfRate):0)+R(adjSalary*E.PAYROLL_TAX)+i.premium;
-    const layer1=E.LINE_FF*perEmployee-E.LINE_FF*(E.AVG_SALARY+R(E.AVG_SALARY*E.PAYROLL_TAX));
-    const gross=hires*perEmployee;
-    const layer2=gross-(i.otd?Math.min(E.OT_COST_CAP*(1+i.adj),gross):0);
-    const total=layer1+layer2, gap=E.BASE_GAP+total;
+    const firefighters=i.firefighters==null?defaultFirefighters(i.posts):i.firefighters;
+    const hires=firefighters-E.LINE_FF;
+    const salary=R(E.AVG_SALARY*(1+i.adj));
+    const perfCost=i.perf?R(salary*i.perfRate):0, taxCost=Math.floor(salary*E.PAYROLL_TAX);
+    const perEmployee=salary+perfCost+taxCost+i.premium;                   // loaded cost, computed once
+    const layer1=E.LINE_FF*perEmployee-E.BASE_PERSONNEL;                   // existing staff only
+    const layer2=hires*perEmployee;                                        // new hires only
+    const otBase=overtime(E.POSTS_NOW,E.LINE_FF,E.AVG_SALARY), otScen=overtime(i.posts,firefighters,salary);
+    const otChange=otScen.cost-otBase.cost;
+    const total=layer1+layer2+otChange, gap=E.BASE_GAP+total;
     const addRate=gap/E.AV*100, totalRate=E.CURRENT_RATE+addRate;
-    return {hires,perEmployee,layer1,layer2,total,gap,addRate,totalRate,
+    const personnelTotal=firefighters*perEmployee+otScen.cost, healthTotal=firefighters*i.premium;
+    return {firefighters,hires,perEmployee,perPerson:{salary,perf:perfCost,tax:taxCost,health:i.premium},
+      ftePerPost:E.FTE_PER_POST,fteRequired:i.posts*E.FTE_PER_POST,
+      layer1,layer2,otBase,otScen,otChange,total,gap,addRate,totalRate,
+      personnelTotal,healthTotal,healthShare:personnelTotal>0?healthTotal/personnelTotal*100:0,
       household:E.HOUSEHOLD_AV/100*addRate, householdPct:addRate/E.CURRENT_RATE*100, years:gap>0?E.FUND_BALANCE/gap:Infinity};
   }
 
@@ -61,9 +88,9 @@
 
   /* Default inputs, matching the dashboard controls' starting positions */
   const DEFAULTS = {
-    staffing: {posts:5, perf:true, perfRate:0.265, premium:0, adj:0, otd:true},
+    staffing: {posts:5, firefighters:null, perf:true, perfRate:0.265, premium:10000, adj:0},
     funding:  {funding:0, oneTime:false, source:"", pct:0, useStaffing:false, staffingGap:ENG.BASE_GAP}
   };
 
-  return Object.freeze({ENG, S1, DEFAULTS, costEngine, fundingEngine, yearsLabel});
+  return Object.freeze({ENG, S1, DEFAULTS, defaultFirefighters, overtime, costEngine, fundingEngine, yearsLabel});
 });
