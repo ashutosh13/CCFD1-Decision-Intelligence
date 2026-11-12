@@ -3,7 +3,7 @@
 import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import worker, { MODEL, MAX_TOKENS, MAX_BODY_BYTES, _resetMemoryRateLimit } from "../src/index.js";
+import worker, { MODEL, MAX_TOKENS, MAX_BODY_BYTES, _resetMemoryRateLimit, _resetStatusCache } from "../src/index.js";
 import { SYSTEM_PROMPT } from "../src/system-prompt.js";
 import { TOOL_SCHEMAS } from "../src/tool-schemas.js";
 
@@ -19,7 +19,7 @@ const FAKE_MESSAGE = {
 
 let calls, upstream, responses, realFetch;
 beforeEach(() => {
-  calls = []; responses = []; _resetMemoryRateLimit();
+  calls = []; responses = []; _resetMemoryRateLimit(); _resetStatusCache();
   upstream = { status: 200, body: FAKE_MESSAGE };
   realFetch = globalThis.fetch;
   globalThis.fetch = async (input, init = {}) => {
@@ -215,4 +215,37 @@ test("the API key never appears in any response (bodies or headers)", async () =
 test("worker/src/tool-schemas.js matches assistant/tools.js TOOL_SCHEMAS", () => {
   const { TOOL_SCHEMAS: source } = require("../../assistant/tools.js");
   assert.deepEqual(TOOL_SCHEMAS, source);
+});
+
+/* ---------- GET /status: the dashboard shows the assistant only when this says available ---------- */
+const statusReq = (origin = ALLOWED) => new Request("https://worker.test/status", { method: "GET", headers: { Origin: origin } });
+
+test("GET /status: available true when Anthropic accepts the key; the key is never returned", async () => {
+  upstream = { status: 200, body: { data: [] } };
+  const res = await worker.fetch(statusReq(), { ANTHROPIC_API_KEY: FAKE_KEY });
+  assert.equal(res.status, 200);
+  const text = await res.text();
+  assert.deepEqual(JSON.parse(text), { available: true });
+  assert.ok(!text.includes(FAKE_KEY));
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /api\.anthropic\.com\/v1\/models/);
+  assert.equal(calls[0].headers.get("x-api-key"), FAKE_KEY);
+});
+
+test("GET /status: available false with no key (and no upstream call) or a rejected key", async () => {
+  let res = await worker.fetch(statusReq(), {});
+  assert.deepEqual(await res.json(), { available: false });
+  assert.equal(calls.length, 0);
+  upstream = { status: 401, body: { error: { type: "authentication_error" } } };
+  res = await worker.fetch(statusReq(), { ANTHROPIC_API_KEY: FAKE_KEY });
+  assert.deepEqual(await res.json(), { available: false });
+});
+
+test("GET /status: result is cached, and a disallowed origin is refused", async () => {
+  upstream = { status: 200, body: { data: [] } };
+  await worker.fetch(statusReq(), { ANTHROPIC_API_KEY: FAKE_KEY });
+  await worker.fetch(statusReq(), { ANTHROPIC_API_KEY: FAKE_KEY });
+  assert.equal(calls.length, 1);
+  const res = await worker.fetch(statusReq("https://evil.example"), { ANTHROPIC_API_KEY: FAKE_KEY });
+  assert.equal(res.status, 403);
 });

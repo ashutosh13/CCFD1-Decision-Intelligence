@@ -56,6 +56,7 @@ a{color:inherit}
 .kpi.primary .label,.kpi.primary .src{color:#BFD0E4}
 .kpi.primary .value{color:#fff}
 .row{display:grid;gap:18px}
+[hidden]{display:none!important}
 .row.a{grid-template-columns:1.25fr 1fr 1.35fr}
 .row.b{grid-template-columns:repeat(3,minmax(0,1fr))}
 .row.c{grid-template-columns:1.1fr 1fr}
@@ -194,7 +195,7 @@ footer.foot span:last-child{margin-left:auto}
         <li><a href="#cad"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 3h10l2 2v16H5V5zm2 5v2h6V8zm0 4v2h6v-2zm0 4v2h4v-2z"/></svg>Incidents (CAD)</a></li>
         <li><a href="#scenario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Scenario analysis</a></li>
         <li><a href="#funding-scenario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2.2 2.7 5 3.3 5 1.4 5 3.4-2.2 3.3-5 3.3-5-1.2-5-3.2"/></svg>Scenario 1: Funding</a></li>
-        <li><a href="#assistant"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12H8l-4 4z"/></svg>Ask the data</a></li>
+        <li id="navAssistant" hidden><a href="#assistant"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12H8l-4 4z"/></svg>Ask the data</a></li>
       </ul>
     </nav>
     <div class="side-foot">Prototype for Cass County Fire District No. 1.<br>Figures trace to the project source log.</div>
@@ -328,7 +329,7 @@ footer.foot span:last-child{margin-left:auto}
         </section>
       </div>
 
-      <div class="row d">
+      <div class="row d" id="assistantRow" hidden>
         <section class="panel" id="assistant">
           <header><h2>Ask the data</h2></header>
           <div class="body"><div class="slot" data-slot="assistant" style="min-height:0">
@@ -1012,10 +1013,20 @@ function setAskBusy(b){
   document.querySelectorAll("#askForm input,#askForm button,#askSuggest button").forEach(x=>x.disabled=b);
   if(!b) $("#askIn").focus({preventScroll:true});
 }
-(function initAssistant(){
+/* The assistant section stays hidden unless the Worker reports a working Anthropic API key
+   (GET /status). No URL, an unreachable Worker or a missing/invalid key all leave it hidden. */
+async function assistantAvailable(){
+  if(!ASSISTANT_URL) return false;
+  try{
+    const r=await fetch(ASSISTANT_URL+"/status",{cache:"no-store"});
+    return r.ok&&(await r.json()).available===true;
+  }catch(e){ return false; }
+}
+(async function initAssistant(){
   const form=$("#askForm"); if(!form) return;
+  if(!(await assistantAvailable())) return;
+  $("#assistantRow").hidden=false; $("#navAssistant").hidden=false;
   form.addEventListener("submit",e=>{e.preventDefault();const q=$("#askIn").value.trim();if(!q||askBusy)return;$("#askIn").value="";askQuestion(q);});
-  if(!ASSISTANT_URL) return;   // not connected: keep today's behaviour
   const panel=$("#assistant");
   panel.classList.add("model");
   $("#askNote").hidden=false;

@@ -6,6 +6,7 @@ This Worker connects the dashboard's "Ask the data" panel to the Anthropic Messa
 - The Worker adds the fixed settings, forwards the request, and returns Anthropic's response JSON unchanged. The fixed settings are the model (`claude-haiku-5-5`), `max_tokens: 1024`, the system prompt, and the tool list.
 - Tools run in the browser (`assistant/tools.js`). The Worker never executes them.
 - The API key is read only from the Cloudflare secret `ANTHROPIC_API_KEY`. It is never stored in this repo, logged or returned.
+- `GET /status` returns `{ "available": true|false }`: true only when a key is set and Anthropic accepts it (checked against the free model-list endpoint, cached 5 minutes). The dashboard shows the "Ask the data" section and its nav link only when this is true, so removing or invalidating the key hides the section. The key itself is never returned.
 
 ## What the Worker rejects
 

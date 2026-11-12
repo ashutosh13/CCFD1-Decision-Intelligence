@@ -45,7 +45,7 @@ const SAFE = {
 function corsHeaders(origin) {
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin"
@@ -192,12 +192,39 @@ export function buildUpstreamParams(messages, route) {
   };
 }
 
+/* ---------- key status: lets the dashboard render the assistant only when a working key is present ----------
+   GET /status asks Anthropic's free model-list endpoint whether the configured key is accepted, and returns
+   only { available: true|false }. The key is never returned. Results are cached per isolate. */
+const STATUS_TTL_MS = { ok: 5 * 60_000, bad: 60_000 };
+let statusCache = null; // { available, at, key }
+export function _resetStatusCache() { statusCache = null; }
+
+export async function keyIsValid(env) {
+  const key = env && typeof env.ANTHROPIC_API_KEY === "string" ? env.ANTHROPIC_API_KEY.trim() : "";
+  if (!key) return false;
+  const now = Date.now();
+  if (statusCache && statusCache.key === key &&
+      now - statusCache.at < (statusCache.available ? STATUS_TTL_MS.ok : STATUS_TTL_MS.bad)) return statusCache.available;
+  let available = false;
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/models?limit=1", {
+      headers: { "x-api-key": key, "anthropic-version": "2023-06-01" },
+      signal: AbortSignal.timeout(5000)
+    });
+    available = res.ok;
+  } catch { console.error("assistant proxy: key check could not reach the API"); }
+  statusCache = { available, at: now, key };
+  return available;
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin");
     const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : null;
     if (!allowed) return fail(403, "origin", null);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(allowed) });
+    if (request.method === "GET" && new URL(request.url).pathname === "/status")
+      return json(200, { available: await keyIsValid(env) }, allowed);
     if (request.method !== "POST") return fail(405, "method", allowed);
 
     if (!(await checkRateLimit(request, env))) return fail(429, "rateLimited", allowed);
