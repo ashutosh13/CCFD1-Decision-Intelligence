@@ -385,3 +385,11 @@ worker/.env*
 worker/.wrangler/
 worker/dist/
 .dev.vars*
+
+# Handoff pipeline
+inbox/
+site/
+ccfd1.db
+.env
+.venv/
+datasets.candidate/
