@@ -21,3 +21,8 @@ Input `../data/DailyBlotter/raw/DailyBlotter <when> (Fire|EMS).pdf`; outputs und
 - Filename parser now accepts the service before the year (`DEC EMS 2025`).
 - Not yet run on this version; no real documents or outputs have been inspected by the assistant (PII).
 - Future: unit-response and QA parsing from `CAD_Extractor.py` could be ported onto pdfplumber text.
+
+
+## Current extractor (used by `python run.py`)
+
+`blotter_extract.py` is a command-line wrapper around `cad_blotter_extract_v13.py` (PyMuPDF, falls back to pdfplumber). It is the only extractor that produces unit responses, so it is what the one-command pipeline uses; `ocr_runner.py` is legacy. The PyMuPDF licence note above (AGPL) still needs an owner decision before the repository is made public.

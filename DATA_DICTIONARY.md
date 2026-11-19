@@ -13,6 +13,7 @@ Every dashboard number carries a source and a **status**, and the assistant must
 | Fact registry | `data/facts.json` | One record per sourced number, with source and status. Panels' "Sources" dialogs and the assistant read it. |
 | Scenario engine | [shared/engine.js](shared/engine.js) | Constants and math for Scenario 1 and Scenario 3&4. Shared by the panels and the assistant so they cannot disagree. |
 | Assistant tools | [assistant/tools.js](assistant/tools.js) | Pure functions over `facts.json` and the engine. Aggregates only. |
+| Datasets | `datasets/*.json`, [shared/dataset.js](shared/dataset.js) | Tidy aggregate series (`finance_by_year`, `personnel_vs_contracted`, `revenue_by_source_2024`, `cad_incidents_by_hour`) with `dimensions`, `measures`, `status`, `source`. Queried by the assistant tools `list_datasets` and `query_dataset` and usable by chart components. Static files, so GitHub Pages hosts them. |
 | Relational store (planned) | [pipeline/schema.sql](pipeline/schema.sql) | ERD-based SQLite DB loaded by the CAD ingest pipeline. Not read by the dashboard yet. |
 
 On page load the dashboard compares each fact that has a `check` path with the page value and logs

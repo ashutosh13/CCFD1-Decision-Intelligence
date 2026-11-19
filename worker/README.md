@@ -1,3 +1,5 @@
+> Normally you do not need this file: `python run.py` deploys the Worker for you (see the top-level README).
+
 # CCFD1 assistant proxy (Cloudflare Worker)
 
 This Worker connects the dashboard's "Ask the data" panel to the Anthropic Messages API without putting the API key in the browser.
@@ -25,7 +27,7 @@ This Worker connects the dashboard's "Ask the data" panel to the Anthropic Messa
 You need Node.js 20 or later (`node -v`) and a free Cloudflare account. Run every command from the `worker` folder:
 
 ```powershell
-cd C:\Users\amsus\OneDrive\Desktop\GITHUB\CCFD1-Decision-Intelligence\worker
+cd <path to your clone>\worker
 ```
 
 **1. Install the dependencies.**

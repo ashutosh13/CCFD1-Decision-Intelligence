@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import sqlite3
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 import datasets_lib as dl
@@ -50,14 +51,23 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--db", type=Path, default=Path("ccfd1.db"))
     ap.add_argument("--out", type=Path, default=dl.DEFAULT_DIR)
-    ap.add_argument("--start", default="2025-09-16")
-    ap.add_argument("--end", default="2026-09-16")
+    ap.add_argument("--start", default=None, help="default: earliest incident date in the DB")
+    ap.add_argument("--end", default=None, help="exclusive; default: day after the latest incident date")
     args = ap.parse_args(argv)
     if not args.db.exists():
         print(f"database not found: {args.db}")
         return 1
     conn = sqlite3.connect(f"file:{args.db}?mode=ro", uri=True)
     try:
+        args.start, args.end = args.start or "", args.end or ""
+        if not (args.start and args.end):
+            lo, hi = conn.execute("SELECT MIN(substr(incident_datetime,1,10)), MAX(substr(incident_datetime,1,10)) "
+                                  "FROM fact_incident").fetchone()
+            if not lo:
+                print("database has no incidents")
+                return 1
+            args.start = args.start or lo
+            args.end = args.end or (date.fromisoformat(hi) + timedelta(days=1)).isoformat()
         counts = hourly_counts(conn, args.start, args.end)
     finally:
         conn.close()

@@ -52,21 +52,21 @@ test("bad queries return errors, not throws", () => {
     assert.ok(D.query(toy(), q).error, JSON.stringify(q));
 });
 
-/* ---------- parity with the page (the DATA constant must not drift from the datasets) ---------- */
-const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
-const PAGE = new Function("return " + html.match(/const DATA = (\{[\s\S]*?\n\});/)[1])();
+/* ---------- the datasets are the only copy of the page's numbers: check shape, not live values ---------- */
 const col = (id, c) => byId[id].rows.map(r => r[c]);
 
-test("datasets match the page's DATA constant", () => {
-  assert.deepEqual(col("finance_by_year", "year"), PAGE.finance.years);
-  assert.deepEqual(col("finance_by_year", "revenue"), PAGE.finance.operatingRevenue);
-  assert.deepEqual(col("finance_by_year", "spending"), PAGE.finance.operatingSpending);
-  assert.deepEqual(col("finance_by_year", "balance"), PAGE.finance.endingBalance);
-  assert.deepEqual(col("personnel_vs_contracted", "personnel"), PAGE.staffingCost.personnel);
-  assert.deepEqual(col("personnel_vs_contracted", "contracted"), PAGE.staffingCost.contracted);
-  assert.deepEqual(byId.revenue_by_source_2024.rows.map(r => [r.source, r.amount]), PAGE.finance.sources);
-  assert.deepEqual(col("cad_incidents_by_hour", "incidents"), PAGE.hourly);
-  assert.equal(col("cad_incidents_by_hour", "incidents").reduce((a, b) => a + b, 0), PAGE.incidents);
+test("every dataset in the manifest is present and the page's inputs have the shape it expects", () => {
+  for (const id of ["finance_by_year", "personnel_vs_contracted", "revenue_by_source_2024", "cad_incidents_by_hour", "cad_incidents_by_location"])
+    assert.ok(byId[id], id);
+  assert.equal(byId.cad_incidents_by_hour.rows.length, 24);
+  assert.deepEqual(col("cad_incidents_by_hour", "hour"), [...Array(24).keys()]);
+  assert.deepEqual(col("finance_by_year", "year"), col("personnel_vs_contracted", "year"));
+  for (const f of ["assets/townships.json", "assets/incident_points.json"])
+    assert.ok(fs.existsSync(path.join(__dirname, "..", f)), f);
+});
+test("index.html holds no copy of the data", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  assert.doesNotMatch(html, /const DATA = \{/, "DATA must be built from datasets/, not typed into the page");
 });
 
 /* ---------- assistant tools ---------- */
@@ -85,7 +85,8 @@ test("query_dataset errors carry status error and help the model recover", () =>
   const col2 = tools.query_dataset("finance_by_year", { filter: { zzz: 1 } }); assert.equal(col2.status, "error"); assert.ok(col2.columns.includes("revenue"));
 });
 test("runTool dispatches the new tools and TOOL_SCHEMAS declares them", () => {
-  assert.equal(runTool(tools, "query_dataset", { dataset: "cad_incidents_by_hour", query: { aggregate: { incidents: "sum" } } }).result.rows[0].incidents, 604);
+  assert.equal(runTool(tools, "query_dataset", { dataset: "cad_incidents_by_hour", query: { aggregate: { incidents: "sum" } } }).result.rows[0].incidents,
+    col("cad_incidents_by_hour", "incidents").reduce((x, y) => x + y, 0));
   assert.equal(runTool(tools, "list_datasets", {}).status, "verified");
   for (const n of ["list_datasets", "query_dataset"]) assert.ok(TOOL_SCHEMAS.some(t => t.name === n), n);
 });

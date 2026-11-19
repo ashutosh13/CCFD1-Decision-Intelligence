@@ -1,4 +1,5 @@
 {
+  "updated": "2026-11-04",
   "datasets": [
     {
       "id": "cad_incidents_by_hour",
@@ -15,6 +16,22 @@
         "incidents"
       ],
       "rows": 24
+    },
+    {
+      "id": "cad_incidents_by_location",
+      "title": "Incidents by location",
+      "file": "cad_incidents_by_location.json",
+      "panel": "uncompensated",
+      "grain": "location",
+      "period": "2025-09-16 to 2026-09-16",
+      "status": "verified",
+      "dimensions": [
+        "location"
+      ],
+      "measures": [
+        "incidents"
+      ],
+      "rows": 4
     },
     {
       "id": "finance_by_year",

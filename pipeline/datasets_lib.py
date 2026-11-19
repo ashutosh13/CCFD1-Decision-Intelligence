@@ -75,8 +75,11 @@ def write_dataset(ds: dict, out_dir: Path = DEFAULT_DIR) -> Path:
     return path
 
 
-def write_manifest(out_dir: Path = DEFAULT_DIR) -> Path:
-    """Rebuild index.json from every dataset file in out_dir."""
+def write_manifest(out_dir: Path = DEFAULT_DIR, updated: str | None = None) -> Path:
+    """Rebuild index.json from every dataset file in out_dir. `updated` (ISO date) is kept from the old manifest if omitted."""
+    old = out_dir / "index.json"
+    if updated is None and old.exists():
+        updated = json.loads(old.read_text(encoding="utf-8")).get("updated")
     entries = []
     for p in sorted(out_dir.glob("*.json")):
         if p.name == "index.json":
@@ -90,5 +93,5 @@ def write_manifest(out_dir: Path = DEFAULT_DIR) -> Path:
                         "dimensions": [d["name"] for d in ds["dimensions"]],
                         "measures": [m["name"] for m in ds["measures"]], "rows": len(ds["rows"])})
     path = out_dir / "index.json"
-    path.write_text(json.dumps({"datasets": entries}, indent=2) + "\n", encoding="utf-8")
+    path.write_text(json.dumps({"updated": updated, "datasets": entries} if updated else {"datasets": entries}, indent=2) + "\n", encoding="utf-8")
     return path

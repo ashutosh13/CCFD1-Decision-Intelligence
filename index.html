@@ -10,9 +10,8 @@
 <style>
 /* ============================================================
    HOW TO UPDATE THIS PAGE
-   1. DATA (script at the bottom of this file): real figures for the KPI cards,
-      CAD panels and the map. Edit numbers there; the panels
-      redraw from it. Leave a value as null to show sample data.
+   1. datasets/ (built into DATA when the page loads; run.py rewrites them): real figures for the KPI cards,
+      CAD panels and the map (map shapes are in assets/). Do not edit numbers in this file.
    2. EMBEDS (script at the bottom of this file): paste an ArcGIS embed URL into
       any slot to replace that panel with the ArcGIS element.
    ============================================================ */
@@ -420,62 +419,43 @@ footer.foot span:last-child{margin-left:auto}
 <script src="shared/dataset.js"></script>
 <script src="assistant/tools.js"></script>
 <script>
+(async()=>{
 /* "Ask the data" assistant: Cloudflare Worker that forwards to Claude (see worker/README.md).
-   Set to "" to show the panel as not connected. */
-const ASSISTANT_URL = "https://ccfd1-assistant.ccfd1-dashboard.workers.dev";
+   The URL comes from config.json (written by run.py when it deploys the Worker). Empty = panel hidden. */
+let ASSISTANT_URL = "";
+const CONFIG_READY = fetch("config.json",{cache:"no-store"}).then(r=>r.ok?r.json():{}).catch(()=>({}))
+  .then(c=>{ASSISTANT_URL=c.assistant_url||""; return c;});
 
 /* ============================================================
-   DATA: real figures. Edit here to update the page.
-   Set any entry to null to fall back to the sample visual.
+   DATA is built from datasets/ below. Do not type numbers here; run `python run.py`.
+   An entry that is null falls back to the sample visual.
    Source for all CAD figures: CCFD1 CAD extract (aggregated counts only)
    (Fire + EMS, de-duplicated), CCFD1 = CAD agency "DIST".
    ============================================================ */
-const DATA = {
-  updated: "November 4, 2026",
-  finance: {
-    // Indiana Gateway AFRs, Cass County Fire District #1, 2011–2024.
-    // Reconciled to AFR fund totals (177 checks, 0 mismatches). 2025 AFR pending.
-    // Operating figures exclude loan proceeds, interfund transfers and payroll pass-throughs.
-    years:             [2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024],
-    operatingRevenue:  [245306,303735,854028,966327,952993,1055713,996658,981150,1122409,1060043,1121481,1045228,1238278,1279649],
-    operatingSpending: [715327,984971,970849,939420,776912,869389,801658,784225,1336772,874535,950929,987886,1806802,1524669],
-    endingBalance:     [126403,115024,211970,443914,633880,820204,1015204,1212129,1397766,1583273,1753825,1811167,1932643,1687623],
-    sourceYear: 2024,
-    sources: [
-      ["Property tax", 882965],
-      ["Local income tax", 212041],
-      ["Interest and other", 98815],
-      ["Vehicle excise tax", 64785],
-      ["Fire protection contracts", 21042]
-    ]
-  },
-  staffingCost: {
-    // Gateway AFRs 2011–2024. Personnel = salaries and wages + AFR "Employee Benefits" line.
-    years:      [2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024],
-    personnel:  [0,0,0,0,0,0,0,0,1300,565791,648290,650716,704746,800075],
-    contracted: [622839,629997,623084,626527,624583,628038,646489,677458,727980,57217,57195,62992,60898,65481]
-  },
-  cadPeriod: CCFD1GIS.cadPeriod,   // shared/cad-gis.js
-
-  // KPI card: unique incidents where CCFD1 was dispatched (shared/cad-gis.js)
-  incidents: CCFD1GIS.incidentsTotal,
-
-  // Incidents by hour of day (index 0 = 00:00 ... 23 = 23:00), CCFD1 incidents
-  hourly: [20,12,14,14,12,8,18,25,30,38,29,36,27,36,35,36,38,30,27,30,27,21,20,21],
-
-  // Where CCFD1 incidents occurred, by township (incident lat/long joined to township boundaries)
-  // [label, incidents]. Outside the District = Jefferson 36, Clinton 17, Boone 7, other 13
-  outsideDistrict: [
-    ["Inside the District (Clay, Noble, Eel)", 451],
-    ["Contract: Washington Township", 53],
-    ["Outside the District", 73],
-    ["No location in CAD", 27]
-  ],
-
-  // Township boundaries and CCFD1 incident locations: shared/cad-gis.js (also drawn by gis-map/)
-  townships: CCFD1GIS.townships,
-  incidentPoints: CCFD1GIS.incidentPoints
-};
+const DATA = await (async function buildData(){
+  /* Single source of truth: datasets/ (rewritten by run.py). Nothing here is typed by hand.
+     A dataset that fails to load leaves its entries null/undefined and the page falls back to the sample visual. */
+  const D={updated:null,finance:null,staffingCost:null,cadPeriod:null,incidents:null,hourly:null,outsideDistrict:null,townships:null,incidentPoints:null};
+  const get=u=>fetch(u,{cache:"no-store"}).then(r=>{if(!r.ok) throw new Error(u+" HTTP "+r.status); return r.json();});
+  const [man,fin,staff,src,hour,loc,tw,pts]=await Promise.all([
+    get("datasets/index.json"),get("datasets/finance_by_year.json"),get("datasets/personnel_vs_contracted.json"),
+    get("datasets/revenue_by_source_2024.json"),get("datasets/cad_incidents_by_hour.json"),
+    get("datasets/cad_incidents_by_location.json"),get("assets/townships.json"),get("assets/incident_points.json")
+  ].map(p=>p.catch(e=>{console.warn("data not loaded:",e.message); return null;})));
+  const col=(ds,c)=>ds.rows.map(r=>r[c]);
+  const fmt=iso=>new Date(iso+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+  if(man&&man.updated) D.updated=new Date(man.updated+"T00:00:00").toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+  if(fin&&src) D.finance={years:col(fin,"year"),operatingRevenue:col(fin,"revenue"),operatingSpending:col(fin,"spending"),
+    endingBalance:col(fin,"balance"),sourceYear:2024,sources:src.rows.map(r=>[r.source,r.amount])};
+  if(staff) D.staffingCost={years:col(staff,"year"),personnel:col(staff,"personnel"),contracted:col(staff,"contracted")};
+  if(hour&&hour.rows.length===24){
+    D.hourly=col(hour,"incidents"); D.incidents=D.hourly.reduce((a,b)=>a+b,0);
+    const [a,b]=hour.period.split(" to "); D.cadPeriod=fmt(a)+" to "+fmt(b);
+  }
+  if(loc) D.outsideDistrict=loc.rows.map(r=>[r.location,r.incidents]);
+  D.townships=tw; D.incidentPoints=pts;
+  return D;
+})();
 
 /* ============================================================
    EMBEDS: paste ArcGIS embed URLs here.
@@ -1172,6 +1152,7 @@ async function assistantAvailable(){
 }
 (async function initAssistant(){
   const form=$("#askForm"); if(!form) return;
+  await CONFIG_READY;
   if(!(await assistantAvailable())) return;
   $("#navAssistant").hidden=false;
   form.addEventListener("submit",e=>{e.preventDefault();const q=$("#askIn").value.trim();if(!q||askBusy)return;$("#askIn").value="";askQuestion(q);});
@@ -1184,6 +1165,7 @@ async function assistantAvailable(){
 })();
 
 showTab("t-overview");
+})();
 </script>
 <!-- Ask CCFD1 AI (loaded last so nothing above changes) -->
 <script src="shared/cad-metrics.js"></script>
