@@ -1,0 +1,45 @@
+{
+  "id": "revenue_by_source_2024",
+  "title": "2024 revenue by source",
+  "panel": "revenue-sources",
+  "grain": "source",
+  "period": "2024",
+  "status": "verified",
+  "source": "2024 Gateway AFR",
+  "source_detail": "Revenue by source",
+  "note": "Shares are of the listed sources.",
+  "dimensions": [
+    {
+      "name": "source",
+      "type": "string"
+    }
+  ],
+  "measures": [
+    {
+      "name": "amount",
+      "unit": "USD"
+    }
+  ],
+  "rows": [
+    {
+      "source": "Property tax",
+      "amount": 882965
+    },
+    {
+      "source": "Local income tax",
+      "amount": 212041
+    },
+    {
+      "source": "Interest and other",
+      "amount": 98815
+    },
+    {
+      "source": "Vehicle excise tax",
+      "amount": 64785
+    },
+    {
+      "source": "Fire protection contracts",
+      "amount": 21042
+    }
+  ]
+}

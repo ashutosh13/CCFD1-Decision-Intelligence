@@ -1,0 +1,99 @@
+{
+  "id": "personnel_vs_contracted",
+  "title": "Personnel vs contracted service cost by year",
+  "panel": "staffing",
+  "grain": "year",
+  "period": "2011-2024",
+  "status": "verified",
+  "source": "Indiana Gateway Annual Financial Reports",
+  "source_detail": "Personnel = salaries and wages + Employee Benefits; contracted = contracted service",
+  "note": "In 2020 the District moved from contracted service to employing its own staff.",
+  "dimensions": [
+    {
+      "name": "year",
+      "type": "int"
+    }
+  ],
+  "measures": [
+    {
+      "name": "personnel",
+      "unit": "USD"
+    },
+    {
+      "name": "contracted",
+      "unit": "USD"
+    }
+  ],
+  "rows": [
+    {
+      "year": 2011,
+      "personnel": 0,
+      "contracted": 622839
+    },
+    {
+      "year": 2012,
+      "personnel": 0,
+      "contracted": 629997
+    },
+    {
+      "year": 2013,
+      "personnel": 0,
+      "contracted": 623084
+    },
+    {
+      "year": 2014,
+      "personnel": 0,
+      "contracted": 626527
+    },
+    {
+      "year": 2015,
+      "personnel": 0,
+      "contracted": 624583
+    },
+    {
+      "year": 2016,
+      "personnel": 0,
+      "contracted": 628038
+    },
+    {
+      "year": 2017,
+      "personnel": 0,
+      "contracted": 646489
+    },
+    {
+      "year": 2018,
+      "personnel": 0,
+      "contracted": 677458
+    },
+    {
+      "year": 2019,
+      "personnel": 1300,
+      "contracted": 727980
+    },
+    {
+      "year": 2020,
+      "personnel": 565791,
+      "contracted": 57217
+    },
+    {
+      "year": 2021,
+      "personnel": 648290,
+      "contracted": 57195
+    },
+    {
+      "year": 2022,
+      "personnel": 650716,
+      "contracted": 62992
+    },
+    {
+      "year": 2023,
+      "personnel": 704746,
+      "contracted": 60898
+    },
+    {
+      "year": 2024,
+      "personnel": 800075,
+      "contracted": 65481
+    }
+  ]
+}

@@ -42,6 +42,84 @@ export const TOOL_SCHEMAS = [
     }
   },
   {
+    "name": "list_datasets",
+    "description": "List the aggregate datasets available to chart or analyse (id, title, period, status, dimensions and measures). Use it first for any question about a series, trend, comparison or chart, then call query_dataset. Aggregated data only.",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "query_dataset",
+    "description": "Query one aggregate dataset by id (from list_datasets): filter rows, group by dimensions and aggregate measures, sort and limit. Returns columns (with units), rows, period, source, source_detail and status, ready to chart. Use it for finance by year, personnel vs contracted cost, 2024 revenue by source and incidents by hour. Never aggregate balances or other level measures with sum across years; use filter, min, max or avg.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "dataset": {
+          "type": "string",
+          "description": "Dataset id, e.g. \"finance_by_year\"."
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "select": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Columns to return when not aggregating. Default all."
+            },
+            "filter": {
+              "type": "object",
+              "description": "{column: value} or {column: {eq, ne, gt, gte, lt, lte, in}}. All conditions must hold. Example {\"year\":{\"gte\":2020}}."
+            },
+            "groupBy": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Dimension names to group by. Requires aggregate."
+            },
+            "aggregate": {
+              "type": "object",
+              "description": "{measure: \"sum\"|\"avg\"|\"min\"|\"max\"|\"count\"}. With no groupBy, returns one row."
+            },
+            "orderBy": {
+              "type": "object",
+              "properties": {
+                "column": {
+                  "type": "string"
+                },
+                "desc": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "column"
+              ],
+              "additionalProperties": false
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "description": "Maximum rows, default 500."
+            }
+          },
+          "required": [],
+          "additionalProperties": false,
+          "description": "Optional. Omit to return every row."
+        }
+      },
+      "required": [
+        "dataset"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "finance_by_year",
     "description": "CCFD1 finances from the Indiana Gateway Annual Financial Reports, 2011-2024 (2025 AFR pending). Use it for questions about operating revenue, operating spending, ending fund balance, personnel vs contracted service cost, or 2024 revenue by source. Operating figures exclude loan proceeds, interfund transfers and payroll pass-throughs.",
     "input_schema": {
