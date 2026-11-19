@@ -205,7 +205,7 @@ test("invalid inputs are rejected, not clamped or guessed", () => {
 test("TOOL_SCHEMAS follow the Messages API client-tool format", () => {
   const names = TOOL_SCHEMAS.map(t => t.name);
   assert.deepEqual(names.sort(), ["compare_to_baseline", "finance_by_year", "get_fact", "incidents_by_hour", "incidents_by_location",
-    "run_scenario_1", "run_scenario_34", "search_facts", "unsupported"]);
+    "list_datasets", "query_dataset", "run_scenario_1", "run_scenario_34", "search_facts", "unsupported"]);
   for (const t of TOOL_SCHEMAS) {
     assert.match(t.name, /^[a-zA-Z0-9_-]{1,64}$/);
     assert.ok(typeof t.description === "string" && t.description.length > 60, t.name);

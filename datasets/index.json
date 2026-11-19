@@ -1,0 +1,71 @@
+{
+  "datasets": [
+    {
+      "id": "cad_incidents_by_hour",
+      "title": "Incidents by hour of day",
+      "file": "cad_incidents_by_hour.json",
+      "panel": "cad",
+      "grain": "hour",
+      "period": "2025-09-16 to 2026-09-16",
+      "status": "verified",
+      "dimensions": [
+        "hour"
+      ],
+      "measures": [
+        "incidents"
+      ],
+      "rows": 24
+    },
+    {
+      "id": "finance_by_year",
+      "title": "Operating revenue, spending and ending balance by year",
+      "file": "finance_by_year.json",
+      "panel": "financial",
+      "grain": "year",
+      "period": "2011-2024",
+      "status": "verified",
+      "dimensions": [
+        "year"
+      ],
+      "measures": [
+        "revenue",
+        "spending",
+        "balance"
+      ],
+      "rows": 14
+    },
+    {
+      "id": "personnel_vs_contracted",
+      "title": "Personnel vs contracted service cost by year",
+      "file": "personnel_vs_contracted.json",
+      "panel": "staffing",
+      "grain": "year",
+      "period": "2011-2024",
+      "status": "verified",
+      "dimensions": [
+        "year"
+      ],
+      "measures": [
+        "personnel",
+        "contracted"
+      ],
+      "rows": 14
+    },
+    {
+      "id": "revenue_by_source_2024",
+      "title": "2024 revenue by source",
+      "file": "revenue_by_source_2024.json",
+      "panel": "revenue-sources",
+      "grain": "source",
+      "period": "2024",
+      "status": "verified",
+      "dimensions": [
+        "source"
+      ],
+      "measures": [
+        "amount"
+      ],
+      "rows": 5
+    }
+  ]
+}

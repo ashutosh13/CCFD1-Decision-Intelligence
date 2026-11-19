@@ -152,30 +152,35 @@ footer.foot span:last-child{margin-left:auto}
   .content,.top{padding-left:16px;padding-right:16px}
   .search{min-width:0;flex:1 1 100%}
 }
-/* "Ask CCFD1 AI" section (assistant/viz-panel.js); scoped to #ai-viz */
-#ai-viz .msgs{max-height:760px}
-#ai-viz .msg.aiviz-answer{max-width:100%;width:100%}
-#ai-viz .aiviz-group{font-size:12px;color:var(--muted);font-weight:600;align-self:center}
-.aiviz-card{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);min-width:0}
-.aiviz-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-.aiviz-head h3{margin:0;font-size:14px;font-weight:600;flex:1 1 220px;min-width:0}
-.aiviz-badge{font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;color:#fff;background:var(--muted)}
-.aiviz-badge.actual{background:var(--ok)}.aiviz-badge.baseline{background:var(--blue)}.aiviz-badge.scenario,.aiviz-badge.projected{background:#B26A00}
-.aiviz-meta{font-size:12px;color:var(--muted);margin:4px 0 8px;overflow-wrap:anywhere}
-.aiviz-meta b{font-weight:600;color:var(--ink)}
-.aiviz-chart svg{width:100%;height:auto;display:block}
-.aiviz-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
-.aiviz-kpis .kpi .value{font-size:19px}
-.aiviz-table{overflow-x:auto;max-width:100%}
-.aiviz-table table{border-collapse:collapse;font-size:12px;width:100%;font-variant-numeric:tabular-nums}
-.aiviz-table th,.aiviz-table td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
-.aiviz-table th:first-child{text-align:left;white-space:normal;font-weight:500}
-.aiviz-table thead th{font-weight:600;color:var(--muted)}
-.aiviz-card details{font-size:12px;color:var(--muted);margin-top:6px}
-.aiviz-card summary{cursor:pointer;color:var(--blue)}
-.aiviz-card details ul{margin:4px 0;padding-left:18px}
-.aiviz-map{display:inline-block;margin-top:8px;font-size:12px;font-weight:600;color:#fff;background:var(--navy-2);padding:4px 10px;border-radius:6px;text-decoration:none}
-.aiviz-map:hover{background:var(--blue)}
+/* Tabs: Overview, Scenarios 1-5, Ask the data. The nav selects which pane shows in the bottom part. */
+.nav a[data-tab]{cursor:pointer}
+.kpi.model{border-color:#B26A00;box-shadow:inset 0 3px 0 #B26A00}
+.desc{margin:0;font-size:13px;color:var(--muted)}
+.ctitle{margin:0 0 4px;font-size:13px;font-weight:600}
+.cchart svg{width:100%;height:auto;display:block}
+/* Wide, tall screens: the page fits the window. Top = cost basis, financial visuals and map; bottom = tab pane. */
+@media (min-width:1101px) and (min-height:640px){
+  html,body{height:100%;overflow:hidden}
+  .app{height:100vh;min-height:0}
+  .main{height:100vh;min-height:0}
+  .top{padding:10px 28px}
+  .content{flex:1;min-height:0;padding:14px 28px;gap:12px;grid-template-rows:auto auto minmax(0,1fr) minmax(0,1fr)}
+  .kpis{grid-row:1;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+  .kpis + .srclink{grid-row:2}
+  .kpi{padding:10px 14px}
+  .kpi .value{font-size:21px}
+  .row.a{grid-row:3;grid-template-columns:1.25fr 1fr 1.35fr;min-height:0}
+  .row.a .panel:last-child{grid-column:auto}
+  .bottom{grid-row:4;min-height:0;display:flex;flex-direction:column}
+  .panel header{padding:10px 16px 6px}
+  .body{overflow:auto}
+  .row.a .slot,.row.b .slot{min-height:110px}
+  .slot>svg{position:absolute;inset:0}
+  .tabpane{flex:1;min-height:0;overflow:auto}
+  .tabpane>.row{height:100%}
+  .tabpane>.panel{min-height:100%}
+  .scn.split{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;gap:18px}
+}
 </style>
 </head>
 <body>
@@ -187,15 +192,13 @@ footer.foot span:last-child{margin-left:auto}
     </div>
     <nav aria-label="Dashboard sections">
       <ul class="nav" id="nav">
-        <li><a href="#overview" aria-current="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z"/></svg>Overview</a></li>
-        <li><a href="#financial"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 20h3V10H4zm6.5 0h3V4h-3zM17 20h3v-7h-3z"/></svg>Financial</a></li>
-        <li><a href="#staffing"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M2 19c0-3.3 2.7-6 6-6s6 2.7 6 6zm12.5 0c0-2-.6-3.8-1.7-5.2A5 5 0 0 1 22 18v1z"/></svg>Staffing</a></li>
-        <li><a href="#gis"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>GIS and service area</a></li>
-        <li><a href="#uncompensated"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v4H4zm0 6h10v4H4zm0 6h6v4H4z"/></svg>Uncompensated service</a></li>
-        <li><a href="#cad"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 3h10l2 2v16H5V5zm2 5v2h6V8zm0 4v2h6v-2zm0 4v2h4v-2z"/></svg>Incidents (CAD)</a></li>
-        <li><a href="#scenario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Scenario analysis</a></li>
-        <li><a href="#funding-scenario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2.2 2.7 5 3.3 5 1.4 5 3.4-2.2 3.3-5 3.3-5-1.2-5-3.2"/></svg>Scenario 1: Funding</a></li>
-        <li id="navAssistant" hidden><a href="#assistant"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12H8l-4 4z"/></svg>Ask the data</a></li>
+        <li><a href="#t-overview" data-tab="t-overview" aria-current="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z"/></svg>Overview</a></li>
+        <li><a href="#t-1" data-tab="t-1" aria-current="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2.2 2.7 5 3.3 5 1.4 5 3.4-2.2 3.3-5 3.3-5-1.2-5-3.2"/></svg>Scenario 1: Funding</a></li>
+        <li><a href="#t-2" data-tab="t-2" aria-current="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5h14v14H5z"/></svg>Scenario 2</a></li>
+        <li><a href="#t-3" data-tab="t-3" aria-current="false"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M2 19c0-3.3 2.7-6 6-6s6 2.7 6 6zm12.5 0c0-2-.6-3.8-1.7-5.2A5 5 0 0 1 22 18v1z"/></svg>Scenario 3: Staffing</a></li>
+        <li><a href="#t-4" data-tab="t-4" aria-current="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Scenario 4: Compensation</a></li>
+        <li><a href="#t-5" data-tab="t-5" aria-current="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5h14v14H5z"/></svg>Scenario 5</a></li>
+        <li id="navAssistant" hidden><a href="#t-6" data-tab="t-6" aria-current="false"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12H8l-4 4z"/></svg>Ask the data</a></li>
       </ul>
     </nav>
     <div class="side-foot">Prototype for Cass County Fire District No. 1.<br>Figures trace to the project source log.</div>
@@ -239,6 +242,8 @@ footer.foot span:last-child{margin-left:auto}
         </section>
       </div>
 
+      <div class="bottom">
+      <div class="tabpane" id="t-overview" role="tabpanel" aria-label="Overview">
       <div class="row b">
         <section class="panel" id="staffing">
           <header><h2>Personnel vs. contracted service cost, 2011–2024</h2></header>
@@ -253,17 +258,104 @@ footer.foot span:last-child{margin-left:auto}
           <div class="body"><div class="slot" data-slot="cad"></div><p class="note" id="cadNote">Shows the daytime availability pattern.</p></div>
         </section>
       </div>
+      </div>
 
-      <div class="row c">
+      <div class="tabpane" id="t-1" role="tabpanel" aria-label="Scenario 1: Funding" hidden>
+        <section class="panel model" id="funding-scenario">
+          <header><h2>Scenario 1: Funding change</h2></header>
+          <div class="body"><div class="slot" data-slot="fundingScenario" style="min-height:0">
+            <div class="scn split">
+              <div class="scn">
+                <p class="desc">Add new funding or change an existing revenue source.</p>
+                <div><label for="fund">Additional funding (new money), $ per year <output id="fundO">$0</output></label>
+                  <input type="range" id="fund" min="-500000" max="1000000" step="25000" value="0">
+                  <input type="number" id="fundN" class="exact" min="-500000" max="1000000" step="1" value="0" aria-label="Funding change, exact dollars"></div>
+                <div class="ctrls">
+                  <label class="toggle"><input type="radio" name="fundType" id="fundRec" value="recurring" checked> Recurring</label>
+                  <label class="toggle"><input type="radio" name="fundType" id="fundOne" value="onetime"> One-time (year 1 only)</label>
+                </div>
+                <div class="ctrls">
+                  <div><label for="srcSel">Or change an existing revenue source (2024 amount)</label>
+                    <select id="srcSel">
+                      <option value="">None</option>
+                      <option value="propertyTax">Property tax</option>
+                      <option value="incomeTax">Local income tax</option>
+                      <option value="excise">Vehicle excise tax</option>
+                      <option value="contracts">Fire protection contracts</option>
+                    </select></div>
+                  <div><label for="srcPct">Source change <output id="srcPctO">0%</output></label>
+                    <input type="range" id="srcPct" min="-50" max="50" step="1" value="0"></div>
+                </div>
+                <label class="toggle"><input type="checkbox" id="useStaff"> Start from the staffing scenario's gap</label>
+              </div>
+              <div class="scn">
+                <div class="result">
+                  <div><span>Recurring revenue, starting</span><b id="f_revStart">–</b></div>
+                  <div><span>Recurring revenue, adjusted</span><b id="f_revAdj">–</b><em class="sub" id="f_oneTime"></em></div>
+                  <div><span>2027 proposed budget</span><b id="f_budget">–</b></div>
+                  <div><span>Starting gap <em class="sub" id="f_basis"></em></span><b id="f_startGap">–</b></div>
+                  <div><span id="f_gapLbl">Resulting annual gap</span><b id="f_gap">–</b><em class="sub" id="f_y1"></em></div>
+                  <div><span>Years of fund balance</span><b id="f_yrs">–</b></div>
+                </div>
+                <p class="note" style="margin:0" id="f_src"></p>
+                <p class="note" style="margin:0">Planning comparison, not a forecast. Expenses and other revenue held flat. Revenue sources use 2024 AFR amounts. Property tax changes are limited by levy controls and circuit breakers (Scenario 5, pending).</p>
+              </div>
+              <div class="scn">
+                <div class="cchart"><h3 class="ctitle">Recurring revenue by source</h3><div id="srcChart"></div></div>
+                <div class="cchart"><h3 class="ctitle">Fund balance, projected</h3><div class="fchart" id="fundChart"></div></div>
+              </div>
+            </div></div></div>
+        </section>
+      </div>
+
+      <div class="tabpane" id="t-2" role="tabpanel" aria-label="Scenario 2" hidden>
+        <section class="panel model" id="scenario-2">
+          <header><h2>Scenario 2</h2></header>
+          <div class="body"></div>
+        </section>
+      </div>
+
+      <div class="tabpane" id="t-3" role="tabpanel" aria-label="Scenario 3: Staffing" hidden>
+        <section class="panel model" id="staffing-scenario">
+          <header><h2>Scenario 3: Staffing increase</h2></header>
+          <div class="body"><div class="slot" data-slot="staffingScenario" style="min-height:0">
+            <div class="scn split">
+              <div class="scn">
+                <p class="desc">Staff 5 posts instead of 4.</p>
+                <div class="ctrls">
+                  <div><label for="posts">Posts staffed, proposed (now 4) <output id="postsO">5</output></label>
+                    <input type="range" id="posts" min="4" max="8" step="1" value="5"></div>
+                  <div><label for="ffs">Firefighters employed (now 12) <output id="ffsO">16</output></label>
+                    <input type="range" id="ffs" min="12" max="32" step="1" value="16"></div>
+                </div>
+              </div>
+              <div class="scn">
+                <div class="result">
+                  <div class="wide"><span>Hires required</span><b id="hiresO">–</b></div>
+                  <div><span>New hires</span><b id="l2O">–</b></div>
+                  <div><span>Overtime change</span><b id="otO">–</b><em class="sub" id="otSub"></em></div>
+                  <div><span>Total annual change</span><b id="totO">–</b></div>
+                  <div><span>Resulting operating gap</span><b id="gapO">–</b></div>
+                  <div><span>Years of fund balance</span><b id="yrsO">–</b></div>
+                </div>
+                <p class="note" style="margin:0">Debt service is already inside the 2027 budget, so it is not added again. Payroll tax is inside the $726,036 baseline, and items no scenario changes are held at 2026 levels. Zero overtime is a staffing target pending partner investigation, not a guaranteed result.</p>
+              </div>
+              <div class="scn">
+                <div class="cchart"><h3 class="ctitle">Firefighters needed to cover the posts vs. employed</h3><div id="staffChart"></div>
+                  <div class="legend"><span><i style="background:var(--blue-soft)"></i>Needed to cover posts</span><span><i style="background:var(--navy-2)"></i>Employed</span></div></div>
+              </div>
+            </div></div></div>
+        </section>
+      </div>
+
+      <div class="tabpane" id="t-4" role="tabpanel" aria-label="Scenario 4: Compensation" hidden>
         <section class="panel model" id="scenario">
-          <header><h2>Scenario analysis: staffing and compensation</h2></header>
+          <header><h2>Scenario 4: Compensation changes</h2></header>
           <div class="body"><div class="slot" data-slot="scenario" style="min-height:0">
-            <div class="scn">
-              <div class="ctrls">
-                <div><label for="posts">Posts staffed, proposed (now 4) <output id="postsO">5</output></label>
-                  <input type="range" id="posts" min="4" max="8" step="1" value="5"></div>
-                <div><label for="ffs">Firefighters employed (now 12) <output id="ffsO">16</output></label>
-                  <input type="range" id="ffs" min="12" max="32" step="1" value="16"></div>
+            <div class="scn split">
+              <div class="scn">
+                <p class="desc">Change base salary, the PERF 77 employer rate and the health premium per employee.</p>
+                <div class="ctrls">
                 <div><label for="sal">Base salary adjustment <output id="salO">0%</output></label>
                   <input type="range" id="sal" min="0" max="10" step="0.5" value="0"></div>
                 <div><label for="perfRate"><span><a href="https://www.in.gov/inprs/" target="_blank" rel="noopener">PERF 77</a> employer rate</span> <output id="perfRateO">26.5%</output></label>
@@ -271,65 +363,35 @@ footer.foot span:last-child{margin-left:auto}
                 <div><label for="prem">Health premium per employee <output id="premO">$10,000 (assumption)</output></label>
                   <input type="range" id="prem" min="0" max="30000" step="1000" value="10000"></div>
                 <label class="toggle"><input type="checkbox" id="perf" checked> Fund PERF 77</label>
+                </div>
               </div>
-              <div class="result">
-                <div class="wide"><span>Hires required</span><b id="hiresO">–</b></div>
-                <div class="wide"><span>Cost per firefighter, loaded</span><b id="perO">–</b><em class="sub" id="perSub"></em></div>
-                <div><span>Total health program cost (whole service)</span><b id="healthO">–</b><em class="sub" id="healthSub"></em></div>
-                <div><span>Total personnel cost (whole service)</span><b id="persTotO">–</b><em class="sub" id="persTotSub"></em></div>
-                <div><span>Compensation decision (existing staff)</span><b id="l1O">–</b></div>
-                <div><span>New hires</span><b id="l2O">–</b></div>
-                <div><span>Overtime change</span><b id="otO">–</b><em class="sub" id="otSub"></em></div>
-                <div><span>Total annual change</span><b id="totO">–</b></div>
-                <div><span>Resulting operating gap</span><b id="gapO">–</b></div>
-                <div><span>Additional rate per $100 AV</span><b id="addO">–</b></div>
-                <div><span>Total operating rate</span><b id="rateO">–</b></div>
-                <div><span>Household tax increase at $150,000 AV, per year</span><b id="hhO">–</b><em class="sub" id="hhSub"></em></div>
-                <div><span>Years of fund balance</span><b id="yrsO">–</b></div>
+              <div class="scn">
+                <div class="result">
+                  <div class="wide"><span>Cost per firefighter, loaded</span><b id="perO">–</b><em class="sub" id="perSub"></em></div>
+                  <div><span>Total health program cost (whole service)</span><b id="healthO">–</b><em class="sub" id="healthSub"></em></div>
+                  <div><span>Total personnel cost (whole service)</span><b id="persTotO">–</b><em class="sub" id="persTotSub"></em></div>
+                  <div><span>Compensation decision (existing staff)</span><b id="l1O">–</b></div>
+                  <div><span>Additional rate per $100 AV</span><b id="addO">–</b></div>
+                  <div><span>Total operating rate</span><b id="rateO">–</b></div>
+                  <div><span>Household tax increase at $150,000 AV, per year</span><b id="hhO">–</b><em class="sub" id="hhSub"></em></div>
+                </div>
+                <p class="note" style="margin:0">Rates are gross, before circuit-breaker caps, deductions and credits. PERF rate is partner-stated, not yet verified with INPRS. The health premium is an assumption: there is no health insurance today and no quote exists.</p>
               </div>
-              <p class="note" style="margin:0">Debt service is already inside the 2027 budget, so it is not added again. Rates are gross, before circuit-breaker caps, deductions and credits. PERF rate is partner-stated, not yet verified with INPRS. The health premium is an assumption: there is no health insurance today and no quote exists. Payroll tax is inside the $726,036 baseline, and items no scenario changes are held at 2026 levels. Zero overtime is a staffing target pending partner investigation, not a guaranteed result.</p>
-            </div></div></div>
-        </section>
-        <section class="panel model" id="funding-scenario">
-          <header><h2>Scenario 1: Funding change</h2></header>
-          <div class="body"><div class="slot" data-slot="fundingScenario" style="min-height:0">
-            <div class="scn">
-              <div><label for="fund">Additional funding (new money), $ per year <output id="fundO">$0</output></label>
-                <input type="range" id="fund" min="-500000" max="1000000" step="25000" value="0">
-                <input type="number" id="fundN" class="exact" min="-500000" max="1000000" step="1" value="0" aria-label="Funding change, exact dollars"></div>
-              <div class="ctrls">
-                <label class="toggle"><input type="radio" name="fundType" id="fundRec" value="recurring" checked> Recurring</label>
-                <label class="toggle"><input type="radio" name="fundType" id="fundOne" value="onetime"> One-time (year 1 only)</label>
+              <div class="scn">
+                <div class="cchart"><h3 class="ctitle">Loaded cost per firefighter, today vs. scenario</h3><div id="costChart"></div>
+                  <div class="legend"><span><i style="background:var(--navy-2)"></i>Salary</span><span><i style="background:var(--blue)"></i>PERF 77</span><span><i style="background:var(--blue-soft)"></i>Payroll tax</span><span><i style="background:#C77700"></i>Health premium</span></div></div>
               </div>
-              <div class="ctrls">
-                <div><label for="srcSel">Or change an existing revenue source (2024 amount)</label>
-                  <select id="srcSel">
-                    <option value="">None</option>
-                    <option value="propertyTax">Property tax</option>
-                    <option value="incomeTax">Local income tax</option>
-                    <option value="excise">Vehicle excise tax</option>
-                    <option value="contracts">Fire protection contracts</option>
-                  </select></div>
-                <div><label for="srcPct">Source change <output id="srcPctO">0%</output></label>
-                  <input type="range" id="srcPct" min="-50" max="50" step="1" value="0"></div>
-              </div>
-              <label class="toggle"><input type="checkbox" id="useStaff"> Start from the staffing scenario's gap</label>
-              <div class="result">
-                <div><span>Recurring revenue, starting</span><b id="f_revStart">–</b></div>
-                <div><span>Recurring revenue, adjusted</span><b id="f_revAdj">–</b><em class="sub" id="f_oneTime"></em></div>
-                <div><span>2027 proposed budget</span><b id="f_budget">–</b></div>
-                <div><span>Starting gap <em class="sub" id="f_basis"></em></span><b id="f_startGap">–</b></div>
-                <div><span id="f_gapLbl">Resulting annual gap</span><b id="f_gap">–</b><em class="sub" id="f_y1"></em></div>
-                <div><span>Years of fund balance</span><b id="f_yrs">–</b></div>
-              </div>
-              <div class="fchart" id="fundChart"></div>
-              <p class="note" style="margin:0" id="f_src"></p>
-              <p class="note" style="margin:0">Planning comparison, not a forecast. Expenses and other revenue held flat. Revenue sources use 2024 AFR amounts. Property tax changes are limited by levy controls and circuit breakers (Scenario 5, pending).</p>
             </div></div></div>
         </section>
       </div>
+      <div class="tabpane" id="t-5" role="tabpanel" aria-label="Scenario 5" hidden>
+        <section class="panel model" id="scenario-5">
+          <header><h2>Scenario 5</h2></header>
+          <div class="body"></div>
+        </section>
+      </div>
 
-      <div class="row d" id="assistantRow" hidden>
+      <div class="tabpane" id="t-6" role="tabpanel" aria-label="Ask the data" hidden>
         <section class="panel" id="assistant">
           <header><h2>Ask the data</h2></header>
           <div class="body"><div class="slot" data-slot="assistant" style="min-height:0">
@@ -343,23 +405,6 @@ footer.foot span:last-child{margin-left:auto}
             </div></div></div>
         </section>
       </div>
-
-      <!-- Ask CCFD1 AI: chat + data-driven charts (assistant/viz-panel.js, assistant/viz-tools.js) -->
-      <div class="row d">
-        <section class="panel" id="ai-viz">
-          <header><h2>Ask CCFD1 AI</h2><span class="tag">Not connected</span></header>
-          <div class="body">
-            <p class="note" style="margin:0 0 10px">Ask questions about CCFD1 operational, GIS, financial, and scenario data and generate data-driven visualizations.</p>
-            <div class="chat">
-              <div class="msgs" id="aivMsgs" aria-live="polite">
-                <div class="msg bot">Ask about incidents, apparatus, townships, finances, or the scenarios. Charts are drawn from the dashboard's own data and scenario engine; projected values are labelled.</div>
-              </div>
-              <div class="suggest" id="aivSuggest"></div>
-              <form class="ask" id="aivForm"><input id="aivIn" placeholder="Show EMS calls by hour of day" aria-label="Question for Ask CCFD1 AI"><button type="submit">Ask</button></form>
-              <p class="note" style="margin:0">Answers are generated by Claude. Every chart number comes from validated project data or the scenario engine, never from the AI; check cited sources.</p>
-            </div>
-          </div>
-        </section>
       </div>
     </main>
 
@@ -372,6 +417,7 @@ footer.foot span:last-child{margin-left:auto}
 </div>
 <script src="shared/engine.js"></script>
 <script src="shared/cad-gis.js"></script>
+<script src="shared/dataset.js"></script>
 <script src="assistant/tools.js"></script>
 <script>
 /* "Ask the data" assistant: Cloudflare Worker that forwards to Claude (see worker/README.md).
@@ -624,6 +670,48 @@ document.querySelectorAll(".kpis .kpi").forEach(k=>{
 });
 $("#footUpdated").textContent="Last updated: "+(DATA.updated||"–");
 
+/* ---------- Cost basis (top KPI cards) follows the active scenario tab ----------
+   Each card keeps its page value in data-base; factValue() reads that, so the facts.json check
+   is unaffected by a scenario. On Overview (and the blank tabs) the cards show the page values. */
+const KPIS=[...document.querySelectorAll(".kpis .kpi")].map(el=>{
+  const x={el,lab:el.querySelector(".label"),val:el.querySelector(".value"),src:el.querySelector(".src"),upd:el.classList.contains("updated")};
+  x.base={lab:x.lab.textContent,val:x.val.textContent,src:x.src.textContent};
+  x.val.dataset.base=x.base.val; return x;
+});
+const LAST={staffing:null,funding:null};   // latest engine results, set by the scenario panels below
+let activeTab="t-overview";
+function updateKpis(){
+  const sgn=v=>(v>0?"+":"")+money(v);
+  const ov={};   // card index -> {lab,val,src}
+  if(activeTab==="t-1"&&LAST.funding){
+    const r=LAST.funding;
+    ov[0]={val:money(r.laterGap),src:"Baseline "+money(r.startGap)};
+    ov[2]={val:money(r.adjustedRevenue),src:"Baseline "+money(S1.RECURRING_REVENUE)};
+    ov[3]={lab:"Years of fund balance",val:yearsLabel(r.years),src:"Fund balance, end of 2025: "+money(S1.FUND_BALANCE)};
+  } else if((activeTab==="t-3"||activeTab==="t-4")&&LAST.staffing){
+    const r=LAST.staffing;
+    ov[0]={val:money(r.gap),src:"Baseline "+money(ENG.BASE_GAP)};
+    ov[1]={val:money(S1.BUDGET_2027+r.total),src:"Baseline "+money(S1.BUDGET_2027)+"; change "+sgn(r.total)};
+    ov[3]={lab:"Years of fund balance",val:yearsLabel(r.years),src:"Fund balance, end of 2025: "+money(S1.FUND_BALANCE)};
+  }
+  KPIS.forEach((x,i)=>{
+    const o=ov[i], b=x.base;
+    x.lab.textContent=o&&o.lab||b.lab; x.val.textContent=o?o.val:b.val; x.src.textContent=o?o.src:b.src;
+    x.el.classList.toggle("model",!!o); x.el.classList.toggle("updated",!o&&x.upd);
+  });
+}
+
+/* ---------- Tabs: Overview, Scenarios 1-5, Ask the data ---------- */
+const TABS=[...document.querySelectorAll("#nav a[data-tab]")];
+function showTab(id){
+  if(!document.getElementById(id)) id="t-overview";
+  activeTab=id;
+  document.querySelectorAll(".tabpane").forEach(p=>{p.hidden=p.id!==id;});
+  TABS.forEach(a=>a.setAttribute("aria-current",a.dataset.tab===id?"true":"false"));
+  updateKpis();
+}
+TABS.forEach(a=>a.addEventListener("click",e=>{e.preventDefault();showTab(a.dataset.tab);}));
+
 /* ---------- Draw panels ---------- */
 document.querySelectorAll("[data-slot]").forEach(el=>{
   const key=el.dataset.slot,url=EMBEDS[key];
@@ -698,6 +786,37 @@ function runScenario(ev){
   $("#hhO").textContent="+"+r.householdPct.toFixed(1)+"%";
   $("#hhSub").textContent="+$"+r.household.toFixed(2)+" on the current operating rate of $"+ENG.CURRENT_RATE.toFixed(4);
   $("#yrsO").textContent=yearsLabel(r.years);
+  $("#staffChart").innerHTML=staffChart(r,i);
+  $("#costChart").innerHTML=costChart(pp,i);
+  LAST.staffing=r; updateKpis();
+}
+/* Scenario 3 visual: firefighters needed to cover the posts (FTE) vs. firefighters employed, today and in the scenario */
+function staffChart(r,i){
+  const rows=[["Today, "+ENG.POSTS_NOW+" posts",ENG.POSTS_NOW*ENG.FTE_PER_POST,ENG.LINE_FF],
+    ["Scenario, "+i.posts+" posts",r.fteRequired,r.firefighters]];
+  const W=420,L=104,m=Math.max(...rows.flatMap(x=>[x[1],x[2]]),1), sc=(W-L-44)/m;
+  let g="";
+  rows.forEach(([n,need,emp],k)=>{const y=8+k*66;
+    g+=`<text x="0" y="${y+22}" font-size="12" fill="${C.muted}">${n}</text>`;
+    g+=`<rect x="${L}" y="${y+4}" width="${need*sc}" height="18" rx="3" fill="${C.soft}"><title>Needed to cover ${n.toLowerCase()}: ${need.toFixed(1)}</title></rect>`;
+    g+=`<text x="${L+need*sc+5}" y="${y+17}" font-size="11.5" fill="${C.muted}">${need.toFixed(1)}</text>`;
+    g+=`<rect x="${L}" y="${y+28}" width="${emp*sc}" height="18" rx="3" fill="${C.navy}"><title>Employed: ${emp}</title></rect>`;
+    g+=`<text x="${L+emp*sc+5}" y="${y+41}" font-size="11.5" fill="${C.muted}">${emp}</text>`;});
+  return `<svg viewBox="0 0 ${W} 148" role="img" aria-label="Firefighters needed to cover the posts and firefighters employed, today and in the scenario">${g}</svg>`;
+}
+/* Scenario 4 visual: loaded cost per firefighter, stacked by component, today (salary + payroll tax) vs. scenario */
+function costChart(pp,i){
+  const today={salary:ENG.AVG_SALARY,perf:0,tax:Math.floor(ENG.AVG_SALARY*ENG.PAYROLL_TAX),health:0};
+  const parts=[["salary","Salary",C.navy],["perf","PERF 77",C.blue],["tax","Payroll tax",C.soft],["health","Health premium","#C77700"]];
+  const rows=[["Today",today],["Scenario",pp]];
+  const W=420,L=64,m=Math.max(...rows.map(([n,p])=>parts.reduce((a,q)=>a+p[q[0]],0)),1), sc=(W-L-62)/m;
+  let g="";
+  rows.forEach(([n,p],k)=>{const y=8+k*48; let x=L, tot=0;
+    g+=`<text x="0" y="${y+20}" font-size="12" fill="${C.muted}">${n}</text>`;
+    parts.forEach(([key,lab,col])=>{const w=p[key]*sc; if(w<=0) return;
+      g+=`<rect x="${x}" y="${y+4}" width="${w}" height="24" fill="${col}"><title>${lab}: ${money(p[key])}</title></rect>`; x+=w; tot+=p[key];});
+    g+=`<text x="${x+5}" y="${y+21}" font-size="11.5" font-weight="600" fill="${C.navy}">${money(tot)}</text>`;});
+  return `<svg viewBox="0 0 ${W} 108" role="img" aria-label="Loaded cost per firefighter by component, today and in the scenario">${g}</svg>`;
 }
 ["posts","ffs","perf","perfRate","prem","sal"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runScenario)});
 runScenario();
@@ -754,7 +873,27 @@ function runFunding(){
   $("#f_src").textContent=s?`${s[0]}: 2024 AFR amount ${money(s[1])}; ${(i.pct>0?"+":"")+Math.round(i.pct*100)}% = ${signed(r.sourceEffect)} per year (recurring).`:"";
   $("#f_src").hidden=!s;
   $("#fundChart").innerHTML=fundChart(r);
+  $("#srcChart").innerHTML=srcChart(r,i);
+  LAST.funding=r; updateKpis();
   return r;
+}
+/* Scenario 1 visual: recurring revenue by source type (2024 AFR amounts) with the scenario's change on top */
+function srcChart(r,i){
+  const rows=Object.entries(S1.SOURCES).map(([k,[n,v]])=>({n,base:v,adj:v+(k===i.source?r.sourceEffect:0)}));
+  rows.push({n:i.oneTime?"New funding (once)":"New funding",base:0,adj:i.funding});
+  const W=420,L=132,m=Math.max(...rows.map(x=>Math.max(x.base,Math.abs(x.adj))),1), sc=(W-L-92)/m;
+  let g="";
+  rows.forEach((x,k)=>{const y=6+k*30, d=x.adj-x.base, lo=Math.min(x.base,x.adj), hi=Math.max(x.base,x.adj);
+    g+=`<text x="0" y="${y+16}" font-size="11.5" fill="${C.muted}">${x.n}</text>`;
+    if(x.base>0){
+      g+=`<rect x="${L}" y="${y+3}" width="${lo*sc}" height="18" rx="2" fill="${C.soft}"><title>${x.n}: ${money(x.base)} (2024)</title></rect>`;
+      if(d) g+=`<rect x="${L+lo*sc}" y="${y+3}" width="${(hi-lo)*sc}" height="18" rx="2" fill="${d>0?C.blue:C.alert}" fill-opacity="${d>0?1:.55}"><title>${x.n}: ${(d>0?"+":"")+money(d)} per year</title></rect>`;
+    } else if(x.adj){
+      g+=`<rect x="${L}" y="${y+3}" width="${Math.abs(x.adj)*sc}" height="18" rx="2" fill="${x.adj>0?C.blue:C.alert}" fill-opacity="${x.adj>0?1:.55}"><title>${x.n}: ${(x.adj>0?"+":"")+money(x.adj)}</title></rect>`;
+    }
+    const end=L+(x.base>0?hi:Math.abs(x.adj))*sc+5;
+    g+=`<text x="${end}" y="${y+16}" font-size="11.5" fill="#132033">${x.base>0?money(x.adj):(x.adj>0?"+":"")+money(x.adj)}</text>`;});
+  return `<svg viewBox="0 0 ${W} ${rows.length*30+8}" role="img" aria-label="Recurring revenue by source type with the scenario change">${g}</svg>`;
 }
 if($("#fund")){
   [...$("#srcSel").options].forEach(o=>{const s=S1.SOURCES[o.value]; if(s) o.textContent=`${s[0]} (${money(s[1])})`;});
@@ -774,14 +913,20 @@ if($("#fund")){
    over http (GitHub Pages, or `python -m http.server`) for this to load. */
 const FACTS_URL="data/facts.json";
 let FACTS=null, FACTS_ERR=null;
+/* Aggregate datasets for the assistant's list_datasets / query_dataset tools (see shared/dataset.js).
+   A failure here only disables those two tools; it never blocks the page or the facts tools. */
+const DATASETS_URL="datasets/";
+const DATASETS_READY=fetch(DATASETS_URL+"index.json").then(r=>{if(!r.ok) throw new Error("HTTP "+r.status); return r.json();})
+  .then(m=>Promise.all(m.datasets.map(d=>fetch(DATASETS_URL+d.file).then(r=>{if(!r.ok) throw new Error("HTTP "+r.status); return r.json();}))))
+  .catch(e=>{console.warn("datasets not loaded:",e.message); return [];});
 const FACT_PANELS={overview:"Key figures",financial:"Receipts and disbursements","revenue-sources":"Revenue by source",gis:"Townships and service area",
   staffing:"Personnel vs. contracted service cost",uncompensated:"Responses outside the District",cad:"Incidents by hour of day",
-  scenario:"Scenario analysis: staffing and compensation","funding-scenario":"Scenario 1: Funding change"};
+  scenario:"Scenarios 3 and 4: staffing and compensation","funding-scenario":"Scenario 1: Funding change"};
 function factValue(path){
   const [root,...keys]=path.split(".");
   const walk=(o,ks)=>ks.reduce((v,k)=>v==null?undefined:v[k],o);
   if(root==="KPI"){const el=document.querySelectorAll(".kpis .kpi .value")[+keys[0]];
-    return el?+el.textContent.replace(/[^0-9.-]/g,""):undefined;}
+    return el?+(el.dataset.base||el.textContent).replace(/[^0-9.-]/g,""):undefined;}
   if(root==="DOM"){const el=document.getElementById(keys[0]);
     return el?(keys[0]==="perfRate"?+el.defaultValue/100:+el.defaultValue):undefined;}
   if(root==="MODEL"){
@@ -844,6 +989,8 @@ let FACTS_READY=Promise.resolve(null);   // resolves to the facts.json document,
     if(id==="overview"){const k=$(".kpis"); if(k) addLink(id,b=>k.after(b)); return;}
     const body=document.getElementById(id)?.querySelector(".body"); if(body) addLink(id,b=>body.append(b));
   });
+  /* Scenario 3 shares the staffing and compensation sources with Scenario 4 */
+  const b3=document.getElementById("staffing-scenario")?.querySelector(".body"); if(b3) addLink("scenario",b=>b3.append(b));
   FACTS_READY=fetch(FACTS_URL).then(r=>{if(!r.ok) throw new Error("HTTP "+r.status); return r.json();})
     .then(j=>{FACTS=j.facts; checkFacts(FACTS);
       document.querySelectorAll(".srclink").forEach(b=>{const n=FACTS.filter(f=>f.panel===b.dataset.panel).length; b.textContent=`Sources (${n})`;});
@@ -915,6 +1062,7 @@ function citeClick(target){
   if(target.fact&&FACTS){ showFacts(target.fact.panel,target.fact.id); return; }
   const el=target.panel==="overview"?$("#overview"):document.getElementById(target.panel);
   if(!el) return;
+  const pane=el.closest(".tabpane"); if(pane&&pane.id!==activeTab) showTab(pane.id);
   el.scrollIntoView({behavior:"smooth",block:"center"});
   const p=el.classList.contains("panel")?el:el.querySelector(".kpi")||el;
   [p,...(target.panel==="overview"?el.querySelectorAll(".kpi"):[])].forEach(x=>{x.classList.remove("flash");void x.offsetWidth;x.classList.add("flash");});
@@ -972,7 +1120,7 @@ async function askQuestion(q){
     if(!askTools){
       const doc=await FACTS_READY;
       if(!doc||!window.CCFD1Tools) throw new AskError("noData");
-      askTools=CCFD1Tools.createTools(doc);
+      askTools=CCFD1Tools.createTools(doc,await DATASETS_READY);
     }
     // Work on a copy; it becomes the session history only if the question completes.
     let msgs=askConvo.concat([{role:"user",content:q}]);
@@ -1025,7 +1173,7 @@ async function assistantAvailable(){
 (async function initAssistant(){
   const form=$("#askForm"); if(!form) return;
   if(!(await assistantAvailable())) return;
-  $("#assistantRow").hidden=false; $("#navAssistant").hidden=false;
+  $("#navAssistant").hidden=false;
   form.addEventListener("submit",e=>{e.preventDefault();const q=$("#askIn").value.trim();if(!q||askBusy)return;$("#askIn").value="";askQuestion(q);});
   const panel=$("#assistant");
   panel.classList.add("model");
@@ -1035,11 +1183,7 @@ async function assistantAvailable(){
     b.addEventListener("click",()=>askQuestion(q));s.append(b);});
 })();
 
-/* ---------- Highlight nav item for the section in view ---------- */
-const links=[...document.querySelectorAll("#nav a")];
-const obs=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting){
-  links.forEach(l=>l.setAttribute("aria-current",l.getAttribute("href")==="#"+en.target.id?"true":"false"));}}),{rootMargin:"-40% 0px -55% 0px"});
-links.forEach(l=>{const t=document.querySelector(l.getAttribute("href"));if(t)obs.observe(t);});
+showTab("t-overview");
 </script>
 <!-- Ask CCFD1 AI (loaded last so nothing above changes) -->
 <script src="shared/cad-metrics.js"></script>

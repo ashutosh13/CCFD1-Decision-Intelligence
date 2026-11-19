@@ -14,8 +14,10 @@
 (function (root, factory) {
   const isNode = typeof module === "object" && module.exports;
   const engine = isNode ? require("../shared/engine.js") : root.CCFD1Engine;
-  const api = factory(engine);
+  const dataset = isNode ? require("../shared/dataset.js") : root.CCFD1Dataset;
+  const api = factory(engine, dataset);
   if (isNode) {
+    api.loadDatasets = dataset.loadDatasets;
     api.loadFacts = function loadFacts(file) {
       const fs = require("fs"), path = require("path");
       return JSON.parse(fs.readFileSync(file || path.join(__dirname, "..", "data", "facts.json"), "utf8"));
@@ -24,9 +26,10 @@
   } else {
     root.CCFD1Tools = api;
   }
-})(typeof self !== "undefined" ? self : this, function (Engine) {
+})(typeof self !== "undefined" ? self : this, function (Engine, Dataset) {
   "use strict";
   if (!Engine) throw new Error("shared/engine.js must be loaded before assistant/tools.js");
+  if (!Dataset) throw new Error("shared/dataset.js must be loaded before assistant/tools.js");
   const { ENG, S1, DEFAULTS, costEngine, fundingEngine, yearsLabel } = Engine;
 
   /* ---------- status handling ---------- */
@@ -124,8 +127,9 @@
   }
 
   /* ---------- the tools ---------- */
-  function createTools(factsDoc) {
+  function createTools(factsDoc, datasets) {
     const FACTS = Array.isArray(factsDoc) ? factsDoc : (factsDoc && factsDoc.facts) || [];
+    const DATASETS = new Map((datasets || []).map(d => [d.id, d]));
     const BY_ID = new Map(FACTS.map(f => [f.id, f]));
     const fact = id => BY_ID.get(id);
     const val = id => { const f = fact(id); if (!f) throw new Error(`facts.json is missing ${id}`); return f.value; };
@@ -155,6 +159,20 @@
       const matches = scored.map(f => ({ id: f.id, label: f.label, value: f.value, unit: f.unit,
         year_or_period: f.year_or_period, status: f.status, source: f.source }));
       return ok({ query, matches }, matches.map(m => m.id), matches.length ? statusOf(matches.map(m => m.id)) : "placeholder");
+    }
+
+    /* 1c. list_datasets / query_dataset: generic access to the aggregate datasets in data/datasets */
+    function list_datasets() {
+      const list = [...DATASETS.values()].map(Dataset.describe);
+      return ok({ datasets: list }, list.map(d => "dataset." + d.id), list.length ? Dataset.weakest(list.map(d => d.status)) : "placeholder");
+    }
+    function query_dataset(id, q) {
+      const ds = DATASETS.get(id);
+      if (!ds) return fail(`No dataset "${id}".`, { available: [...DATASETS.keys()] });
+      const r = Dataset.query(ds, q);
+      if (r.error) return fail(r.error, { columns: ds.dimensions.map(d => d.name).concat(ds.measures.map(m => m.name)) });
+      const { status, dataset, ...result } = r;
+      return ok({ dataset, ...result }, ["dataset." + ds.id], status);
     }
 
     /* 2. finance_by_year */
@@ -425,7 +443,7 @@
       return ok({ topic, kind, refusal: true, message, missing_data, alternatives }, sources, "placeholder");
     }
 
-    return { get_fact, search_facts, finance_by_year, incidents_by_location, incidents_by_hour,
+    return { get_fact, search_facts, list_datasets, query_dataset, finance_by_year, incidents_by_location, incidents_by_hour,
       run_scenario_1, run_scenario_34, compare_to_baseline, unsupported };
   }
 
@@ -435,6 +453,8 @@
     switch (name) {
       case "get_fact": return tools.get_fact(i.id);
       case "search_facts": return tools.search_facts(i.query, i.limit);
+      case "list_datasets": return tools.list_datasets();
+      case "query_dataset": return tools.query_dataset(i.dataset, i.query);
       case "finance_by_year": return tools.finance_by_year(i.year_from, i.year_to, i.metric);
       case "incidents_by_location": return tools.incidents_by_location();
       case "incidents_by_hour": return tools.incidents_by_hour();
@@ -474,6 +494,22 @@
         query: { type: "string", description: "Keywords, e.g. \"assessed valuation 2027\" or \"fund balance\"." },
         limit: { type: "integer", minimum: 1, maximum: 50, description: "Maximum matches to return, 1-50. Default 10." }
       }, ["query"]) },
+    { name: "list_datasets",
+      description: "List the aggregate datasets available to chart or analyse (id, title, period, status, dimensions and measures). Use it first for any question about a series, trend, comparison or chart, then call query_dataset. Aggregated data only.",
+      input_schema: obj({}) },
+    { name: "query_dataset",
+      description: "Query one aggregate dataset by id (from list_datasets): filter rows, group by dimensions and aggregate measures, sort and limit. Returns columns (with units), rows, period, source, source_detail and status, ready to chart. Use it for finance by year, personnel vs contracted cost, 2024 revenue by source and incidents by hour. Never aggregate balances or other level measures with sum across years; use filter, min, max or avg.",
+      input_schema: obj({
+        dataset: { type: "string", description: "Dataset id, e.g. \"finance_by_year\"." },
+        query: obj({
+          select: { type: "array", items: { type: "string" }, description: "Columns to return when not aggregating. Default all." },
+          filter: { type: "object", description: "{column: value} or {column: {eq, ne, gt, gte, lt, lte, in}}. All conditions must hold. Example {\"year\":{\"gte\":2020}}." },
+          groupBy: { type: "array", items: { type: "string" }, description: "Dimension names to group by. Requires aggregate." },
+          aggregate: { type: "object", description: "{measure: \"sum\"|\"avg\"|\"min\"|\"max\"|\"count\"}. With no groupBy, returns one row." },
+          orderBy: obj({ column: { type: "string" }, desc: { type: "boolean" } }, ["column"]),
+          limit: { type: "integer", minimum: 1, maximum: 500, description: "Maximum rows, default 500." }
+        }, [], { description: "Optional. Omit to return every row." })
+      }, ["dataset"]) },
     { name: "finance_by_year",
       description: "CCFD1 finances from the Indiana Gateway Annual Financial Reports, 2011-2024 (2025 AFR pending). Use it for questions about operating revenue, operating spending, ending fund balance, personnel vs contracted service cost, or 2024 revenue by source. Operating figures exclude loan proceeds, interfund transfers and payroll pass-throughs.",
       input_schema: obj({

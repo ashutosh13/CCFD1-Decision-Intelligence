@@ -1,0 +1,121 @@
+{
+  "id": "cad_incidents_by_hour",
+  "title": "Incidents by hour of day",
+  "panel": "cad",
+  "grain": "hour",
+  "period": "2025-09-16 to 2026-09-16",
+  "status": "verified",
+  "source": "CCFD1 CAD extract",
+  "source_detail": "Distinct incidents by hour of incident creation, Fire and EMS combined, de-duplicated (seeded from the page's DATA.hourly; regenerate with export_datasets.py)",
+  "note": "Hour of incident creation. Aggregated counts only.",
+  "dimensions": [
+    {
+      "name": "hour",
+      "type": "int"
+    }
+  ],
+  "measures": [
+    {
+      "name": "incidents",
+      "unit": "count"
+    }
+  ],
+  "rows": [
+    {
+      "hour": 0,
+      "incidents": 20
+    },
+    {
+      "hour": 1,
+      "incidents": 12
+    },
+    {
+      "hour": 2,
+      "incidents": 14
+    },
+    {
+      "hour": 3,
+      "incidents": 14
+    },
+    {
+      "hour": 4,
+      "incidents": 12
+    },
+    {
+      "hour": 5,
+      "incidents": 8
+    },
+    {
+      "hour": 6,
+      "incidents": 18
+    },
+    {
+      "hour": 7,
+      "incidents": 25
+    },
+    {
+      "hour": 8,
+      "incidents": 30
+    },
+    {
+      "hour": 9,
+      "incidents": 38
+    },
+    {
+      "hour": 10,
+      "incidents": 29
+    },
+    {
+      "hour": 11,
+      "incidents": 36
+    },
+    {
+      "hour": 12,
+      "incidents": 27
+    },
+    {
+      "hour": 13,
+      "incidents": 36
+    },
+    {
+      "hour": 14,
+      "incidents": 35
+    },
+    {
+      "hour": 15,
+      "incidents": 36
+    },
+    {
+      "hour": 16,
+      "incidents": 38
+    },
+    {
+      "hour": 17,
+      "incidents": 30
+    },
+    {
+      "hour": 18,
+      "incidents": 27
+    },
+    {
+      "hour": 19,
+      "incidents": 30
+    },
+    {
+      "hour": 20,
+      "incidents": 27
+    },
+    {
+      "hour": 21,
+      "incidents": 21
+    },
+    {
+      "hour": 22,
+      "incidents": 20
+    },
+    {
+      "hour": 23,
+      "incidents": 21
+    }
+  ]
+}
