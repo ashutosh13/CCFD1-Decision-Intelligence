@@ -120,6 +120,84 @@ export const TOOL_SCHEMAS = [
     }
   },
   {
+    "name": "build_chart",
+    "description": "Draw an interactive chart beside the chat from a dataset (id from list_datasets). Use it for any request to chart, compare, plot or show a pattern (by hour, weekday, group, year). Pick the chart type, the x dimension, the y measure and an optional series dimension; query reuses query_dataset's filter/groupBy/aggregate and must return those columns (aggregate with groupBy on x and series; hours and weekdays are ordered automatically). Axis units, scales and the source label are filled in for you. Returns chart_id, a summary and the rows plotted; one chart per question unless asked. On error read the hint and retry.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "dataset": {
+          "type": "string",
+          "description": "Dataset id, e.g. \"cad_incidents_clean\"."
+        },
+        "query": {
+          "type": "object",
+          "description": "Same shape as query_dataset's query: {filter, groupBy, aggregate, orderBy, limit}. Example {\"groupBy\":[\"hour\",\"source_group\"],\"aggregate\":{\"incidents\":\"sum\"}}. Omit to plot the dataset's rows directly."
+        },
+        "chart": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "column",
+                "bar",
+                "line",
+                "area",
+                "pie",
+                "stacked_column"
+              ],
+              "description": "column, bar (horizontal), line, area, pie (one series) or stacked_column."
+            },
+            "x": {
+              "type": "string",
+              "description": "Dimension for the x axis (a column in the query result)."
+            },
+            "y": {
+              "type": "string",
+              "description": "Measure for the y axis (a column in the query result)."
+            },
+            "series": {
+              "type": "string",
+              "description": "Optional dimension that splits the data into one series per value (e.g. source_group)."
+            },
+            "title": {
+              "type": "string",
+              "description": "Chart title, plain words, max 120 characters."
+            },
+            "x_label": {
+              "type": "string",
+              "description": "Optional x axis title. Default is the column name."
+            },
+            "y_label": {
+              "type": "string",
+              "description": "Optional y axis title. Default is the column name plus its unit."
+            },
+            "categories_order": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Optional explicit order of x values. Hours and weekdays are ordered automatically."
+            }
+          },
+          "required": [
+            "type",
+            "x",
+            "y",
+            "title"
+          ],
+          "additionalProperties": false,
+          "description": "What to draw: type, x dimension, y measure, optional series, title and labels."
+        }
+      },
+      "required": [
+        "dataset",
+        "chart"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "finance_by_year",
     "description": "CCFD1 finances from the Indiana Gateway Annual Financial Reports, 2011-2024 (2025 AFR pending). Use it for questions about operating revenue, operating spending, ending fund balance, personnel vs contracted service cost, or 2024 revenue by source. Operating figures exclude loan proceeds, interfund transfers and payroll pass-throughs.",
     "input_schema": {

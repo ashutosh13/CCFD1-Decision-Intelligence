@@ -4,8 +4,10 @@
    where status is one of "verified" | "partner_stated" | "model_output" | "placeholder"
    (the weakest status of anything the result depends on), or "error" for invalid input.
    No tool invents a number: values come from facts.json or from the shared scenario
-   engine that the dashboard panels also use. Only aggregated data is available -
-   no record-level CAD, addresses, names, phone numbers or individual pay.
+   engine that the dashboard panels also use. The assistant sees aggregated data and one sanitized
+   record-level table (cad_incidents_clean) that the Worker holds and only ever answers aggregate
+   queries on - no addresses, names, phone numbers, incident numbers, coordinates or individual pay.
+   Tools may return a Promise (remote dataset queries); runTool callers must await the result.
 
    Node:    const { createTools, loadFacts, TOOL_SCHEMAS, runTool } = require("./assistant/tools.js");
             const tools = createTools(loadFacts());
@@ -126,8 +128,102 @@
     return { v, staffing };
   }
 
+
+  /* ---------- chart building (pure) ----------
+     buildChartConfig(queryResult, spec) -> { options, summary } | { error, hint }.
+     options is a Highcharts core options object (no modules needed); it holds only values from the query result. */
+  const CHART_TYPES = ["column", "bar", "line", "area", "pie", "stacked_column"];
+  const MAX_POINTS = 200;
+  const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const PALETTE = ["#0072B2", "#E69F00", "#009E73", "#CC79A7", "#56B4E9", "#D55E00", "#6B6B6B"]; // colour-blind safe
+  const STATUS_LABEL = { verified: "verified", partner_stated: "partner-stated", model_output: "model output", placeholder: "placeholder" };
+  const humanize = n => { const t = String(n).replace(/_/g, " "); return t.charAt(0).toUpperCase() + t.slice(1); };
+  const chartErr = (error, hint) => ({ error, hint });
+
+  function orderCategories(vals, spec, xName) {
+    if (Array.isArray(spec.categories_order) && spec.categories_order.length) {
+      const set = new Set(vals), first = spec.categories_order.filter(v => set.has(v));
+      return first.concat(vals.filter(v => !first.includes(v)));
+    }
+    if (xName === "hour" && vals.every(Number.isInteger)) return Array.from({ length: 24 }, (_, h) => h);
+    if (vals.length && vals.every(v => WEEKDAYS.includes(v))) return WEEKDAYS.filter(d => vals.includes(d));
+    if (vals.length && vals.every(isNum)) return vals.slice().sort((a, b) => a - b);
+    return vals;
+  }
+
+  function buildChartConfig(res, spec) {
+    if (!spec || typeof spec !== "object") return chartErr("chart is required", "Pass chart: {type, x, y, title}.");
+    const cols = new Map((res.columns || []).map(c => [c.name, c]));
+    const names = [...cols.keys()].join(", ");
+    if (!CHART_TYPES.includes(spec.type)) return chartErr(`chart.type must be one of ${CHART_TYPES.join(", ")}`);
+    if (typeof spec.title !== "string" || !spec.title.trim() || spec.title.length > 120) return chartErr("chart.title is required (max 120 characters)");
+    const xc = cols.get(spec.x), yc = cols.get(spec.y), sc = spec.series ? cols.get(spec.series) : null;
+    if (!xc) return chartErr(`chart.x "${spec.x}" is not in the query result; columns are ${names}`, "x must be a dimension returned by the query (add it to groupBy).");
+    if (xc.role !== "dimension") return chartErr(`chart.x "${spec.x}" is a measure, not a dimension`, "Put a dimension on x and a measure on y.");
+    if (!yc) return chartErr(`chart.y "${spec.y}" is not in the query result; columns are ${names}`, "y must be a measure returned by the query (add it to aggregate).");
+    if (yc.role !== "measure") return chartErr(`chart.y "${spec.y}" is a dimension, not a measure`, "Put a measure on y, e.g. aggregate {incidents:\"sum\"}.");
+    if (spec.series && !sc) return chartErr(`chart.series "${spec.series}" is not in the query result; columns are ${names}`, "Add the series dimension to groupBy.");
+    if (sc && sc.role !== "dimension") return chartErr(`chart.series "${spec.series}" must be a dimension`);
+    if (sc && spec.series === spec.x) return chartErr("chart.series must differ from chart.x");
+    if (spec.type === "pie" && sc) return chartErr("a pie chart takes one series", "Drop chart.series, or use column or stacked_column.");
+    const rows = res.rows || [];
+    if (!rows.length) return chartErr("the query returned no rows", "Check the filter values against the dataset's dimensions, or drop the filter.");
+    if (rows.some(r => r[spec.y] != null && !isNum(r[spec.y]))) return chartErr(`chart.y "${spec.y}" has non-numeric values`);
+    if (rows.every(r => r[spec.y] == null)) return chartErr(`chart.y "${spec.y}" is empty for every row`, "The measure has no data for this slice.");
+
+    const cats = orderCategories([...new Set(rows.map(r => r[spec.x]))], spec, spec.x);
+    const seriesNames = sc ? [...new Set(rows.map(r => r[spec.series]))] : [null];
+    if (cats.length * seriesNames.length > MAX_POINTS)
+      return chartErr(`the chart would have ${cats.length * seriesNames.length} points (max ${MAX_POINTS})`, "Group by a coarser dimension or filter the rows.");
+    const cell = new Map();
+    for (const r of rows) {
+      const k = r[spec.x] + "\u0000" + (sc ? r[spec.series] : "");
+      if (cell.has(k)) return chartErr("more than one row per x value" + (sc ? " and series" : ""), "Aggregate with groupBy on exactly the x (and series) dimension.");
+      cell.set(k, r[spec.y]);
+    }
+    const unit = yc.unit || "", isCount = unit === "count" && yc.aggregate !== "avg";
+    const label = v => (spec.x === "hour" && Number.isInteger(v) ? String(v).padStart(2, "0") + ":00" : String(v));
+    const round = v => (v == null ? null : r2(v));
+    const series = seriesNames.map(sn => ({
+      name: sn == null ? humanize(spec.y) : String(sn),
+      data: cats.map(c => { const v = cell.get(c + "\u0000" + (sn == null ? "" : sn)); return v == null ? (isCount ? 0 : null) : round(v); })
+    }));
+    if (series.some(s => s.data.every(v => v === null))) return chartErr("a series has no data", "Filter out empty series values.");
+    const all = series.flatMap(s => s.data).filter(v => v !== null);
+    const hcType = spec.type === "stacked_column" ? "column" : spec.type;
+    const unitTxt = unit && unit !== "count" ? " " + unit : "";
+    const yTitle = spec.y_label || humanize(spec.y) + (unit ? ` (${unit})` : "");
+    const status = res.status;
+    const options = {
+      chart: { type: hcType, spacingBottom: 18 },
+      accessibility: { enabled: false }, // core only: no accessibility module; the page adds an aria-label and a data table
+      colors: PALETTE,
+      title: { text: spec.title.trim() },
+      subtitle: { text: res.period ? `Period: ${res.period}` : undefined },
+      caption: { text: `Source: ${res.source || res.dataset} · status: ${STATUS_LABEL[status] || status}` },
+      legend: { enabled: seriesNames.length > 1 || spec.type === "pie" },
+      tooltip: { shared: spec.type !== "pie", valueSuffix: unitTxt, valueDecimals: isCount ? 0 : 1 },
+      xAxis: { categories: cats.map(label), title: { text: spec.x_label || humanize(spec.x) } },
+      yAxis: { title: { text: yTitle }, allowDecimals: !isCount, ...(all.every(v => v >= 0) ? { min: 0 } : {}) },
+      series
+    };
+    if (spec.type === "pie") {
+      if (all.some(v => v < 0)) return chartErr("a pie chart cannot show negative values", "Use column instead.");
+      delete options.xAxis; delete options.yAxis;
+      options.series = [{ name: humanize(spec.y), data: cats.map((c, k) => ({ name: label(c), y: series[0].data[k] })).filter(p => p.y !== null) }];
+    }
+    if (spec.type === "stacked_column") options.plotOptions = { column: { stacking: "normal" } };
+    return { options, summary: { type: spec.type, points: cats.length * seriesNames.length, series: seriesNames.filter(x => x != null), title: spec.title.trim(), x: spec.x, y: spec.y, unit } };
+  }
+
   /* ---------- the tools ---------- */
-  function createTools(factsDoc, datasets) {
+  /* options: { remoteQuery(id, query) -> Promise<queryResult> for remote datasets, trialRender(options) -> error string|null,
+     onChart(entry) when a chart is built } */
+  function createTools(factsDoc, datasets, options) {
+    const opts = options || {};
+    const charts = new Map();
+    const isThenable = v => v && typeof v.then === "function";
+    const then = (v, f) => (isThenable(v) ? v.then(f) : f(v));
     const FACTS = Array.isArray(factsDoc) ? factsDoc : (factsDoc && factsDoc.facts) || [];
     const DATASETS = new Map((datasets || []).map(d => [d.id, d]));
     const BY_ID = new Map(FACTS.map(f => [f.id, f]));
@@ -166,13 +262,52 @@
       const list = [...DATASETS.values()].map(Dataset.describe);
       return ok({ datasets: list }, list.map(d => "dataset." + d.id), list.length ? Dataset.weakest(list.map(d => d.status)) : "placeholder");
     }
+    /* Remote datasets (record-level, held by the Worker) answer through opts.remoteQuery; others run locally. */
+    function runQuery(ds, q) {
+      if (!ds.remote) return Dataset.query(ds, q);
+      if (!opts.remoteQuery) return { error: `Dataset "${ds.id}" is held server-side and is not reachable from here.` };
+      if (!q || !q.aggregate || !Object.keys(q.aggregate).length)
+        return { error: `Dataset "${ds.id}" is record-level: aggregate it (groupBy plus aggregate, e.g. {"incidents":"sum"}); individual rows are not available.` };
+      return Promise.resolve().then(() => opts.remoteQuery(ds.id, q)).catch(() => ({ error: "The data service could not be reached. Try again." }));
+    }
     function query_dataset(id, q) {
       const ds = DATASETS.get(id);
       if (!ds) return fail(`No dataset "${id}".`, { available: [...DATASETS.keys()] });
-      const r = Dataset.query(ds, q);
-      if (r.error) return fail(r.error, { columns: ds.dimensions.map(d => d.name).concat(ds.measures.map(m => m.name)) });
-      const { status, dataset, ...result } = r;
-      return ok({ dataset, ...result }, ["dataset." + ds.id], status);
+      return then(runQuery(ds, q), r => {
+        if (r.error) return fail(r.error, { columns: ds.dimensions.map(d => d.name).concat(ds.measures.map(m => m.name)) });
+        const { status, dataset, ...result } = r;
+        return ok({ dataset, ...result }, ["dataset." + ds.id], status);
+      });
+    }
+
+    /* 1d. build_chart: declarative chart on a dataset's schema columns; the model never writes Highcharts JSON */
+    function build_chart(input) {
+      const i = input || {};
+      const ds = DATASETS.get(i.dataset);
+      if (!ds) return fail(`No dataset "${i.dataset}".`, { available: [...DATASETS.keys()] });
+      const c = i.chart || {};
+      let q = i.query;
+      if (!q) { // default: the chart's own columns, straight from the rows
+        const sel = [c.x, c.series, c.y].filter((v, k, a) => v && a.indexOf(v) === k);
+        q = { select: sel };
+      }
+      return then(runQuery(ds, q), r => {
+        if (r.error) return fail(r.error, { columns: ds.dimensions.map(d => d.name).concat(ds.measures.map(m => m.name)) });
+        const built = buildChartConfig(r, c);
+        if (built.error) return fail(built.error, { hint: built.hint, columns: r.columns.map(x => `${x.name} (${x.role})`) });
+        if (opts.trialRender) { // the page renders the config offscreen first; a failure goes back to the model as a normal error
+          const bad = opts.trialRender(built.options);
+          if (bad) return fail(`The chart could not be drawn: ${bad}`, { hint: "Try a simpler chart type or a different query." });
+        }
+        const chart_id = "chart-" + (charts.size + 1);
+        const entry = { chart_id, title: built.summary.title, dataset: ds.id, status: r.status, sources: ["dataset." + ds.id],
+          options: built.options, summary: built.summary, created: Date.now() };
+        charts.set(chart_id, entry);
+        if (opts.onChart) { try { opts.onChart(entry); } catch { /* the pane is optional */ } }
+        return ok({ chart_id, summary: built.summary, rows: r.rows.slice(0, 120), rows_truncated: r.rows.length > 120 || undefined, period: r.period, source: r.source,
+          note: [r.note, "The chart is shown beside the chat; describe it, do not repeat every value."].filter(Boolean).join(" ") },
+          ["dataset." + ds.id], r.status);
+      });
     }
 
     /* 2. finance_by_year */
@@ -397,6 +532,7 @@
       salary: { tool: "get_fact", input: { id: "eng.avg_salary" }, gives: "average line firefighter salary ($56,204, aggregate) and line firefighter count (12)" },
       personnel: { tool: "finance_by_year", input: { metric: "personnel_vs_contracted" }, gives: "total personnel cost by year from the AFRs" },
       s34: { tool: "run_scenario_34", gives: "gross tax rate needed to fund staffing and compensation changes, before caps" },
+      duration: { tool: "build_chart", input: { dataset: "cad_incidents_clean" }, gives: "average time on call (dispatch to clear) by Fire and EMS from the sanitized incident table" },
       s1: { tool: "run_scenario_1", gives: "effect of a funding change on the gap and fund balance" }
     };
     function unsupported(topic) {
@@ -404,18 +540,20 @@
       let kind, message, missing_data, alternatives, sources;
       if (/\baddress|\bstreet\b|\bname[sd]?\b|\bphone|\bcaller|\bpatient|individual|specific incident|incident (number|no\.?|#|id)|\bwhich house|license plate|unit[- ]level|\bunit\b.*\b(record|dispatch|time)|dispatch record|record[- ]level|\bper[- ]incident|\bsalary of\b|\bsalaries\b|\bwhat does .* (earn|make)\b|\bpay of\b|\bemployee\b|\bpersonnel (record|file|detail)|\bwho (responded|was|is)\b/.test(t)) {
         kind = "record_level";
-        message = "The dashboard only holds aggregated data. It has no individual incidents, addresses, names, phone numbers, " +
-          "unit-level dispatch records, individual salaries or personnel details, so it cannot answer that.";
-        missing_data = ["Record-level data is deliberately excluded from the dashboard for privacy."];
+        message = "The assistant only holds aggregated data and a sanitized incident table. Addresses, names, phone numbers, " +
+          "incident numbers, exact coordinates, unit-level dispatch records, individual salaries and personnel details are removed " +
+          "before the data reaches it, so it cannot answer that.";
+        missing_data = ["Identifying fields are deliberately removed for privacy."];
         alternatives = /salar|pay|earn|employee|personnel/.test(t) ? [ALTS.salary, ALTS.personnel]
           : [ALTS.location, ALTS.hour];
         sources = [];
       } else if (/response[\s-]*time|arrival time|travel time|turnout time|time to (arrive|scene)|on[- ]scene time|minutes to/.test(t)) {
         kind = "response_time";
-        message = "Response-time projections are not supported. The team excluded them because the dashboard has no data that supports them.";
+        message = "Response-time projections are not supported, and neither is a true dispatch-to-arrival figure: the dashboard has no validated data for it. " +
+          "What it can chart is time on call (earliest dispatch to latest clear) from the sanitized incident table, with the exclusions noted.";
         missing_data = ["Validated dispatch-to-on-scene times for each incident, with a documented method for missing or out-of-order timestamps",
           "Station and apparatus locations with a travel-time model", "Team and partner agreement on how response times would be reported"];
-        alternatives = [ALTS.hour, ALTS.location];
+        alternatives = [ALTS.duration, ALTS.hour, ALTS.location];
         sources = ["gap.response_time"];
       } else if (/scenario\s*2|township (contribution|join|agreement|share|cost)|mutual aid (cost|agreement)|service agreement/.test(t)) {
         kind = "scenario_2";
@@ -435,7 +573,7 @@
       } else {
         kind = "not_in_data";
         message = "That is not covered by the dashboard's data. It holds Gateway AFR finances (2011-2024), aggregated CAD incident counts " +
-          "(Sep 16 2025 - Sep 16 2026), aggregate payroll constants, and the Scenario 1 and Scenario 3&4 models.";
+          "(Sep 16 2025 - Sep 16 2026) and a sanitized incident table, aggregate payroll constants, and the Scenario 1 and Scenario 3&4 models.";
         missing_data = ["A source document for the requested figure"];
         alternatives = [{ tool: "search_facts", gives: "keyword search across every sourced figure on the dashboard" }];
         sources = [];
@@ -443,7 +581,7 @@
       return ok({ topic, kind, refusal: true, message, missing_data, alternatives }, sources, "placeholder");
     }
 
-    return { get_fact, search_facts, list_datasets, query_dataset, finance_by_year, incidents_by_location, incidents_by_hour,
+    return { charts, get_fact, search_facts, list_datasets, query_dataset, build_chart, finance_by_year, incidents_by_location, incidents_by_hour,
       run_scenario_1, run_scenario_34, compare_to_baseline, unsupported };
   }
 
@@ -455,6 +593,7 @@
       case "search_facts": return tools.search_facts(i.query, i.limit);
       case "list_datasets": return tools.list_datasets();
       case "query_dataset": return tools.query_dataset(i.dataset, i.query);
+      case "build_chart": return tools.build_chart(i);
       case "finance_by_year": return tools.finance_by_year(i.year_from, i.year_to, i.metric);
       case "incidents_by_location": return tools.incidents_by_location();
       case "incidents_by_hour": return tools.incidents_by_hour();
@@ -510,6 +649,22 @@
           limit: { type: "integer", minimum: 1, maximum: 500, description: "Maximum rows, default 500." }
         }, [], { description: "Optional. Omit to return every row." })
       }, ["dataset"]) },
+    { name: "build_chart",
+      description: "Draw an interactive chart beside the chat from a dataset (id from list_datasets). Use it for any request to chart, compare, plot or show a pattern (by hour, weekday, group, year). Pick the chart type, the x dimension, the y measure and an optional series dimension; query reuses query_dataset's filter/groupBy/aggregate and must return those columns (aggregate with groupBy on x and series; hours and weekdays are ordered automatically). Axis units, scales and the source label are filled in for you. Returns chart_id, a summary and the rows plotted; one chart per question unless asked. On error read the hint and retry.",
+      input_schema: obj({
+        dataset: { type: "string", description: "Dataset id, e.g. \"cad_incidents_clean\"." },
+        query: { type: "object", description: "Same shape as query_dataset's query: {filter, groupBy, aggregate, orderBy, limit}. Example {\"groupBy\":[\"hour\",\"source_group\"],\"aggregate\":{\"incidents\":\"sum\"}}. Omit to plot the dataset's rows directly." },
+        chart: obj({
+          type: { type: "string", enum: CHART_TYPES, description: "column, bar (horizontal), line, area, pie (one series) or stacked_column." },
+          x: { type: "string", description: "Dimension for the x axis (a column in the query result)." },
+          y: { type: "string", description: "Measure for the y axis (a column in the query result)." },
+          series: { type: "string", description: "Optional dimension that splits the data into one series per value (e.g. source_group)." },
+          title: { type: "string", description: "Chart title, plain words, max 120 characters." },
+          x_label: { type: "string", description: "Optional x axis title. Default is the column name." },
+          y_label: { type: "string", description: "Optional y axis title. Default is the column name plus its unit." },
+          categories_order: { type: "array", items: { type: "string" }, description: "Optional explicit order of x values. Hours and weekdays are ordered automatically." }
+        }, ["type", "x", "y", "title"], { description: "What to draw: type, x dimension, y measure, optional series, title and labels." })
+      }, ["dataset", "chart"]) },
     { name: "finance_by_year",
       description: "CCFD1 finances from the Indiana Gateway Annual Financial Reports, 2011-2024 (2025 AFR pending). Use it for questions about operating revenue, operating spending, ending fund balance, personnel vs contracted service cost, or 2024 revenue by source. Operating figures exclude loan proceeds, interfund transfers and payroll pass-throughs.",
       input_schema: obj({
@@ -552,5 +707,5 @@
       input_schema: obj({ topic: { type: "string", description: "The user's request in a few words, e.g. \"response time to Clinton Township\"." } }, ["topic"]) }
   ];
 
-  return { createTools, runTool, TOOL_SCHEMAS, STATUS_ORDER };
+  return { createTools, runTool, TOOL_SCHEMAS, STATUS_ORDER, buildChartConfig, CHART_TYPES };
 });

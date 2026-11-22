@@ -5,7 +5,9 @@
      { id, title, panel?, grain, period, status, source, source_detail, note?,
        dimensions: [{ name, type: "int" | "string" }],
        measures:   [{ name, unit }],
-       rows: [{ <dimension>: v, <measure>: n, _status?: status }] }
+       rows: [{ <dimension>: v, <measure>: n, _status?: status }],
+       record_level?: true,   one row per incident (sanitized): duplicate dimension values are allowed
+       remote?: true }        rows are not published; the Worker holds them and answers aggregate queries only
    datasets/index.json is the manifest: { datasets: [{ id, title, file, ... }] }.
 
    Node:    const D = require("./shared/dataset.js");  D.loadDatasets();
@@ -67,6 +69,8 @@
       for (const m of ds.measures) if (row[m.name] !== null && !isNum(row[m.name])) errs.push(`row ${i}: ${m.name} must be a number or null`);
       if (row._status !== undefined && !STATUS_ORDER.includes(row._status)) errs.push(`row ${i}: bad _status`);
     });
+    if (ds.remote && ds.rows.length) errs.push("a remote dataset must publish no rows (the Worker holds them)");
+    if (ds.record_level) return errs;
     const dimKey = r => ds.dimensions.map(d => r[d.name]).join("\u0000");
     const seen = new Set();
     ds.rows.forEach((r, i) => { const k = dimKey(r); if (seen.has(k)) errs.push(`row ${i}: duplicate dimension values`); seen.add(k); });
@@ -77,8 +81,8 @@
   function describe(ds) {
     return { id: ds.id, title: ds.title, panel: ds.panel || null, grain: ds.grain, period: ds.period, status: ds.status,
       dimensions: ds.dimensions.map(d => ({ name: d.name, type: d.type })),
-      measures: ds.measures.map(m => ({ name: m.name, unit: m.unit })), rows: ds.rows.length,
-      source: ds.source };
+      measures: ds.measures.map(m => ({ name: m.name, unit: m.unit })), rows: ds.remote ? null : ds.rows.length,
+      source: ds.source, ...(ds.remote ? { remote: true, note: "Record-level rows are held server-side; aggregate with groupBy." } : {}) };
   }
 
   function matches(value, cond) {

@@ -5,10 +5,24 @@
 This Worker connects the dashboard's "Ask the data" panel to the Anthropic Messages API without putting the API key in the browser.
 
 - The browser sends only `{ "messages": [...] }`: the user's text, the assistant turns it received, and `tool_result` blocks.
-- The Worker adds the fixed settings, forwards the request, and returns Anthropic's response JSON unchanged. The fixed settings are the model (`claude-haiku-5-5`), `max_tokens: 1024`, the system prompt, and the tool list.
+- The Worker adds the fixed settings, forwards the request, and returns Anthropic's response JSON unchanged. The fixed settings are the model (`claude-haiku-5-5`), `max_tokens: 1536`, the system prompt, and the tool list.
 - Tools run in the browser (`assistant/tools.js`). The Worker never executes them.
 - The API key is read only from the Cloudflare secret `ANTHROPIC_API_KEY`. It is never stored in this repo, logged or returned.
 - `GET /status` returns `{ "available": true|false }`: true only when a key is set and Anthropic accepts it (checked against the free model-list endpoint, cached 5 minutes). The dashboard shows the "Ask the data" section and its nav link only when this is true, so removing or invalidating the key hides the section. The key itself is never returned.
+
+## Private data route: `POST /query`
+
+Serves the sanitized record-level table without ever publishing it. Body `{ "dataset": "cad_incidents_clean", "query": {...} }`
+(max 4 KB, same query shape as `query_dataset`). It reads `data:<id>` from the `RATE_LIMIT` KV namespace, requires an
+`aggregate`, rejects `select`, hides groups with fewer than 3 incidents, and is limited to 60 requests per IP per 10 minutes
+(in memory). Load the data with `npm run upload-data` (reads `../datasets.private/`, needs the Cloudflare login or
+`CLOUDFLARE_API_TOKEN`). Without uploaded data the route returns 404 and the assistant reports the dataset as unavailable.
+
+## Deploying from GitHub Actions
+
+`.github/workflows/pages.yml` has a `worker` job. Add repository secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` and
+`ANTHROPIC_API_KEY`; on every push to `main` it runs `npm test`, pushes the key as a Worker secret and runs `wrangler deploy`.
+Without the secrets it skips. A local `.env` is only for `python run.py`. Highcharts core needs no key (CDN, SRI-pinned).
 
 ## What the Worker rejects
 
@@ -116,11 +130,11 @@ To run the Worker locally against the real API:
 4. The 8-round-trip cap counts from the user's latest question.
 5. Handle the other stop reasons:
    - `"end_turn"`: show the text blocks.
-   - `"max_tokens"`: the answer was cut off at 1024 tokens. Show what arrived and suggest a narrower question.
+   - `"max_tokens"`: the answer was cut off at 1536 tokens. Show what arrived and suggest a narrower question.
    - `"refusal"`: show a short "can't help with that" message. Claude Haiku 5.5 has no server-side fallback model.
 
 ## Limits and notes
 
 - **Rate limit.** The limit is approximate: KV is eventually consistent and allows 1 write per second per key. If the KV binding is missing or fails, the Worker falls back to a per-instance in-memory counter, which is best effort only. Raw IPs are never stored; KV keys use a hash.
 - **KV Free plan.** The Free plan allows 1,000 KV writes per day, which is roughly 1,000 assistant requests per day across all users. Upgrade the plan or drop the KV binding if that is too low.
-- **API version.** `@anthropic-ai/sdk` 1.x sends API version `2026-10-21`. The Worker sets `output_config.effort: "low"` because Claude Haiku 5.5 thinks by default, and thinking counts toward the 1024-token cap. The Worker does not send `temperature`, which this API version rejects.
+- **API version.** `@anthropic-ai/sdk` 1.x sends API version `2026-10-21`. The Worker sets `output_config.effort: "low"` because Claude Haiku 5.5 thinks by default, and thinking counts toward the 1536-token cap. The Worker does not send `temperature`, which this API version rejects.

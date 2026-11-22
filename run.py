@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""One command from new CAD data to a live site.
+"""Local data pipeline: new CAD data -> validated database -> datasets -> tests -> assistant -> push.
 
     python run.py --setup        first time only: asks for your keys, writes .env
-    python run.py                extract -> ingest -> export -> test -> deploy assistant -> build -> push
+    python run.py                extract -> validate/ingest -> export + schemas + sanitized table -> test ->
+                                 deploy assistant + upload data -> assemble site/ (preview) -> push
+    python run.py --dry-run      extract + validate only (no database or site changes)
 
 Put new blotter PDFs (file name must contain FIRE or EMS) or already-extracted folders
 (incidents.csv + unit_responses.csv) in inbox/. Re-running with the same files does nothing new.
-
-Flags: --dry-run (extract + validate only, no database or site changes), --skip-worker, --no-push,
---yes (no confirmation prompts), --build-only (just assemble site/, used by the GitHub workflow).
+The run ends at the push (with a confirmation prompt); GitHub Actions then runs build_site.py and publishes.
 Uses only the Python standard library; it creates .venv for the extractor's dependencies.
 """
 from __future__ import annotations
@@ -25,6 +25,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from build_site import build_site  # noqa: E402  (shared with GitHub Actions)
+
 ROOT = Path(__file__).resolve().parent
 INBOX = ROOT / "inbox"
 STRUCTURED = ROOT / "data" / "DailyBlotter" / "structured"
@@ -37,7 +39,6 @@ CONFIG = ROOT / "config.json"
 VENV = ROOT / ".venv"
 VENV_PY = VENV / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 LEDGER = STRUCTURED / ".ingested.json"
-PUBLIC_PATHS = ["index.html", "config.json", "shared", "assistant", "datasets", "assets", "data/facts.json"]
 
 
 class Stop(Exception):
@@ -186,12 +187,14 @@ def ingest(dry: bool, township: str) -> list[Path]:
     return [d for d, _ in todo]
 
 
-def export_and_promote(assume_yes: bool) -> bool:
+def export_and_promote() -> bool:
     if not DB.exists():
         raise Stop("No database (ccfd1.db) to export from.")
     shutil.rmtree(CANDIDATE, ignore_errors=True)
     if run([VENV_PY, ROOT / "pipeline" / "export_datasets.py", "--db", DB, "--out", CANDIDATE]).returncode:
         raise Stop("Exporting datasets failed.")
+    if run([VENV_PY, ROOT / "pipeline" / "clean_incidents.py", "--db", DB, "--public", CANDIDATE]).returncode:
+        raise Stop("Building the sanitized incident table failed (nothing was published).")
     sys.path.insert(0, str(ROOT / "pipeline"))
     import datasets_lib as dl  # noqa: E402
 
@@ -214,7 +217,7 @@ def export_and_promote(assume_yes: bool) -> bool:
     say("Datasets that will change:")
     for f, b, a in changed:
         say(f"  {f.name}: {b} rows -> {a} rows ({ds_total(f)})")
-    if not assume_yes and input("Publish these? [y/N] ").strip().lower() != "y":
+    if input("Publish these? [y/N] ").strip().lower() != "y":
         raise Stop("Stopped at your request. Nothing was published.")
     for f, _, _ in changed:
         shutil.copyfile(f, DATASETS / f.name)
@@ -244,7 +247,7 @@ def ds_total(f: Path) -> str:
 
 def test_all():
     cmds = [([VENV_PY, "-m", "pytest", "-q", "pipeline/tests"], ROOT),
-            (["node", "--test", "shared/dataset.test.js", "assistant/tools.test.js"], ROOT)]
+            (["node", "--test", "shared/dataset.test.js", "assistant/tools.test.js", "assistant/chart.test.js"], ROOT)]
     if (WORKER / "node_modules").exists():
         cmds.append((["npm", "test", "--silent"], WORKER))
     for cmd, cwd in cmds:
@@ -286,26 +289,13 @@ def deploy_worker(cfg: dict):
         cfg["assistant_url"] = m.group(0)
         save_config(cfg)
     say(f"Assistant deployed: {cfg.get('assistant_url')}")
+    if (ROOT / "datasets.private").exists() and any((ROOT / "datasets.private").glob("*.json")):
+        if run(["npm", "run", "upload-data", "--silent"], cwd=WORKER).returncode:
+            raise Stop("Uploading the sanitized incident table to the Worker failed.")
+        say("Sanitized incident table uploaded to the Worker (never published as a static file).")
 
 
-def build_site():
-    shutil.rmtree(SITE, ignore_errors=True)
-    SITE.mkdir()
-    for rel in PUBLIC_PATHS:
-        src = ROOT / rel
-        if not src.exists():
-            continue
-        dst = SITE / rel
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        if src.is_dir():
-            shutil.copytree(src, dst, ignore=shutil.ignore_patterns("*.test.js", "__pycache__"))
-        else:
-            shutil.copyfile(src, dst)
-    (SITE / ".nojekyll").write_text("")
-    say(f"Site assembled in {SITE.relative_to(ROOT)}/")
-
-
-def push(assume_yes: bool):
+def push():
     need("git", "Install git from https://git-scm.com")
     paths = [p for p in ("datasets", "config.json", "index.html", "data/facts.json", "worker/wrangler.toml",
                          "worker/src/tool-schemas.js") if (ROOT / p).exists()]
@@ -313,8 +303,8 @@ def push(assume_yes: bool):
     if run(["git", "diff", "--cached", "--quiet"]).returncode == 0:
         say("Nothing new to publish.")
         return
-    if not assume_yes and input("Commit and push to GitHub now? [y/N] ").strip().lower() != "y":
-        say("Not pushed. Changes are staged; run again with --yes or push yourself.")
+    if input("Commit and push to GitHub now? [y/N] ").strip().lower() != "y":
+        say("Not pushed. Changes are staged; run again or push yourself.")
         return
     if run(["git", "commit", "-q", "-m", f"Data refresh {datetime.now():%Y-%m-%d}"]).returncode:
         raise Stop("git commit failed. Check that git knows your name and email.")
@@ -325,7 +315,7 @@ def push(assume_yes: bool):
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    for f in ("--setup", "--dry-run", "--skip-worker", "--no-push", "--yes", "--build-only"):
+    for f in ("--setup", "--dry-run"):
         ap.add_argument(f, action="store_true")
     a = ap.parse_args()
     os.chdir(ROOT)
@@ -335,9 +325,6 @@ def main() -> int:
             return 0
         load_env()
         cfg = config()
-        if a.build_only:
-            build_site()
-            return 0
         need("python3" if os.name != "nt" else "python", "Install Python 3.10+ from https://python.org")
         need("node", "Install Node.js from https://nodejs.org")
         step(1, "Checking setup")
@@ -349,18 +336,16 @@ def main() -> int:
         if a.dry_run:
             say("\nDry run finished: nothing was loaded or published.")
             return 0
-        step(4, "Exporting datasets")
-        export_and_promote(a.yes)
-        step(5, "Running checks")
+        step(4, "Exporting datasets, building schemas and the sanitized incident table")
+        export_and_promote()
+        step(5, "Running checks (pytest, Node, Worker)")
         test_all()
-        if not a.skip_worker:
-            step(6, "Deploying the assistant")
-            deploy_worker(cfg)
-        step(7, "Building the site")
+        step(6, "Deploying the assistant")
+        deploy_worker(cfg)
+        step(7, "Assembling site/ (preview of what GitHub Actions will publish)")
         build_site()
-        if not a.no_push:
-            step(8, "Publishing to GitHub")
-            push(a.yes)
+        step(8, "Publishing to GitHub")
+        push()
         say("\nDone.")
         return 0
     except Stop as e:

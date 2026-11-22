@@ -9,11 +9,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { SYSTEM_PROMPT } from "./system-prompt.js";
 import { TOOL_SCHEMAS } from "./tool-schemas.js";
-import { VIZ_SYSTEM_PROMPT } from "./viz-system-prompt.js";
-import { VIZ_TOOL_SCHEMAS } from "./viz-tool-schemas.js";
+import Dataset from "../../shared/dataset.js";
 
 export const MODEL = "claude-haiku-5-5";
-export const MAX_TOKENS = 1024;
+export const MAX_TOKENS = 1536;
 export const ALLOWED_ORIGINS = ["https://ashutosh13.github.io", "http://localhost:8000"];
 /* run.py writes the real list into wrangler.toml [vars] ALLOWED_ORIGINS (comma separated) from config.json. */
 const originsFor = env => (env && env.ALLOWED_ORIGINS ? String(env.ALLOWED_ORIGINS).split(",").map(x => x.trim()).filter(Boolean) : ALLOWED_ORIGINS);
@@ -21,6 +20,10 @@ export const MAX_BODY_BYTES = 20 * 1024;
 export const MAX_TOOL_ROUND_TRIPS = 8;
 export const RATE_LIMIT = { requests: 20, windowSeconds: 600 };
 const MAX_MESSAGES = 60;
+/* Private record-level data: held in KV under data:<id>, answered only as aggregates with small groups suppressed. */
+export const MAX_QUERY_BYTES = 4 * 1024;
+export const MIN_GROUP_SIZE = 3;
+export const QUERY_LIMIT = { requests: 60, windowSeconds: 600 };
 const TOOL_NAMES = new Set(TOOL_SCHEMAS.map(t => t.name));
 
 /* "Ask CCFD1 AI" panel: POST /viz. Same model, key, origin check, rate limit and validation as the
@@ -41,7 +44,9 @@ const SAFE = {
   roundTrips: "Too many tool steps for one question. Please ask again.",
   rateLimited: "Too many requests. Please wait a few minutes and try again.",
   upstreamBusy: "The assistant is busy. Please try again shortly.",
-  unavailable: "The assistant is unavailable right now."
+  unavailable: "The assistant is unavailable right now.",
+  noData: "That dataset is not available.",
+  badQuery: "That query is not allowed."
 };
 
 function corsHeaders(origin) {
@@ -96,7 +101,19 @@ export async function checkRateLimit(request, env, now = Date.now()) {
   memoryCounts.set(key, count + 1);
   return true;
 }
-export function _resetMemoryRateLimit() { memoryCounts.clear(); }
+export function _resetMemoryRateLimit() { memoryCounts.clear(); queryCounts.clear(); }
+
+/* /query only uses an in-memory counter (best effort): KV writes are scarce on the Free plan. */
+const queryCounts = new Map();
+export async function checkQueryLimit(request, now = Date.now()) {
+  const window = Math.floor(now / 1000 / QUERY_LIMIT.windowSeconds);
+  const key = `${await clientKey(request)}:${window}`;
+  for (const k of queryCounts.keys()) if (!k.endsWith(":" + window)) queryCounts.delete(k);
+  const count = queryCounts.get(key) || 0;
+  if (count >= QUERY_LIMIT.requests) return false;
+  queryCounts.set(key, count + 1);
+  return true;
+}
 
 /* ---------- request validation ---------- */
 const isObj = v => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -163,9 +180,9 @@ export function validateBody(body, toolNames = TOOL_NAMES) {
   return { messages: msgs };
 }
 
-async function readBody(request, maxBytes = MAX_BODY_BYTES) {
+async function readBody(request, limit = MAX_BODY_BYTES) {
   const declared = parseInt(request.headers.get("Content-Length") || "0", 10);
-  if (declared > maxBytes) return { tooLarge: true };
+  if (declared > limit) return { tooLarge: true };
   if (!request.body) return { text: "" };
   // Read with a hard cap, whatever Content-Length said.
   const reader = request.body.getReader();
@@ -174,7 +191,7 @@ async function readBody(request, maxBytes = MAX_BODY_BYTES) {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > maxBytes) { try { await reader.cancel(); } catch {} return { tooLarge: true }; }
+    if (size > limit) { try { await reader.cancel(); } catch {} return { tooLarge: true }; }
     chunks.push(value);
   }
   const all = new Uint8Array(size); let off = 0;
@@ -182,14 +199,56 @@ async function readBody(request, maxBytes = MAX_BODY_BYTES) {
   return { text: new TextDecoder().decode(all) };
 }
 
+/* ---------- private dataset queries ----------
+   POST /query { dataset, query } -> the same shape as Dataset.query, over the record-level rows in KV.
+   Aggregate-only: no select, groupBy needs aggregate, and any group with fewer than MIN_GROUP_SIZE incidents is dropped. */
+const dataCache = new Map(); // id -> { ds, at }
+export function _resetDataCache() { dataCache.clear(); }
+async function loadPrivateDataset(env, id) {
+  if (typeof id !== "string" || !/^[a-z][a-z0-9_]*$/.test(id) || !env || !env.RATE_LIMIT) return null;
+  const hit = dataCache.get(id);
+  if (hit && Date.now() - hit.at < 60_000) return hit.ds;
+  let ds = null;
+  try { ds = JSON.parse(await env.RATE_LIMIT.get("data:" + id)); } catch { ds = null; }
+  if (!ds || ds.id !== id || !ds.record_level || Dataset.validateDataset(ds).length) return null;
+  dataCache.set(id, { ds, at: Date.now() });
+  return ds;
+}
+export function privateQuery(ds, q) {
+  if (!isObj(q) || q.select !== undefined || !isObj(q.aggregate) || !Object.keys(q.aggregate).length) return { error: "aggregate is required; rows are not available" };
+  if (!ds.measures.some(m => m.name === "incidents")) return { error: "dataset has no incidents measure" };
+  const res = Dataset.query(ds, q);
+  if (res.error) return res;
+  const groupBy = q.groupBy || [];
+  const counts = Dataset.query(ds, { filter: q.filter, groupBy, aggregate: { incidents: "sum" } });
+  if (counts.error) return counts;
+  const key = r => groupBy.map(g => r[g]).join("\u0000");
+  const big = new Set(counts.rows.filter(r => r.incidents >= MIN_GROUP_SIZE).map(key));
+  const kept = res.rows.filter(r => big.has(key(r)));
+  const suppressed = res.rows.length - kept.length;
+  return { ...res, rows: kept, suppressed, note: [res.note, suppressed ? `${suppressed} group(s) with fewer than ${MIN_GROUP_SIZE} incidents were hidden.` : null].filter(Boolean).join(" ") };
+}
+async function handleQuery(request, env, allowed) {
+  if (!(await checkQueryLimit(request))) return fail(429, "rateLimited", allowed);
+  const raw = await readBody(request, MAX_QUERY_BYTES);
+  if (raw.tooLarge) return fail(413, "tooLarge", allowed);
+  let body; try { body = JSON.parse(raw.text); } catch { return fail(400, "badRequest", allowed); }
+  if (!isObj(body) || !onlyKeys(body, ["dataset", "query"])) return fail(400, "badRequest", allowed);
+  const ds = await loadPrivateDataset(env, body.dataset);
+  if (!ds) return fail(404, "noData", allowed);
+  const res = privateQuery(ds, body.query);
+  if (res.error) return json(400, { error: String(res.error).slice(0, 300) }, allowed);
+  return json(200, res, allowed);
+}
+
 /* ---------- forwarding ---------- */
 export function buildUpstreamParams(messages, route) {
   return {
     model: MODEL,
     max_tokens: MAX_TOKENS,
-    system: route ? route.system : SYSTEM_PROMPT,
-    tools: route ? route.tools : TOOL_SCHEMAS,
-    output_config: { effort: "low" }, // thinking counts toward max_tokens; low effort keeps answers within 1024
+    system: SYSTEM_PROMPT,
+    tools: TOOL_SCHEMAS,
+    output_config: { effort: "low" }, // thinking counts toward max_tokens; low effort keeps answers within 1536
     messages
   };
 }
@@ -228,6 +287,7 @@ export default {
     if (request.method === "GET" && new URL(request.url).pathname === "/status")
       return json(200, { available: await keyIsValid(env) }, allowed);
     if (request.method !== "POST") return fail(405, "method", allowed);
+    if (new URL(request.url).pathname === "/query") return handleQuery(request, env, allowed);
 
     if (!(await checkRateLimit(request, env))) return fail(429, "rateLimited", allowed);
 

@@ -3,7 +3,7 @@
 import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import worker, { MODEL, MAX_TOKENS, MAX_BODY_BYTES, _resetMemoryRateLimit, _resetStatusCache } from "../src/index.js";
+import worker, { MODEL, MAX_TOKENS, MAX_BODY_BYTES, MIN_GROUP_SIZE, _resetMemoryRateLimit, _resetStatusCache, _resetDataCache } from "../src/index.js";
 import { SYSTEM_PROMPT } from "../src/system-prompt.js";
 import { TOOL_SCHEMAS } from "../src/tool-schemas.js";
 
@@ -19,7 +19,7 @@ const FAKE_MESSAGE = {
 
 let calls, upstream, responses, realFetch;
 beforeEach(() => {
-  calls = []; responses = []; _resetMemoryRateLimit(); _resetStatusCache();
+  calls = []; responses = []; _resetDataCache(); _resetMemoryRateLimit(); _resetStatusCache();
   upstream = { status: 200, body: FAKE_MESSAGE };
   realFetch = globalThis.fetch;
   globalThis.fetch = async (input, init = {}) => {
@@ -135,12 +135,12 @@ test("a valid request forwards with the fixed model, max_tokens, system prompt a
   assert.match(c.url, /^https:\/\/api\.anthropic\.com\/v1\/messages/);
   assert.equal(c.headers.get("anthropic-version"), "2026-10-21");
   assert.equal(c.body.model, "claude-haiku-5-5");
-  assert.equal(c.body.max_tokens, 1024);
+  assert.equal(c.body.max_tokens, 1536);
   assert.equal(c.body.system, SYSTEM_PROMPT);
   assert.deepEqual(c.body.tools, TOOL_SCHEMAS);
   assert.deepEqual(c.body.messages, messages);
   assert.deepEqual(Object.keys(c.body).sort(), ["max_tokens", "messages", "model", "output_config", "system", "tools"]);
-  assert.equal(MAX_TOKENS, 1024);
+  assert.equal(MAX_TOKENS, 1536);
   // The key goes to Anthropic in a request header (never in the body or URL).
   const authHeaders = [c.headers.get("x-api-key"), c.headers.get("authorization")].join(" ");
   assert.ok(authHeaders.includes(FAKE_KEY));
@@ -248,4 +248,46 @@ test("GET /status: result is cached, and a disallowed origin is refused", async 
   assert.equal(calls.length, 1);
   const res = await worker.fetch(statusReq("https://evil.example"), { ANTHROPIC_API_KEY: FAKE_KEY });
   assert.equal(res.status, 403);
+});
+
+/* ---------- /query: aggregate-only access to the private record-level table ---------- */
+const privateDs = () => ({
+  id: "cad_incidents_clean", title: "t", grain: "incident", period: "p", status: "model_output", record_level: true, remote: false,
+  source: "s", source_detail: "d",
+  dimensions: [{ name: "hour", type: "int" }, { name: "source_group", type: "string" }],
+  measures: [{ name: "incidents", unit: "count" }, { name: "duration_min", unit: "minutes" }],
+  rows: [
+    ...Array.from({ length: 5 }, (_, i) => ({ hour: 9, source_group: "EMS", incidents: 1, duration_min: 30 + i })),
+    ...Array.from({ length: 4 }, () => ({ hour: 9, source_group: "Fire", incidents: 1, duration_min: 50 })),
+    ...Array.from({ length: 2 }, () => ({ hour: 3, source_group: "Fire", incidents: 1, duration_min: 70 }))
+  ]
+});
+const queryEnv = () => { const e = env(); e.RATE_LIMIT.store.set("data:cad_incidents_clean", JSON.stringify(privateDs())); return e; };
+const q = (body, e = queryEnv(), extra = {}) => worker.fetch(new Request("https://w.example/query", { method: "POST",
+  headers: { Origin: ALLOWED, "Content-Type": "application/json", "CF-Connecting-IP": extra.ip || "203.0.113.50" }, body: JSON.stringify(body) }), e);
+
+test("/query answers aggregates and hides groups smaller than the minimum", async () => {
+  const res = await q({ dataset: "cad_incidents_clean", query: { groupBy: ["hour", "source_group"], aggregate: { incidents: "sum", duration_min: "avg" } } });
+  assert.equal(res.status, 200);
+  const j = await res.json();
+  assert.equal(MIN_GROUP_SIZE, 3);
+  assert.deepEqual(j.rows.map(r => [r.hour, r.source_group, r.incidents]).sort(), [[9, "EMS", 5], [9, "Fire", 4]]);
+  assert.equal(j.suppressed, 1); assert.match(j.note, /hidden/);
+  assert.equal(calls.length, 0, "no upstream call");
+});
+test("/query refuses row-level and malformed requests, unknown datasets, and other origins", async () => {
+  for (const body of [{ dataset: "cad_incidents_clean", query: { select: ["hour"] } }, { dataset: "cad_incidents_clean", query: {} },
+    { dataset: "cad_incidents_clean", query: { aggregate: { incidents: "sum" } }, extra: 1 }, { dataset: "cad_incidents_clean" }]) {
+    const r = await q(body); assert.ok([400].includes(r.status), JSON.stringify(body));
+  }
+  assert.equal((await q({ dataset: "nope", query: { aggregate: { incidents: "sum" } } })).status, 404);
+  assert.equal((await q({ dataset: "../x", query: { aggregate: { incidents: "sum" } } })).status, 404);
+  const noOrigin = await worker.fetch(new Request("https://w.example/query", { method: "POST", body: "{}" }), queryEnv());
+  assert.equal(noOrigin.status, 403);
+});
+test("/query never returns a row-level field and caps the body", async () => {
+  const j = await (await q({ dataset: "cad_incidents_clean", query: { filter: { hour: 9 }, groupBy: ["hour"], aggregate: { incidents: "sum" } } })).json();
+  assert.deepEqual(Object.keys(j.rows[0]).sort(), ["hour", "incidents"]);
+  const big = await q({ dataset: "cad_incidents_clean", query: { aggregate: { incidents: "sum" }, pad: "x".repeat(5000) } });
+  assert.equal(big.status, 413);
 });

@@ -42,6 +42,9 @@ def validate(ds: dict) -> list[str]:
             names.add(m["name"])
     if errs:
         return errs
+    if ds.get("remote") and rows:
+        errs.append("a remote dataset must publish no rows (the Worker holds them)")
+    record_level = bool(ds.get("record_level"))
     seen = set()
     for i, r in enumerate(rows):
         for k in r:
@@ -59,10 +62,32 @@ def validate(ds: dict) -> list[str]:
         if r.get("_status") is not None and r["_status"] not in STATUSES:
             errs.append(f"row {i}: bad _status")
         key = tuple(r.get(d["name"]) for d in dims)
-        if key in seen:
+        if not record_level and key in seen:
             errs.append(f"row {i}: duplicate dimension values")
         seen.add(key)
     return errs
+
+
+# Column names that must never appear in a record-level dataset, and string values that must never match.
+PII_COLUMN_RE = re.compile(r"name|phone|address|street|caller|case|incident_?no|incident_?id|narrative|blotter|created_by|"
+                           r"latitude|longitude|\blat\b|\blon(g)?\b|event_type|event_location|ssn|dob|email", re.I)
+PII_VALUE_RES = [re.compile(p, re.I) for p in (
+    r"\b\d{3}[-.\s)]*\d{3}[-.\s]\d{4}\b",                                   # phone numbers
+    r"[\w.+-]+@[\w-]+\.[\w.]+",                                                # emails
+    r"\b\d{1,5}\s+[A-Za-z0-9.\s]{2,30}\s(st|street|ave|avenue|rd|road|dr|drive|ln|lane|blvd|ct|court|hwy|way)\b",  # street addresses
+    r"\b\d{4}-\d{5,}\b",                                                       # incident / case numbers
+)]
+
+
+def scan_pii(ds: dict) -> list[str]:
+    """Problems that suggest personal data in a dataset. Returns rule names and row numbers only, never values."""
+    probs = [f"column {c['name']!r} looks like PII" for c in ds.get("dimensions", []) + ds.get("measures", [])
+             if PII_COLUMN_RE.search(c["name"])]
+    for i, r in enumerate(ds.get("rows", [])):
+        for k, v in r.items():
+            if isinstance(v, str) and any(rx.search(v) for rx in PII_VALUE_RES):
+                probs.append(f"row {i}: {k} matches a PII pattern")
+    return probs
 
 
 def write_dataset(ds: dict, out_dir: Path = DEFAULT_DIR) -> Path:

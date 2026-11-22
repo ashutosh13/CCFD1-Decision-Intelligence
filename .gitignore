@@ -392,4 +392,8 @@ site/
 ccfd1.db
 .env
 .venv/
+
+# Candidate datasets for potential ingestion - skipped for PII
 datasets.candidate/
+# Sanitized record-level rows - skipped for general data privacy of CCFD1/CC
+datasets.private/

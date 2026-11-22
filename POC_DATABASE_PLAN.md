@@ -14,7 +14,7 @@ architecture. See [DATA_DICTIONARY.md](DATA_DICTIONARY.md) for what the dashboar
 | SQLite schema | [pipeline/schema.sql](pipeline/schema.sql), ERD-based. Created and loaded by the CAD ingest pipeline. |
 | CAD ingest | `pipeline/ingest_cad_export.py` (validate, then load), `validate_cad.py`, `stage_deltas.py`, `summarize_reports.py`. Output is counts and rule names only, because the data contains PII. |
 | Blotter OCR | [ocr-pipe/](ocr-pipe/) extracts Daily Blotter PDFs to CSV. |
-| Database to dashboard | **Not built.** Nothing exports from SQLite to `facts.json` or `DATA`. |
+| Database to dashboard | Partly built. `pipeline/export_datasets.py` exports CAD hourly counts from SQLite to `datasets.candidate/`; `build_finance_dataset.py` builds finance datasets from an AFR CSV. SQLite is offline only; the published layer is static JSON in `datasets/` (no server, no wasm). Still hand-maintained: `facts.json`, `DATA`. |
 
 ## Guiding constraint
 

@@ -3,6 +3,25 @@
 A static dashboard (GitHub Pages) with an optional "Ask the data" assistant (a small Cloudflare Worker that
 calls the Claude API so the key never reaches the browser).
 
+## Two scripts
+
+| Script | Where | What it does |
+|---|---|---|
+| `python3 run.py` | your machine | The full local data pipeline (below). It ends at the push. |
+| `python3 build_site.py` | GitHub Actions | Assembles the `site/` folder from files in the repo. No database or keys. |
+
+```
+python3 run.py            # Mac/Linux      (Windows: run.bat, Mac: double-click run.command)
+python3 run.py --dry-run  # extract + validate only; changes nothing
+python3 run.py --setup    # first time only: saves your keys to .env
+```
+
+`run.py` (1) checks setup, (2) extracts new PDFs from `inbox/`, (3) validates and loads them into `ccfd1.db`,
+(4) exports datasets and builds the dataset schemas and the sanitized incident table (with the PII scan), (5) runs
+every test (pytest, Node, Worker), (6) deploys the assistant Worker and uploads the sanitized rows, (7) assembles
+`site/` as a preview, (8) asks to commit and push. It stops at the first failure. After the push, the workflow in
+`.github/workflows/pages.yml` runs the tests again, runs `build_site.py`, publishes Pages and deploys the Worker.
+
 ## Hand-off runbook (no coding needed)
 
 One-time setup:
@@ -20,7 +39,6 @@ Every update:
    tests, deploys the assistant, builds the site and pushes to GitHub, which publishes it.
 
 Running again with the same files does nothing new. `python3 run.py --dry-run` only validates.
-Other flags: `--skip-worker`, `--no-push`, `--yes` (no prompts), `--build-only`.
 
 | Message | Meaning |
 |---|---|

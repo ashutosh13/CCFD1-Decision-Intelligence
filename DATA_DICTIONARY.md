@@ -102,12 +102,36 @@ Both are planning comparisons, not forecasts. Rates are gross, before circuit-br
 ## 6. "Ask the data" assistant
 
 Cloudflare Worker ([worker/](worker/)) holds the model (`claude-haiku-5-5`), system prompt and tool
-list; the browser runs the tools. Tools: `get_fact`, `search_facts`, `finance_by_year`,
-`incidents_by_location`, `incidents_by_hour`, `run_scenario_1`, `run_scenario_34`,
-`compare_to_baseline`, `unsupported`. Each returns `{result, sources, status}`, where `sources` are
+list; the browser runs the tools. Tools: `get_fact`, `search_facts`, `list_datasets`, `query_dataset`,
+`build_chart`, `finance_by_year`, `incidents_by_location`, `incidents_by_hour`, `run_scenario_1`,
+`run_scenario_34`, `compare_to_baseline`, `unsupported`. Each returns `{result, sources, status}`, where `sources` are
 fact ids. Citations are the fact's `source` and `source_detail`; there is no separate citations table.
-`unsupported` returns a standard refusal for response times, Scenario 2 and 5, and record-level or
+`unsupported` returns a standard refusal for dispatch-to-arrival response times, Scenario 2 and 5, and record-level or
 personal data.
+
+`build_chart` takes `{dataset, query?, chart:{type, x, y, series?, title, x_label?, y_label?, categories_order?}}`, runs the
+same query engine as `query_dataset`, and builds a Highcharts **core** config (column, bar, line, area, pie, stacked column;
+no Highcharts modules). It validates column roles, non-empty rows, at most 200 points and one series for pie, and the page
+trial-renders the config before accepting it. Hours are padded 0-23, weekdays ordered Mon-Sun, count axes start at 0 with
+no decimals, and the caption carries the dataset source and status. The browser keeps every chart built in the session
+(side menu in the Ask tab); nothing is stored.
+
+### Sanitized incident table (`cad_incidents_clean`)
+
+One row per incident, built offline by `pipeline/clean_incidents.py` from `ccfd1.db`. Columns: `hour`, `weekday`, `month`,
+`source_group` (Fire/EMS/Other), `call_category` (controlled vocabulary; unmapped is "Other"), `in_district`
+(inside/contract/outside/unknown), `township`, and measures `incidents` (always 1) and `duration_min` (minutes, earliest unit
+dispatch to latest unit clear, midnight rollover handled, missing/reversed/over-8-hour values left null and counted in the
+dataset note; status `model_output`; it is **not** a dispatch-to-arrival response time).
+
+Removed before anything leaves the machine: `incident_no`, `case_number`, `event_type` text, `event_location`, latitude and
+longitude (not jittered: dropped, so nothing can be reversed), and every timestamp finer than the hour.
+`in_district`/`township` are meant to be computed from the true coordinates before they are dropped; until the
+township-boundary join exists they are `unknown`, so the outside-area comparison cannot be charted yet.
+
+The rows are **not** in `datasets/`. `datasets/cad_incidents_clean.json` is a schema with `remote: true` and no rows; the
+rows live in `datasets.private/` (git-ignored) and are uploaded to the Worker's KV (`npm run upload-data`). `POST /query` on
+the Worker answers only aggregate queries (no `select`), and hides any group with fewer than 3 incidents.
 
 ## 7. Relational schema (`pipeline/schema.sql`)
 
