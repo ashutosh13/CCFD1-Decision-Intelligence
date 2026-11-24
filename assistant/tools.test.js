@@ -195,7 +195,7 @@ test("CAD facts cite the aggregated extract only (no source-PDF references anywh
   const root = path.join(__dirname, "..");
   const pdfName = new RegExp(["blot", "ter"].join(""), "i");   // the raw CAD report name, assembled so this file doesn't contain it
   for (const f of ["data/facts.json", "index.html", "assistant/tools.js", "assistant/tools.test.js", "shared/engine.js",
-                   "shared/cad-gis.js", "gis-map/index.html"]) {
+                   "shared/cad-gis.js", "shared/cad-metrics.js", "gis-map/index.html"]) {
     assert.doesNotMatch(fs.readFileSync(path.join(root, f), "utf8"), pdfName, f);
   }
   const cad = loadFacts().facts.filter(f => f.id.startsWith("cad."));

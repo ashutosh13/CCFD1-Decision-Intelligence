@@ -3,107 +3,186 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CAD Incident Map · CCFD1 Decision Intelligence</title>
+<title>CAD &amp; GIS Incident Analysis · CCFD1 Decision Intelligence</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* Full CAD incident map. Data and symbology: ../shared/cad-gis.js (same source as the
-   dashboard map). Styles follow index.html; only the tokens and pieces used here. */
+/* CAD & GIS Incident Analysis. Data: ../shared/cad-gis.js (boundaries, published layer),
+   ../data/cad-gis-detail.json (local, git-ignored detail; pipeline/build_gis_detail.py).
+   Every number: ../shared/cad-metrics.js. Styles follow index.html. */
 :root{
   --navy:#0F2744; --navy-2:#17365D; --blue:#2F6FB3; --blue-soft:#8FB3DC;
   --tint:#E8EFF7; --bg:#F3F6FA; --card:#FFFFFF; --ink:#132033; --muted:#5B6B80;
-  --line:#D9E2EC; --alert:#B3261E; --ok:#1E7B4F;
+  --line:#D9E2EC; --alert:#B3261E; --ok:#1E7B4F; --warn:#8A5A00; --warn-bg:#FFF6E0;
   box-sizing:border-box;
 }
 *,*::before,*::after{box-sizing:inherit}
 [hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+code{font-size:.92em;background:var(--tint);padding:0 4px;border-radius:4px}
 .top{background:var(--navy-2);color:#fff;padding:14px 28px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;padding-right:18px;border-right:1px solid rgba(255,255,255,.18)}
 .top h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
 .top p{margin:2px 0 0;color:#BFD0E4;font-size:13.5px}
-.back{margin-left:auto;display:inline-flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-size:13.5px;font-weight:600;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);padding:7px 12px;border-radius:6px}
+.back{margin-left:auto;display:inline-flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-size:13.5px;font-weight:600;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);padding:7px 12px;border-radius:6px;white-space:nowrap}
 .back:hover{background:rgba(255,255,255,.18)}
-.content{padding:18px 28px 28px;display:grid;gap:14px;flex:1}
+.content{padding:16px 28px 28px;display:grid;gap:14px;flex:1;min-width:0}
+.banner{border-radius:8px;padding:9px 14px;font-size:13px;border:1px solid var(--line);background:#fff}
+.banner.detail{border-color:#B9DCC9;background:#EEF8F2}
+.banner.public{border-color:#F0D48A;background:var(--warn-bg)}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-width:0}
-.panel header{display:flex;align-items:center;gap:8px;padding:12px 16px 8px}
+.panel > header{display:flex;align-items:center;gap:8px;padding:12px 16px 6px;flex-wrap:wrap}
 .panel h2{margin:0;font-size:15px;font-weight:600}
 .panel header .tag{margin-left:auto;font-size:11.5px;color:var(--muted);background:var(--tint);padding:3px 8px;border-radius:999px;white-space:nowrap}
 .panel header .tag.real{color:#fff;background:var(--ok);font-weight:600}
-.panel.updated{border-color:var(--ok);box-shadow:inset 0 3px 0 var(--ok)}
-.body{padding:0 16px 14px}
-.filters{display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) auto;gap:10px 14px;align-items:end;padding:12px 16px}
-.filters label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:600;color:var(--ink);min-width:0}
-.filters label small{font-weight:400;color:var(--muted);font-size:11px;line-height:1.3}
-.filters select,.filters input{width:100%;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;font-size:13px;background:#fff;color:var(--ink)}
-.filters select:disabled,.filters input:disabled{background:var(--bg);color:var(--muted);cursor:not-allowed}
-.filters .dates{display:flex;gap:6px}
-.filters .span2{grid-column:span 2}
-.filters button{border:1px solid var(--line);background:#fff;color:var(--navy-2);border-radius:6px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
-.filters button:hover{border-color:var(--blue)}
-.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
-.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
-.kpi .label{font-size:12.5px;color:var(--muted);font-weight:500}
-.kpi .value{font-size:22px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.kpi .value.na{font-size:15px;color:var(--muted);font-weight:600;letter-spacing:0;padding:5px 0 4px}
-.kpi .src{font-size:11.5px;color:var(--muted)}
+.panel header .tag.na{color:var(--warn);background:var(--warn-bg);font-weight:600}
+.body{padding:0 16px 14px;min-width:0}
+.q{margin:0 0 8px;font-size:12.5px;color:var(--muted)}
+.answer{margin:8px 0 0;font-size:13px;background:var(--tint);border-radius:6px;padding:7px 10px}
+/* filters */
+details.filters > summary{list-style:none;display:flex;align-items:center;gap:10px;padding:11px 16px;cursor:pointer;font-weight:600;font-size:14px}
+details.filters > summary::-webkit-details-marker{display:none}
+details.filters > summary::before{content:"";width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .15s;margin-right:2px}
+details.filters[open] > summary::before{transform:rotate(45deg)}
+#fCount{font-weight:500;font-size:12.5px;color:var(--muted)}
+.fgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px 14px;align-items:end;padding:0 16px 14px}
+.fgrid label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:600;min-width:0}
+.fgrid select,.fgrid input{width:100%;min-width:0;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;font-size:13px;background:#fff;color:var(--ink)}
+.fgrid select:disabled,.fgrid input:disabled{background:var(--bg);color:var(--muted);cursor:not-allowed}
+.pair{display:flex;gap:6px}
+.btn{border:1px solid var(--line);background:#fff;color:var(--navy-2);border-radius:6px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--blue)}
+.btn.primary{background:var(--navy-2);border-color:var(--navy-2);color:#fff}
+.btn.primary:hover{background:var(--blue)}
+.btn[aria-pressed="true"]{background:var(--tint);border-color:var(--blue)}
+.btn:disabled{opacity:.5;cursor:default}
+/* KPI cards */
+.kpis{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi .label{font-size:12px;color:var(--muted);font-weight:500}
+.kpi .value{font-size:21px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;line-height:1.25}
+.kpi .value.na{font-size:15px;color:var(--muted);font-weight:600;letter-spacing:0}
+.kpi .src{font-size:11px;color:var(--muted);line-height:1.35}
 .kpi.primary{background:var(--navy-2);border-color:var(--navy-2);color:#fff}
 .kpi.primary .label,.kpi.primary .src{color:#BFD0E4}
-.kpi .sw{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0}
-.mapbox{position:relative;height:calc(100vh - 330px);min-height:520px;background:#F8FAFC;border:1px solid var(--line);border-radius:8px;overflow:hidden;touch-action:none;cursor:grab}
+.sw{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+/* map + coverage */
+.maprow{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:14px;align-items:start}
+.mapbox{position:relative;height:calc(100vh - 260px);min-height:560px;max-height:900px;background:#F8FAFC;border:1px solid var(--line);border-radius:8px;overflow:hidden;touch-action:none;cursor:grab}
 .mapbox.dragging{cursor:grabbing}
-.mapbox svg{width:100%;height:100%;display:block;user-select:none}
+.mapbox.placing,.mapbox.placing svg{cursor:crosshair}
+.mapbox svg{width:100%;height:100%;display:block;user-select:none;-webkit-user-select:none}
 .tw{stroke:#fff;stroke-width:1.4;transition:opacity .15s}
 .tw.sel{stroke:var(--navy);stroke-width:2.6}
 .dim .tw:not(.sel){opacity:.45}
-.lbl{fill:#132033;pointer-events:none;paint-order:stroke;stroke:rgba(255,255,255,.75);stroke-width:3px;font-weight:600}
-.pt{stroke:#fff;cursor:pointer}
-.pt:hover{stroke:var(--ink)}
+.svc{fill:none;stroke:var(--navy);stroke-width:2.2;stroke-dasharray:6 4;pointer-events:none}
+.lbl{fill:#132033;pointer-events:none;paint-order:stroke;stroke:rgba(255,255,255,.8);stroke-width:3px;font-weight:600}
+.pt{cursor:pointer}
+.pt:hover{stroke:var(--ink)!important}
+.iso{pointer-events:none;stroke:#fff;stroke-width:1}
+.stn{cursor:grab}
 .zoom{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(19,32,51,.12)}
-.zoom button{border:0;border-bottom:1px solid var(--line);background:#fff;width:34px;height:32px;font:inherit;font-size:17px;font-weight:600;color:var(--navy-2);cursor:pointer}
+.zoom button{border:0;border-bottom:1px solid var(--line);background:#fff;width:36px;height:34px;font:inherit;font-size:17px;font-weight:600;color:var(--navy-2);cursor:pointer}
 .zoom button:last-child{border-bottom:0;font-size:12px}
 .zoom button:hover{background:var(--tint)}
-.hint{position:absolute;left:10px;bottom:8px;font-size:11.5px;color:var(--muted);background:rgba(255,255,255,.85);padding:2px 8px;border-radius:4px;pointer-events:none}
+.hint{position:absolute;left:10px;bottom:8px;font-size:11.5px;color:var(--muted);background:rgba(255,255,255,.88);padding:2px 8px;border-radius:4px;pointer-events:none}
 .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
 .empty span{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-size:13.5px;color:var(--muted);box-shadow:0 2px 8px rgba(19,32,51,.1)}
-.pop{position:absolute;z-index:2;width:270px;max-height:calc(100% - 20px);overflow:auto;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(19,32,51,.18);font-size:12.5px;cursor:auto}
-.pop header{display:flex;align-items:center;gap:8px;padding:9px 10px 7px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff}
-.pop header b{font-size:13px}
-.pop header button{margin-left:auto;border:0;background:var(--tint);border-radius:5px;width:24px;height:24px;font:inherit;font-size:15px;line-height:1;cursor:pointer;color:var(--ink)}
-.pop dl{margin:0;padding:8px 12px 10px;display:grid;grid-template-columns:auto 1fr;gap:3px 10px}
-.pop dt{color:var(--muted)}
-.pop dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
-.pop .inc{border-top:1px solid var(--line)}
+.pop{position:absolute;z-index:3;width:360px;max-width:calc(100% - 16px);max-height:calc(100% - 16px);overflow:auto;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(19,32,51,.18);font-size:12.5px;cursor:auto}
+.pop > header{display:flex;align-items:center;gap:8px;padding:9px 10px 7px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:1}
+.pop > header b{font-size:13px}
+.pop > header button{margin-left:auto;border:0;background:var(--tint);border-radius:5px;width:26px;height:26px;font:inherit;font-size:15px;line-height:1;cursor:pointer;color:var(--ink)}
+.pop .inc{padding:8px 12px 10px;border-top:1px solid var(--line)}
 .pop .inc:first-of-type{border-top:0}
-.pop p{margin:0;padding:0 12px 10px;color:var(--muted);font-size:11.5px}
+.pop dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:2px 10px}
+.pop dt{color:var(--muted)}
+.pop dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.pop table{width:100%;border-collapse:collapse;margin-top:6px;font-size:11.5px;font-variant-numeric:tabular-nums}
+.pop th,.pop td{text-align:left;padding:3px 4px 3px 0;border-top:1px solid var(--line);white-space:nowrap}
+.pop th{color:var(--muted);font-weight:600}
+.pop p{margin:6px 0 0;color:var(--muted);font-size:11.5px}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);margin-top:10px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
 .legend i.dot{border-radius:50%}
+.legend i.ring{border-radius:50%;background:#fff;border:2px solid #7B8696}
+.legend i.dash{width:16px;height:0;border-top:2px dashed var(--navy);border-radius:0;vertical-align:3px}
 .legend i.outline{background:#fff;border:2px solid var(--navy)}
 .note{font-size:12px;color:var(--muted);margin:8px 0 0}
-table.avail{width:100%;border-collapse:collapse;font-size:12.5px}
-table.avail th,table.avail td{text-align:left;padding:7px 10px 7px 0;border-bottom:1px solid var(--line);vertical-align:top}
-table.avail th{color:var(--muted);font-weight:600;font-size:12px}
+.warnnote{font-size:12px;color:var(--warn);background:var(--warn-bg);border-radius:6px;padding:6px 9px;margin:8px 0 0}
+.cov .ctrl{display:grid;gap:8px}
+.cov .btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.cov select{width:100%;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;font-size:13px;background:#fff}
+.cov label{font-size:12.5px;font-weight:600;display:flex;flex-direction:column;gap:4px}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{text-align:right;padding:5px 6px;border-bottom:1px solid var(--line)}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl th{color:var(--muted);font-weight:600;font-size:11.5px}
+.tbl tr.total td{font-weight:700;border-bottom:0}
+.tbl .bandsw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+/* charts */
+.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.chart .ax{font-size:11px;fill:var(--muted)}
+.chart .dl{font-size:11.5px;font-weight:600;fill:var(--ink)}
+.chart .vl{font-size:11px;fill:var(--ink);font-variant-numeric:tabular-nums}
+.chart .grid{stroke:#E6ECF2;stroke-width:1}
+.chart .base{stroke:#B8C4D2;stroke-width:1}
+.chart .hit{fill:transparent;cursor:default}
+.chart .hit:hover{fill:rgba(47,111,179,.07)}
+.chart .na{display:flex;align-items:center;justify-content:center;min-height:160px;color:var(--muted);font-size:13px;background:var(--bg);border-radius:8px;text-align:center;padding:16px}
+details.tv{margin-top:8px}
+details.tv > summary{font-size:12px;color:var(--blue);cursor:pointer}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:10px}
+.tile{background:var(--bg);border-radius:8px;padding:8px 10px;min-width:0}
+.tile span{display:block;font-size:11.5px;color:var(--muted);line-height:1.3}
+.tile b{font-size:18px;font-variant-numeric:tabular-nums}
+.tile b.na{font-size:14px;color:var(--muted)}
+.tile small{display:block;font-size:11px;color:var(--muted)}
+.mini{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mini h3{margin:0 0 4px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-left:auto}
+.seg button{border:0;background:#fff;padding:4px 9px;font:inherit;font-size:12px;cursor:pointer;color:var(--navy-2)}
+.seg button[aria-pressed="true"]{background:var(--navy-2);color:#fff}
+#tip{position:fixed;z-index:50;pointer-events:none;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 14px rgba(19,32,51,.16);padding:6px 9px;font-size:12px;line-height:1.4;max-width:260px;color:var(--ink)}
+#tip b{font-variant-numeric:tabular-nums}
+/* data notes */
+.notes{display:grid;gap:10px;font-size:13px}
+.notes > *,.mini > *,.tiles > *,.cov .ctrl > *,.maprow > *{min-width:0}
+.notes h3{margin:6px 0 2px;font-size:13.5px}
+.notes ul{margin:0;padding-left:18px}
+.notes li{margin:2px 0}
 .st{display:inline-block;font-size:10.5px;font-weight:600;padding:0 7px;border-radius:999px;color:#fff;white-space:nowrap}
-.st.yes{background:var(--ok)}.st.derived{background:var(--blue)}.st.no{background:var(--muted)}
+.st.yes{background:var(--ok)}.st.derived{background:var(--blue)}.st.no{background:var(--muted)}.st.flag{background:#B26A00}
+.tbl.left td,.tbl.left th{text-align:left;vertical-align:top}
+.cols{columns:3 220px;font-size:12px;margin:4px 0 0;padding-left:18px}
 footer.foot{padding:12px 28px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 24px;background:#fff}
-footer.foot span:last-child{margin-left:auto}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-@media (max-width:1280px){
-  .filters{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:1400px){ .kpis{grid-template-columns:repeat(4,minmax(0,1fr))} }
+@media (max-width:1180px){
+  .maprow{grid-template-columns:minmax(0,1fr)}
+  .fgrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .charts{grid-template-columns:minmax(0,1fr)}
 }
 @media (max-width:760px){
-  .content,.top{padding-left:14px;padding-right:14px}
-  .filters,.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .filters .span2{grid-column:1 / -1}
+  body{font-size:15px}
+  .content,.top{padding-left:12px;padding-right:12px}
+  .top{gap:10px}
   .brand{border-right:0;padding-right:0}
   .top h1{font-size:19px}
   .back{margin-left:0}
-  .mapbox{height:70vh;min-height:420px}
+  .fgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fgrid .wide{grid-column:1 / -1}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpi .value{font-size:19px}
+  .mapbox{height:68vh;min-height:400px}
+  .mini{grid-template-columns:1fr}
+  .pop{width:auto;left:8px!important;right:8px}
+  .chart .ax,.chart .vl{font-size:13px}
+  .chart .dl{font-size:13.5px}
 }
 </style>
 </head>
@@ -114,361 +193,758 @@ footer.foot span:last-child{margin-left:auto}
     CCFD1
   </div>
   <div>
-    <h1>CAD incident map</h1>
-    <p id="subtitle">CCFD1 incidents by township and service area</p>
+    <h1>CAD &amp; GIS Incident Analysis</h1>
+    <p id="subtitle">Operational incident, apparatus and coverage analysis</p>
   </div>
   <a class="back" href="../#gis"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Back to Dashboard</a>
 </header>
 
 <main class="content">
-  <form class="panel filters" id="filters" aria-label="Map filters" onsubmit="return false">
-    <label>Township
-      <select id="fTownship"></select></label>
-    <label>Incident type
-      <select id="fType"></select></label>
-    <label>Service / incident group
-      <select id="fGroup"></select></label>
-    <label>Unit / apparatus
-      <select id="fUnit"></select></label>
-    <label class="span2">Date range
-      <span class="dates">
-        <input type="date" id="fStart" aria-label="Start date">
-        <input type="date" id="fEnd" aria-label="End date">
-      </span></label>
-    <button type="button" id="resetBtn">Reset filters</button>
-    <label id="rtWrap" hidden>Response time (min)
-      <span class="dates">
-        <input type="number" id="fRtMin" min="0" step="0.5" placeholder="Min" aria-label="Minimum response time, minutes">
-        <input type="number" id="fRtMax" min="0" step="0.5" placeholder="Max" aria-label="Maximum response time, minutes">
-      </span></label>
-  </form>
+  <div class="banner" id="banner" role="status">Loading CAD data…</div>
 
-  <section class="kpis" aria-label="Summary for the current filters" aria-live="polite">
-    <div class="kpi primary"><span class="label">Incidents shown</span><span class="value" id="kShown">–</span><span class="src" id="kShownSrc"></span></div>
-    <div class="kpi"><span class="label">Selected township</span><span class="value" id="kTwp" style="font-size:18px">–</span><span class="src" id="kTwpSrc"></span></div>
-    <div class="kpi"><span class="label"><i class="sw" id="swM"></i>Medical</span><span class="value" id="kM">–</span><span class="src" id="kMSrc"></span></div>
-    <div class="kpi"><span class="label"><i class="sw" id="swF"></i>Fire / hazard</span><span class="value" id="kF">–</span><span class="src" id="kFSrc"></span></div>
-    <div class="kpi"><span class="label"><i class="sw" id="swV"></i>Vehicle accident</span><span class="value" id="kV">–</span><span class="src" id="kVSrc"></span></div>
-    <div class="kpi"><span class="label">Average response time</span><span class="value" id="kRt">–</span><span class="src" id="kRtSrc"></span></div>
-  </section>
+  <details class="panel filters" id="filterBox" open>
+    <summary>Filters <span id="fCount"></span></summary>
+    <form class="fgrid" id="filters" onsubmit="return false" aria-label="Filters">
+      <label>Township <select id="fTownship"></select></label>
+      <label>Incident type <select id="fType"></select></label>
+      <label>Service / call group <select id="fGroup"></select></label>
+      <label>Agency / organization <select id="fAgency"></select></label>
+      <label>Unit / apparatus <select id="fUnit"></select></label>
+      <label>Inside / outside service area <select id="fArea"></select></label>
+      <label class="wide">Date range <span class="pair"><input type="date" id="fStart" aria-label="Start date"><input type="date" id="fEnd" aria-label="End date"></span></label>
+      <label>Day of week <select id="fDow"></select></label>
+      <label class="wide">Hour of day <span class="pair"><select id="fHourFrom" aria-label="From hour"></select><select id="fHourTo" aria-label="To hour"></select></span></label>
+      <span style="display:flex;gap:8px;align-items:end"><button type="button" class="btn" id="resetBtn">Reset filters</button></span>
+    </form>
+  </details>
 
-  <section class="panel updated" aria-label="Incident map">
-    <header><h2>Townships and CCFD1 incidents</h2><span class="tag real">Updated: CAD + GIS</span></header>
-    <div class="body">
-      <div class="mapbox" id="mapbox">
-        <svg id="map" role="img" aria-label="Map of Cass County townships with CCFD1 incident locations"></svg>
-        <div class="zoom" role="group" aria-label="Map zoom">
-          <button type="button" id="zIn" aria-label="Zoom in">+</button>
-          <button type="button" id="zOut" aria-label="Zoom out">−</button>
-          <button type="button" id="zFit" aria-label="Show whole county">Fit</button>
+  <section class="kpis" id="kpis" aria-label="Summary for the current filters" aria-live="polite"></section>
+
+  <div class="maprow">
+    <section class="panel" aria-label="Incident map">
+      <header><h2>Incident map</h2><span class="tag real" id="mapTag">CAD + GIS</span></header>
+      <div class="body">
+        <div class="mapbox" id="mapbox">
+          <svg id="map" role="img" aria-label="Map of Cass County townships, the CCFD1 service area and incident locations"></svg>
+          <div class="zoom" role="group" aria-label="Map zoom">
+            <button type="button" id="zIn" aria-label="Zoom in">+</button>
+            <button type="button" id="zOut" aria-label="Zoom out">−</button>
+            <button type="button" id="zFit" aria-label="Show whole county">Fit</button>
+          </div>
+          <div class="empty" id="empty" hidden><span>No incidents match these filters.</span></div>
+          <div class="hint" id="hint">Scroll or pinch to zoom · drag to pan · click a dot for details</div>
+          <div class="pop" id="pop" hidden role="dialog" aria-label="Incident details"></div>
         </div>
-        <div class="empty" id="empty" hidden><span>No incidents match these filters.</span></div>
-        <div class="hint">Scroll or pinch to zoom · drag to pan · click a dot for details</div>
-        <div class="pop" id="pop" hidden role="dialog" aria-label="Incident details"></div>
+        <div class="legend" id="legend"></div>
+        <p class="note" id="mapNote"></p>
       </div>
-      <div class="legend" id="legend"></div>
-      <p class="note" id="mapNote"></p>
-    </div>
-  </section>
+    </section>
 
-  <section class="panel" aria-label="Data used by this map">
-    <header><h2>What each filter uses</h2></header>
-    <div class="body">
-      <table class="avail">
-        <thead><tr><th>Filter or detail</th><th>Field</th><th>Status</th><th>Notes</th></tr></thead>
-        <tbody id="avail"></tbody>
-      </table>
-      <p class="note" id="availNote"></p>
-    </div>
+    <section class="panel cov" id="coverage" aria-label="Station Coverage Analysis">
+      <header><h2>Station Coverage Analysis</h2><span class="tag" id="covTag">Not calculated</span></header>
+      <div class="body ctrl">
+        <p class="q">How many historical incidents fall within 4, 6, 8 and 12 minutes' drive of a station or candidate site?</p>
+        <label>Location <select id="stSel"></select></label>
+        <div class="btnrow">
+          <button type="button" class="btn" id="stPlace" aria-pressed="false">Place candidate on map</button>
+          <button type="button" class="btn primary" id="stCalc" disabled>Calculate drive-time areas</button>
+        </div>
+        <p class="note" id="stStatus" aria-live="polite"></p>
+        <div class="scroll"><table class="tbl" id="covTable"></table></div>
+        <div id="covCompare"></div>
+        <p class="note" id="covMethod"></p>
+      </div>
+    </section>
+  </div>
+
+  <div class="charts">
+    <section class="panel chart" id="cHour">
+      <header><h2>Calls by hour of day: EMS vs Fire</h2><span class="tag">Incident counts</span></header>
+      <div class="body"><p class="q">Do EMS calls happen more often during daytime hours than fire responses?</p><div id="cHourBody"></div></div>
+    </section>
+    <section class="panel chart" id="cDow">
+      <header><h2>Calls by day of week</h2><span class="tag">Incident counts</span></header>
+      <div class="body"><p class="q">Are there busier days of the week for our calls?</p><div id="cDowBody"></div></div>
+    </section>
+    <section class="panel chart" id="cTime">
+      <header><h2>Time spent on calls: Medical vs Fire</h2><span class="tag">Dispatch → clear</span></header>
+      <div class="body"><p class="q">How are we spending our work time?</p><div id="cTimeBody"></div></div>
+    </section>
+    <section class="panel chart" id="cOut">
+      <header><h2>Calls outside the CCFD1 service area</h2><button type="button" class="btn" id="showOutside" style="margin-left:auto">Show on map</button></header>
+      <div class="body"><p class="q">What share of calls, and how much time, is outside our service area?</p><div id="cOutBody"></div></div>
+    </section>
+    <section class="panel chart" id="cApp">
+      <header><h2>Busiest apparatus</h2>
+        <span class="seg" role="group" aria-label="Rank apparatus by">
+          <button type="button" data-rank="responses" aria-pressed="true">Responses</button><button type="button" data-rank="hours" aria-pressed="false">Hours</button><button type="button" data-rank="avgMin" aria-pressed="false">Avg min</button>
+        </span></header>
+      <div class="body"><p class="q">Which apparatus carry the workload? (Apparatus responses, not incidents.)</p><div id="cAppBody"></div></div>
+    </section>
+    <section class="panel chart" id="cLfd">
+      <header><h2>Logansport Fire in the CCFD1 area</h2><span class="tag">Mutual aid</span></header>
+      <div class="body"><p class="q">How many times has Logansport Fire responded to our area?</p><div id="cLfdBody"></div></div>
+    </section>
+  </div>
+
+  <section class="panel" id="dataNotes" aria-label="Data sources and quality">
+    <header><h2>Data sources, definitions and quality</h2></header>
+    <div class="body notes" id="notesBody"></div>
   </section>
 </main>
 
 <footer class="foot">
-  <span>Prototype. Locations are de-identified: coordinates are published rounded to 3 decimals (about 100 m).</span>
-  <span id="footSrc">Source: Cass County E911 CAD extract (aggregated), CCFD1 township boundaries.</span>
+  <span>Prototype decision-support tool. Missing values are shown as N/A, never as zero.</span>
+  <span id="footSrc">Source: Cass County E911 CAD extract (Fire + EMS), CCFD1 township boundaries.</span>
 </footer>
+<div id="tip" hidden></div>
 
 <script src="../shared/cad-gis.js"></script>
+<script src="../shared/cad-metrics.js"></script>
 <script>
 "use strict";
-const G = window.CCFD1GIS;
+const G = window.CCFD1GIS, M = window.CCFD1Metrics;
+const DETAIL_URL = "../data/cad-gis-detail.json";   // local only (git-ignored); absent on the published site
 const $ = s => document.querySelector(s);
-const num = n => Math.round(n).toLocaleString("en-US");
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const short = n => n.replace(/ Township$/, "");
-const OUTSIDE = "__outside__";   // township filter value for points outside every boundary
+const num = n => n == null ? "N/A" : Math.round(n).toLocaleString("en-US");
+const fmtMin = m => m == null ? "N/A" : (m >= 100 ? Math.round(m) : m.toFixed(1)) + " min";
+const fmtH = h => h == null ? "N/A" : (h >= 100 ? Math.round(h).toLocaleString("en-US") : h.toFixed(1)) + " h";
+const fmtPct = p => p == null ? "N/A" : (p >= 10 ? p.toFixed(0) : p.toFixed(1)) + "%";
+const short = n => n ? n.replace(/ Township$/, "") : n;
+const CAT = c => ({label: M.CATEGORY_LABEL[c], color: (G.CATEGORIES[c] || {}).color || "#7B8696"});
+const EMS_LABEL = "EMS / Medical";
+const agencyName = o => M.AGENCY[o] ? `${M.AGENCY[o].name} (${o})` : o;
+const DEFAULTS = {agency: M.HOME_AGENCY};
+let DS = null;
 
-/* ---------- Records: built once (township assigned once, in shared/cad-gis.js) ---------- */
-const REC = G.records();
-const has = f => REC.some(r => r[f] != null && r[f] !== "");
-const unitsOf = r => r.unit == null ? [] : (Array.isArray(r.unit) ? r.unit : [r.unit]);
-const validRt = r => typeof r.responseMin === "number" && isFinite(r.responseMin) && r.responseMin >= 0;
-const dateOf = r => typeof r.datetime === "string" && /^\d{4}-\d{2}-\d{2}/.test(r.datetime) ? r.datetime.slice(0, 10) : null;
-const AVAIL = {
-  id: has("id"), type: has("type"), unit: REC.some(r => unitsOf(r).length),
-  date: REC.some(dateOf), rt: REC.some(validRt)
-};
-const UNMAPPED = G.incidentsTotal - G.incidentPoints.length;
-
-/* ---------- Filter controls (options come from the data) ---------- */
-function opt(v, t){ return `<option value="${esc(v)}">${esc(t)}</option>`; }
-function unavailable(sel, why){
-  sel.innerHTML = opt("", "Not in published data"); sel.disabled = true; sel.title = why;
+/* =============================== Load data once =============================== */
+async function load(){
+  try {
+    const r = await fetch(DETAIL_URL, {cache: "no-store"});
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    DS = M.prepare(await r.json());
+    const m = DS.meta;
+    $("#banner").className = "banner detail";
+    $("#banner").innerHTML = `<b>Detailed CAD data loaded</b> (local file, not published): ${num(DS.incidents.length)} incidents and ${num(DS.units.length)} unit-response rows, ` +
+      `${esc((m.period || [""])[0].slice(0, 10))} to ${esc((m.period || ["", ""])[1].slice(0, 10))}. Built ${esc((m.built || "").slice(0, 10))}.`;
+  } catch (e) {
+    DS = M.fromPublished(G);
+    DEFAULTS.agency = "";
+    $("#banner").className = "banner public";
+    $("#banner").innerHTML = `<b>Published layer only.</b> The detailed CAD file (<code>data/cad-gis-detail.json</code>) is not on this site, so only CCFD1 incident locations and categories are available. ` +
+      `Times, dates, apparatus and agencies show N/A. Run <code>python pipeline/build_gis_detail.py</code> and open the page from a local server to see the full analysis.`;
+    $("#mapTag").textContent = "Published layer";
+  }
+  $("#subtitle").textContent = `CCFD1 incidents, apparatus and coverage · ${G.cadPeriod}`;
+  init();
 }
-(function buildControls(){
-  // Township: every boundary in the GIS layer, grouped by role
+
+/* =============================== Filters =============================== */
+const KEYS = {township:"#fTownship", type:"#fType", group:"#fGroup", agency:"#fAgency", unit:"#fUnit", area:"#fArea",
+  start:"#fStart", end:"#fEnd", dow:"#fDow", hourFrom:"#fHourFrom", hourTo:"#fHourTo"};
+const opt = (v, t, sel) => `<option value="${esc(v)}"${sel ? " selected" : ""}>${esc(t)}</option>`;
+function disable(sel, why){ sel.innerHTML = opt("", "N/A: not in data"); sel.disabled = true; sel.title = why; }
+
+function buildFilters(){
+  const D = DS.hasDetail, o = DS.options;
+  // Township: every boundary, grouped by role
   const groups = {};
   G.townships.features.forEach(f => (groups[f.properties.role] ||= []).push(f.properties.name));
   let h = opt("", "All townships");
-  Object.keys(G.ROLES).forEach(role => {
-    if (!groups[role]) return;
-    h += `<optgroup label="${esc(G.ROLES[role].label)}">` + groups[role].sort().map(n => opt(n, short(n))).join("") + "</optgroup>";
-  });
-  if (REC.some(r => r.township == null)) h += opt(OUTSIDE, "Outside township boundaries");
+  Object.keys(G.ROLES).forEach(role => { if (groups[role]) h += `<optgroup label="${esc(G.ROLES[role].label)}">` + groups[role].sort().map(n => opt(n, short(n))).join("") + "</optgroup>"; });
+  if (DS.incidents.some(x => x.located && !x.township)) h += opt("__outside__", "Outside township boundaries");
   $("#fTownship").innerHTML = h;
-
-  // Service / incident group: the category codes present in the extract
-  const cats = Object.keys(G.CATEGORIES).filter(c => REC.some(r => r.category === c));
-  const extra = [...new Set(REC.map(r => r.category))].filter(c => !G.CATEGORIES[c]).sort();
-  $("#fGroup").innerHTML = opt("", "All") + cats.map(c => opt(c, G.CATEGORIES[c].label)).join("") +
-    extra.map(c => opt(c, "Code " + c)).join("");
-
-  // Incident type (raw CAD description)
-  if (AVAIL.type) $("#fType").innerHTML = opt("", "All") +
-    [...new Set(REC.map(r => r.type).filter(Boolean))].sort().map(t => opt(t, t)).join("");
-  else unavailable($("#fType"), "The published CAD extract has a category code (see Service / incident group) but no raw incident type.");
-
-  // Unit / apparatus
-  if (AVAIL.unit) $("#fUnit").innerHTML = opt("", "All") +
-    [...new Set(REC.flatMap(unitsOf))].sort().map(u => opt(u, u)).join("");
-  else unavailable($("#fUnit"), "The published CAD extract does not include responding units.");
-
-  // Date range
-  if (AVAIL.date){
-    const ds = REC.map(dateOf).filter(Boolean).sort();
-    ["#fStart", "#fEnd"].forEach(id => { $(id).min = ds[0]; $(id).max = ds[ds.length - 1]; });
-  } else ["#fStart", "#fEnd"].forEach(id => {
-    $(id).disabled = true; $(id).title = "The published CAD extract has no incident dates (only totals by hour of day).";
-  });
-
-  // Response time: optional, shown only when the data carries a valid field
-  $("#rtWrap").hidden = !AVAIL.rt;
-})();
-
-/* ---------- Filter state <-> URL hash (shareable, survives refresh on GitHub Pages) ---------- */
-const KEYS = {township:"#fTownship", type:"#fType", group:"#fGroup", unit:"#fUnit", start:"#fStart", end:"#fEnd", rtmin:"#fRtMin", rtmax:"#fRtMax"};
-function readControls(){
+  // Incident type: raw CAD event type, with overall counts
+  if (D) $("#fType").innerHTML = opt("", "All") + [...o.types].sort((a, b) => a[0].localeCompare(b[0])).map(([t, n]) => opt(t, `${t} (${num(n)})`)).join("");
+  else disable($("#fType"), "The published layer has a category but no raw incident type.");
+  // Group: categories present
+  $("#fGroup").innerHTML = opt("", "All") + M.CATEGORY_ORDER.filter(c => DS.incidents.some(x => x.category === c))
+    .map(c => opt(c, c === "M" ? `${EMS_LABEL}` : M.CATEGORY_LABEL[c])).join("");
+  // Agency: orgs from unit-response data, grouped by record type
+  if (D){
+    const kind = {};
+    DS.units.forEach(u => { const k = u.recordType === "law_enforcement" ? "Law enforcement" : u.recordType === "towing" ? "Towing" : "Fire / EMS";
+      (kind[u.org] ||= {})[k] = ((kind[u.org] || {})[k] || 0) + 1; });
+    const grp = {"Fire / EMS": [], "Law enforcement": [], "Towing": []};
+    [...o.orgs].forEach(([org, n]) => { const k = Object.entries(kind[org]).sort((a, b) => b[1] - a[1])[0][0]; grp[k].push([org, n]); });
+    let a = opt("", "All agencies");
+    for (const [g, list] of Object.entries(grp)) if (list.length)
+      a += `<optgroup label="${g}">` + list.sort((x, y) => (y[0] === M.HOME_AGENCY) - (x[0] === M.HOME_AGENCY) || y[1] - x[1]).map(([org]) => opt(org, agencyName(org))).join("") + "</optgroup>";
+    $("#fAgency").innerHTML = a;
+  } else { $("#fAgency").innerHTML = opt("", "CCFD1 (published layer)"); $("#fAgency").disabled = true; }
+  // Area
+  $("#fArea").innerHTML = opt("", "All") + opt("inside", "Inside CCFD1 service area") + opt("district", "· District (Clay, Noble, Eel)") +
+    opt("contract", "· Washington Twp. (contract)") + opt("outside", "Outside CCFD1 service area") + (D ? opt("unknown", "No location in CAD") : "");
+  // Dates, day, hour
+  if (D && o.dates.length){ ["#fStart", "#fEnd"].forEach(s => { $(s).min = o.dates[0]; $(s).max = o.dates[o.dates.length - 1]; }); }
+  else ["#fStart", "#fEnd"].forEach(s => { $(s).disabled = true; $(s).title = "No incident dates in the published layer."; });
+  if (D) $("#fDow").innerHTML = opt("", "All days") + M.DOW.map(d => opt(d, d)).join(""); else disable($("#fDow"), "No incident dates in the published layer.");
+  const hours = [...Array(24).keys()].map(i => opt(i, String(i).padStart(2, "0") + ":00")).join("");
+  if (D){ $("#fHourFrom").innerHTML = opt("", "From: any") + hours; $("#fHourTo").innerHTML = opt("", "To: any") + hours; }
+  else { disable($("#fHourFrom"), "No incident times in the published layer."); disable($("#fHourTo"), ""); }
+  fillUnits();
+}
+/* Unit options narrow to the chosen agency (apparatus only; agency rows are not apparatus). */
+function fillUnits(){
+  const sel = $("#fUnit"), keep = sel.value;
+  if (!DS.hasDetail){ disable(sel, "No apparatus in the published layer."); return; }
+  const ag = $("#fAgency").value;
+  const list = [...DS.options.units].filter(([k]) => !ag || k.startsWith(ag + "|"))
+    .sort((a, b) => a[0].localeCompare(b[0]));
+  sel.innerHTML = opt("", "All apparatus") + list.map(([k, n]) => { const [org, u] = k.split("|"); return opt(k, `${u} · ${org} (${num(n)})`); }).join("");
+  sel.value = list.some(([k]) => k === keep) ? keep : "";
+}
+function readFilters(){
   const f = {};
-  for (const [k, id] of Object.entries(KEYS)){ const el = $(id); if (!el.disabled && el.value !== "") f[k] = el.value; }
+  for (const [k, s] of Object.entries(KEYS)){ const el = $(s); if (!el.disabled && el.value !== "") f[k] = el.value; }
   return f;
 }
-function applyHash(){
-  const p = new URLSearchParams(location.hash.slice(1));
-  for (const [k, id] of Object.entries(KEYS)){
-    const el = $(id), v = p.get(k);
-    if (el.disabled) continue;
-    if (el.tagName === "SELECT") el.value = [...el.options].some(o => o.value === v) ? v : "";
-    else el.value = v || "";
-  }
+function setControl(sel, v){
+  const el = $(sel); if (el.disabled) return;
+  if (el.tagName === "SELECT") el.value = [...el.options].some(o => o.value === v) ? v : ""; else el.value = v || "";
+}
+function applyState(p){
+  setControl("#fAgency", p.has("agency") ? p.get("agency") : DEFAULTS.agency || "");
+  fillUnits();
+  for (const [k, s] of Object.entries(KEYS)) if (k !== "agency") setControl(s, p.get(k));
 }
 function writeHash(f){
-  const s = new URLSearchParams(f).toString();
+  const p = new URLSearchParams();
+  for (const k of Object.keys(KEYS)){ const v = f[k] || ""; if (v !== (DEFAULTS[k] || "")) p.set(k, v); }
+  const s = p.toString();
   history.replaceState(null, "", s ? "#" + s : location.pathname + location.search);
 }
 
-function matches(r, f){
-  if (f.township && (f.township === OUTSIDE ? r.township != null : r.township !== f.township)) return false;
-  if (f.group && r.category !== f.group) return false;
-  if (f.type && r.type !== f.type) return false;
-  if (f.unit && !unitsOf(r).includes(f.unit)) return false;
-  if (f.start || f.end){ const d = dateOf(r); if (!d || (f.start && d < f.start) || (f.end && d > f.end)) return false; }
-  if (f.rtmin || f.rtmax){
-    if (!validRt(r)) return false;
-    if (f.rtmin && r.responseMin < +f.rtmin) return false;
-    if (f.rtmax && r.responseMin > +f.rtmax) return false;
-  }
-  return true;
-}
-
-/* ---------- Map: SVG, same projection and symbology as the dashboard map ---------- */
-const svg = $("#map"), box = $("#mapbox");
-const NS = "http://www.w3.org/2000/svg";
+/* =============================== Map =============================== */
+const svg = $("#map"), box = $("#mapbox"), NS = "http://www.w3.org/2000/svg";
 let x0 = 180, x1 = -180, y0 = 90, y1 = -90;
-const rings = f => f.geometry.type === "MultiPolygon" ? f.geometry.coordinates.flat() : f.geometry.coordinates;
-G.townships.features.forEach(f => rings(f).forEach(r => r.forEach(([x, y]) => {
-  x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
-})));
+G.townships.features.forEach(f => (f.geometry.type === "MultiPolygon" ? f.geometry.coordinates.flat() : f.geometry.coordinates)
+  .forEach(r => r.forEach(([x, y]) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); })));
 const K = Math.cos((y0 + y1) / 2 * Math.PI / 180), W = 1000, PAD = 14, SC = (W - 2 * PAD) / ((x1 - x0) * K);
 const H = Math.round((y1 - y0) * SC + 2 * PAD);
 const px = x => PAD + (x - x0) * K * SC, py = y => PAD + (y1 - y) * SC;
-const FULL = {x: 0, y: 0, w: W, h: H};
-const R_PT = 6, FONT = 19;
-
+const unpx = X => x0 + (X - PAD) / (K * SC), unpy = Y => y1 - (Y - PAD) / SC;
+const FULL = {x: 0, y: 0, w: W, h: H}, R_PT = 5.2, FONT = 19;
+const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+const ringPath = rings => rings.map(ring => "M" + ring.map(([x, y]) => px(x).toFixed(1) + " " + py(y).toFixed(1)).join("L") + "Z").join("");
+const featPath = g => (g.type === "MultiPolygon" ? g.coordinates : [g.coordinates]).map(ringPath).join("");
 const twpEls = {}, lblEls = [], ptEls = [];
-(function drawMap(){
-  const gT = document.createElementNS(NS, "g"), gP = document.createElementNS(NS, "g"), gL = document.createElementNS(NS, "g");
+let gIso, gPts, gStn;
+
+function drawMap(){
+  const gT = el("g"), gS = el("g"), gL = el("g");
+  gIso = el("g"); gPts = el("g"); gStn = el("g");
+  const svcNames = [...M.SERVICE_AREA.district, ...M.SERVICE_AREA.contract];
   G.townships.features.forEach(f => {
     const role = G.ROLES[f.properties.role] || G.ROLES["Other Cass County"];
-    const polys = f.geometry.type === "MultiPolygon" ? f.geometry.coordinates : [f.geometry.coordinates];
-    const d = polys.map(p => p.map(ring => "M" + ring.map(([x, y]) => px(x).toFixed(1) + " " + py(y).toFixed(1)).join("L") + "Z").join("")).join("");
-    const p = document.createElementNS(NS, "path");
-    p.setAttribute("class", "tw"); p.setAttribute("d", d); p.setAttribute("fill", role.fill);
-    p.setAttribute("fill-opacity", role.opacity); p.setAttribute("fill-rule", "evenodd");
-    p.setAttribute("vector-effect", "non-scaling-stroke");
-    const t = document.createElementNS(NS, "title"); t.textContent = `${f.properties.name} (${role.label})`; p.appendChild(t);
+    const p = el("path", {class: "tw", d: featPath(f.geometry), fill: role.fill, "fill-opacity": role.opacity, "fill-rule": "evenodd", "vector-effect": "non-scaling-stroke"});
+    const t = el("title"); t.textContent = `${f.properties.name} (${role.label})`; p.appendChild(t);
     gT.appendChild(p); twpEls[f.properties.name] = p;
-    // label at the vertex mean of the outer ring (as on the dashboard map)
-    const ring = polys[0][0]; let sx = 0, sy = 0; ring.forEach(([x, y]) => { sx += x; sy += y; });
-    const l = document.createElementNS(NS, "text");
-    l.setAttribute("class", "lbl"); l.setAttribute("x", px(sx / ring.length).toFixed(1)); l.setAttribute("y", py(sy / ring.length).toFixed(1));
-    l.setAttribute("text-anchor", "middle"); l.textContent = short(f.properties.name);
-    gL.appendChild(l); lblEls.push(l);
+    if (svcNames.includes(f.properties.name)) gS.appendChild(el("path", {class: "svc", d: featPath(f.geometry), "vector-effect": "non-scaling-stroke"}));
+    const ring = (f.geometry.type === "MultiPolygon" ? f.geometry.coordinates[0] : f.geometry.coordinates)[0];
+    let sx = 0, sy = 0; ring.forEach(([x, y]) => { sx += x; sy += y; });
+    const l = el("text", {class: "lbl", x: px(sx / ring.length).toFixed(1), y: py(sy / ring.length).toFixed(1), "text-anchor": "middle"});
+    l.textContent = short(f.properties.name); gL.appendChild(l); lblEls.push(l);
   });
-  REC.forEach(r => {
-    const c = document.createElementNS(NS, "circle"), cat = G.CATEGORIES[r.category];
-    c.setAttribute("class", "pt"); c.setAttribute("cx", px(r.lng).toFixed(1)); c.setAttribute("cy", py(r.lat).toFixed(1));
-    c.setAttribute("fill", cat ? cat.color : G.CATEGORIES.O.color); c.setAttribute("fill-opacity", ".85");
-    c.dataset.i = r.index; gP.appendChild(c); ptEls[r.index] = c;
+  DS.incidents.forEach(x => {
+    if (!x.located) return;
+    const c = CAT(x.category), u = x.category === "U";
+    const e = el("circle", {class: "pt", cx: px(x.lng).toFixed(1), cy: py(x.lat).toFixed(1),
+      fill: u ? "#fff" : c.color, "fill-opacity": u ? 1 : .85, stroke: u ? "#7B8696" : "#fff"});
+    e.dataset.i = x.i; gPts.appendChild(e); ptEls[x.i] = e;
   });
-  svg.append(gT, gP, gL);   // labels on top, not clickable
-})();
+  svg.append(gT, gIso, gS, gPts, gL, gStn);
+}
 
-/* view box, zoom and pan */
-let vb = {...FULL};
-function zoomLevel(){ return Math.max(W / vb.w, H / vb.h); }
+let vb = {...FULL}, lastZ = 0;
+const zoomLevel = () => Math.max(W / vb.w, H / vb.h);
 function setView(v){
-  const z = Math.min(40, Math.max(1, Math.max(W / v.w, H / v.h)));
-  const w = W / z, h = H / z;
+  const z = Math.min(60, Math.max(1, Math.max(W / v.w, H / v.h))), w = W / z, h = H / z;
   const cx = v.x + v.w / 2, cy = v.y + v.h / 2;
   vb = {x: cx - w / 2, y: cy - h / 2, w, h};
-  // keep some of the county in view
   vb.x = Math.min(Math.max(vb.x, -w * .5), W - w * .5); vb.y = Math.min(Math.max(vb.y, -h * .5), H - h * .5);
   svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
-  const zl = zoomLevel(), r = (R_PT / Math.pow(zl, .8)).toFixed(2), sw = (1 / zl).toFixed(3);
-  ptEls.forEach(c => { c.setAttribute("r", r); c.setAttribute("stroke-width", sw * .8); });
-  lblEls.forEach(l => l.setAttribute("font-size", (FONT / Math.pow(zl, .85)).toFixed(2)));
+  const zl = zoomLevel();
+  if (zl !== lastZ){
+    lastZ = zl;
+    const r = (R_PT / Math.pow(zl, .8)).toFixed(2), sw = (1 / zl).toFixed(3);
+    ptEls.forEach(c => { if (c){ c.setAttribute("r", r); c.setAttribute("stroke-width", c.getAttribute("fill") === "#fff" ? sw * 1.6 : sw * .8); } });
+    lblEls.forEach(l => l.setAttribute("font-size", (FONT / Math.pow(zl, .85)).toFixed(2)));
+    drawStations();
+  }
 }
-function toSvg(clientX, clientY){
-  const m = svg.getScreenCTM(); return new DOMPoint(clientX, clientY).matrixTransform(m.inverse());
-}
-function zoomAt(factor, cx, cy){   // factor < 1 zooms in, around svg point (cx, cy)
-  const z = zoomLevel(), nz = Math.min(40, Math.max(1, z / factor)), f = z / nz;
+const toSvg = (cx, cy) => new DOMPoint(cx, cy).matrixTransform(svg.getScreenCTM().inverse());
+function zoomAt(factor, cx, cy){
+  const z = zoomLevel(), nz = Math.min(60, Math.max(1, z / factor)), f = z / nz;
   setView({x: cx - (cx - vb.x) * f, y: cy - (cy - vb.y) * f, w: vb.w * f, h: vb.h * f});
 }
-function fitTo(b, pad = .12){
+function fitTo(b, pad = .2){
   const w = b.w * (1 + pad * 2), h = b.h * (1 + pad * 2), z = Math.min(W / w, H / h);
   setView({x: b.x + b.w / 2 - W / z / 2, y: b.y + b.h / 2 - H / z / 2, w: W / z, h: H / z});
 }
-svg.addEventListener("wheel", e => {
-  e.preventDefault(); closePop(); const p = toSvg(e.clientX, e.clientY);
-  zoomAt(e.deltaY < 0 ? 1 / 1.25 : 1.25, p.x, p.y);
-}, {passive: false});
-$("#zIn").onclick = () => closePop() || zoomAt(1 / 1.5, vb.x + vb.w / 2, vb.y + vb.h / 2);
-$("#zOut").onclick = () => closePop() || zoomAt(1.5, vb.x + vb.w / 2, vb.y + vb.h / 2);
-$("#zFit").onclick = () => { closePop(); setView(FULL); };
-
-// drag to pan; two-finger pinch to zoom
-const ptrs = new Map(); let drag = null, moved = false, pinch = null;
-svg.addEventListener("pointerdown", e => {
-  if (e.button !== 0) return;
-  ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
-  moved = false;
-  if (ptrs.size === 1) drag = {x: e.clientX, y: e.clientY, vb: {...vb}};
-  else if (ptrs.size === 2){ const [a, b] = [...ptrs.values()]; pinch = {d: Math.hypot(a.x - b.x, a.y - b.y)}; drag = null; }
-});
-svg.addEventListener("pointermove", e => {
-  if (!ptrs.has(e.pointerId)) return;
-  ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
-  if (pinch && ptrs.size === 2){
-    const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
-    if (d > 0 && pinch.d > 0){ const c = toSvg((a.x + b.x) / 2, (a.y + b.y) / 2); zoomAt(pinch.d / d, c.x, c.y); pinch.d = d; moved = true; }
-    return;
-  }
-  if (!drag) return;
-  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-  if (!moved && Math.hypot(dx, dy) < 4) return;
-  // capture only once a drag starts, so a plain click still targets the dot under it
-  if (!moved){ svg.setPointerCapture(e.pointerId); closePop(); }
-  moved = true; box.classList.add("dragging");
-  const s = svg.getScreenCTM().a;
-  setView({...drag.vb, x: drag.vb.x - dx / s, y: drag.vb.y - dy / s});
-});
-function endPtr(e){
-  ptrs.delete(e.pointerId);
-  if (ptrs.size < 2) pinch = null;
-  if (!ptrs.size){ drag = null; box.classList.remove("dragging"); }
+function wireMap(){
+  svg.addEventListener("wheel", e => { e.preventDefault(); closePop(); const p = toSvg(e.clientX, e.clientY); zoomAt(e.deltaY < 0 ? 1 / 1.25 : 1.25, p.x, p.y); }, {passive: false});
+  $("#zIn").onclick = () => { closePop(); zoomAt(1 / 1.5, vb.x + vb.w / 2, vb.y + vb.h / 2); };
+  $("#zOut").onclick = () => { closePop(); zoomAt(1.5, vb.x + vb.w / 2, vb.y + vb.h / 2); };
+  $("#zFit").onclick = () => { closePop(); setView(FULL); };
+  const ptrs = new Map(); let drag = null, pinch = null, stnDrag = null;
+  svg.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return;
+    ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY}); moved = false;
+    if (e.target.closest(".stn.cand")){ stnDrag = e.pointerId; svg.setPointerCapture(e.pointerId); return; }
+    if (ptrs.size === 1) drag = {x: e.clientX, y: e.clientY, vb: {...vb}};
+    else if (ptrs.size === 2){ const [a, b] = [...ptrs.values()]; pinch = {d: Math.hypot(a.x - b.x, a.y - b.y)}; drag = null; }
+  });
+  svg.addEventListener("pointermove", e => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
+    if (stnDrag === e.pointerId){ const p = toSvg(e.clientX, e.clientY); moved = true; setCandidate(unpy(p.y), unpx(p.x), true); return; }
+    if (pinch && ptrs.size === 2){
+      const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (d > 0 && pinch.d > 0){ const c = toSvg((a.x + b.x) / 2, (a.y + b.y) / 2); zoomAt(pinch.d / d, c.x, c.y); pinch.d = d; moved = true; }
+      return;
+    }
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!moved && Math.hypot(dx, dy) < 4) return;
+    if (!moved){ svg.setPointerCapture(e.pointerId); closePop(); }
+    moved = true; box.classList.add("dragging");
+    const s = svg.getScreenCTM().a;
+    setView({...drag.vb, x: drag.vb.x - dx / s, y: drag.vb.y - dy / s});
+  });
+  const end = e => {
+    ptrs.delete(e.pointerId);
+    if (stnDrag === e.pointerId){ stnDrag = null; setCandidate(CAND.lat, CAND.lng, false); }
+    if (ptrs.size < 2) pinch = null;
+    if (!ptrs.size){ drag = null; box.classList.remove("dragging"); }
+  };
+  svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
+  svg.addEventListener("click", e => {
+    if (moved) return;
+    if (placing){ const p = toSvg(e.clientX, e.clientY); setCandidate(unpy(p.y), unpx(p.x), false); togglePlacing(false); return; }
+    const c = e.target.closest("circle.pt");
+    if (c && c.style.display !== "none") openPop(DS.incidents[+c.dataset.i], e.clientX, e.clientY); else closePop();
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape"){ closePop(); togglePlacing(false); } });
 }
-svg.addEventListener("pointerup", endPtr); svg.addEventListener("pointercancel", endPtr);
+let moved = false;
 
-/* ---------- Popup: every shown incident at the clicked location ---------- */
+/* popup: every shown incident at the clicked location; only fields that exist */
 const pop = $("#pop");
-const fmtDT = s => { const d = new Date(s); return isNaN(d) ? s : d.toLocaleString("en-US", {dateStyle: "medium", timeStyle: "short"}); };
-function detailRows(r){
-  const cat = G.CATEGORIES[r.category], rows = [];
-  if (r.id != null) rows.push(["Incident ID", r.id]);
-  if (r.datetime) rows.push(["Date / time", fmtDT(r.datetime)]);
-  if (r.type) rows.push(["Incident type", r.type]);
-  rows.push(["Group", cat ? `${cat.label} (code ${r.category})` : `Code ${r.category}`]);
-  if (unitsOf(r).length) rows.push(["Unit", unitsOf(r).join(", ")]);
-  if (validRt(r)) rows.push(["Response time", r.responseMin.toFixed(1) + " min"]);
-  return rows;
+let shown = new Set();
+function unitTable(inc){
+  const rows = inc.units.filter(u => u.recordType === "unit" || u.recordType === "agency_summary");
+  if (!rows.length) return "";
+  const t = s => s ? s.slice(11) : "";
+  const other = inc.units.length - rows.length;
+  return `<table><thead><tr><th>Unit</th><th>Dispatched</th><th>On scene</th><th>Cleared</th><th>Resp.</th><th>Comm.</th></tr></thead><tbody>` +
+    rows.map(u => {
+      const flags = [u.backfilled.includes("D") ? "dispatch time backfilled in CAD" : "", u.anomalies ? "out-of-order times: " + u.anomalies : "", u.recordType === "agency_summary" ? "agency row (not an apparatus)" : ""].filter(Boolean).join("; ");
+      return `<tr title="${esc(flags)}"><td>${esc(u.unit)}${u.recordType === "agency_summary" ? "†" : ""} <span style="color:var(--muted)">${esc(u.org)}</span>${u.anomalies ? " ⚠" : ""}</td>` +
+        `<td title="${esc(u.dispatch || "")}">${esc(t(u.dispatch))}${u.backfilled.includes("D") ? "*" : ""}</td><td title="${esc(u.onscene || "")}">${esc(t(u.onscene))}</td><td title="${esc(u.clear || "")}">${esc(t(u.clear))}</td>` +
+        `<td>${u.responseValid ? (u.responseS / 60).toFixed(1) : ""}</td><td>${u.commitValid ? Math.round(u.commitmentMin) : ""}</td></tr>`;
+    }).join("") + `</tbody></table>` +
+    `<p>* dispatch time backfilled in CAD · † agency row, not an apparatus · ⚠ out-of-order times (excluded from time metrics)${other ? ` · ${other} law-enforcement/towing row(s) not listed` : ""}. Minutes.</p>`;
 }
-let shown = new Set(REC.map(r => r.index));
-function openPop(rec, clientX, clientY){
-  const here = REC.filter(r => shown.has(r.index) && r.lat === rec.lat && r.lng === rec.lng);
-  const role = rec.townshipRole && G.ROLES[rec.townshipRole] ? ` (${G.ROLES[rec.townshipRole].label})` : "";
-  const twp = rec.township ? short(rec.township) + " Twp." + role : "Outside township boundaries";
+function openPop(rec, cx, cy){
+  const here = DS.incidents.filter(x => shown.has(x.i) && x.lat === rec.lat && x.lng === rec.lng);
   let h = `<header><b>${here.length === 1 ? "1 incident" : num(here.length) + " incidents"} at this location</b><button type="button" aria-label="Close" id="popX">×</button></header>`;
-  h += `<dl><dt>Township</dt><dd>${esc(twp)}</dd><dt>Location</dt><dd>${rec.lat.toFixed(3)}, ${rec.lng.toFixed(3)}</dd></dl>`;
-  if (AVAIL.id || AVAIL.date || AVAIL.type || AVAIL.unit || AVAIL.rt)   // per-incident details exist: list each
-    here.forEach(r => { h += `<dl class="inc">` + detailRows(r).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("") + `</dl>`; });
-  else {   // category is the only per-incident field: count by group
-    const by = {}; here.forEach(r => by[r.category] = (by[r.category] || 0) + 1);
-    h += `<dl class="inc">` + Object.entries(by).map(([c, k]) => `<dt>${esc(G.CATEGORIES[c] ? G.CATEGORIES[c].label : "Code " + c)}</dt><dd>${num(k)}</dd>`).join("") + `</dl>`;
-  }
-  const miss = ["Incident ID", "date/time", "incident type", "unit", "response time"].filter((_, i) => ![AVAIL.id, AVAIL.date, AVAIL.type, AVAIL.unit, AVAIL.rt][i]);
-  h += `<p>Township is ${rec.townshipSource === "cad" ? "from the CAD record" : "derived from the published location"}. Location is rounded to about 100 m.` +
-    (miss.length ? ` Not in the published extract: ${miss.join(", ")}.` : "") + `</p>`;
+  here.slice(0, 25).forEach(x => {
+    const rows = [];
+    if (x.id) rows.push(["Incident ID", x.id]);
+    if (x.datetime) rows.push(["Created", x.datetime]);
+    if (x.type) rows.push(["Incident type", x.type]);
+    rows.push(["Group", `${M.CATEGORY_LABEL[x.category]}${x.category === "U" ? "" : ` (${x.category})`}`]);
+    rows.push(["Township", x.township ? short(x.township) + " Twp." + (x.townshipSource === "location" ? " (from location)" : "") : "Outside township boundaries"]);
+    rows.push(["Service area", M.AREA_LABEL[x.area]]);
+    rows.push(["Location", `${x.lat}, ${x.lng}${DS.hasDetail ? "" : " (rounded ~100 m)"}`]);
+    if (x.orgs.size && DS.hasDetail) rows.push(["Agencies", [...x.orgs].join(", ")]);
+    if (x.disposition) rows.push(["Disposition", x.disposition]);
+    h += `<div class="inc"><dl>${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>${unitTable(x)}</div>`;
+  });
+  if (here.length > 25) h += `<p style="padding:0 12px 10px">…and ${num(here.length - 25)} more. Zoom in or filter to narrow.</p>`;
+  if (!DS.hasDetail) h += `<p style="padding:0 12px 10px">Published layer: incident ID, date/time, type, agency and apparatus are not available.</p>`;
   pop.innerHTML = h; pop.hidden = false;
   const b = box.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
-  let left = clientX - b.left + 12, top = clientY - b.top - 20;
-  if (left + pw > b.width - 8) left = clientX - b.left - pw - 12;
-  pop.style.left = Math.max(8, left) + "px";
-  pop.style.top = Math.max(8, Math.min(top, b.height - ph - 8)) + "px";
+  let left = cx - b.left + 12, top = cy - b.top - 20;
+  if (left + pw > b.width - 8) left = cx - b.left - pw - 12;
+  pop.style.left = Math.max(8, left) + "px"; pop.style.top = Math.max(8, Math.min(top, b.height - ph - 8)) + "px";
   $("#popX").onclick = closePop; $("#popX").focus({preventScroll: true});
 }
 function closePop(){ pop.hidden = true; }
-svg.addEventListener("click", e => {
-  if (moved) return;
-  const c = e.target.closest("circle.pt");
-  if (c && c.style.display !== "none") openPop(REC[+c.dataset.i], e.clientX, e.clientY); else closePop();
-});
-document.addEventListener("keydown", e => { if (e.key === "Escape" && !pop.hidden) closePop(); });
 
-/* ---------- Legend ---------- */
-$("#legend").innerHTML =
-  Object.values(G.ROLES).map(r => `<span><i style="background:${r.fill};${r.fill === "#E8EFF7" ? "border:1px solid var(--line)" : ""}"></i>${esc(r.label)}</span>`).join("") +
-  Object.values(G.CATEGORIES).map(c => `<span><i class="dot" style="background:${c.color}"></i>${esc(c.label)}</span>`).join("") +
-  `<span><i class="outline"></i>Selected township</span>`;
-["M", "F", "V"].forEach(c => $("#sw" + c).style.background = G.CATEGORIES[c].color);
-
-/* ---------- Update: filter, toggle points, refresh cards. No rebuild, no reload. ---------- */
-function setCard(id, value, src, na){
-  const v = $("#" + id); v.textContent = value; v.classList.toggle("na", !!na);
-  if (src != null) $("#" + id + "Src").textContent = src;
+/* =============================== Station coverage =============================== */
+const BAND_COLORS = ["#3B2A6E", "#6550A0", "#9683C4", "#C9BEE3"];   // sequential, one hue: nearer = darker
+const COV = new Map();   // "lat,lng" -> {name, lat, lng, features, bands}
+let CAND = null, placing = false, activeKey = null;
+const keyOf = (lat, lng) => lat.toFixed(5) + "," + lng.toFixed(5);
+function stationList(){ return M.STATIONS.map((s, i) => ({id: "s" + i, name: s.name, lat: s.lat, lng: s.lng, source: s.source})); }
+function fillStations(){
+  const st = stationList();
+  let h = st.map(s => opt(s.id, s.name)).join("");
+  if (!st.length) h += `<option value="" disabled>Existing CCFD1 station: location not in project data</option>`;
+  h += opt("cand", CAND ? `Candidate (${CAND.lat.toFixed(4)}, ${CAND.lng.toFixed(4)})` : "Candidate location (place on map)");
+  const keep = $("#stSel").value;
+  $("#stSel").innerHTML = h;
+  $("#stSel").value = [...$("#stSel").options].some(o => o.value === keep && !o.disabled) ? keep : (st.length ? "s0" : "cand");
 }
-let lastTwp = null;
-function update(){
-  const f = readControls();
-  const vis = REC.filter(r => matches(r, f));
-  shown = new Set(vis.map(r => r.index));
-  REC.forEach(r => { ptEls[r.index].style.display = shown.has(r.index) ? "" : "none"; });
-  closePop();
-  $("#empty").hidden = vis.length > 0;
+function selectedLoc(){
+  const v = $("#stSel").value;
+  if (v === "cand") return CAND ? {name: "Candidate", ...CAND} : null;
+  const s = stationList().find(x => x.id === v); return s || null;
+}
+function togglePlacing(on){
+  placing = on; $("#stPlace").setAttribute("aria-pressed", on); box.classList.toggle("placing", on);
+  $("#hint").textContent = on ? "Click the map to place the candidate station · Esc to cancel" : "Scroll or pinch to zoom · drag to pan · click a dot for details";
+}
+function setCandidate(lat, lng, dragging){
+  CAND = {lat, lng}; $("#stSel").value = "cand"; fillStations(); $("#stSel").value = "cand";
+  drawStations();
+  if (!dragging) refreshCoverage();
+}
+function drawStations(){
+  if (!gStn) return;
+  gStn.innerHTML = "";
+  const z = zoomLevel(), s = 11 / Math.pow(z, .8), sel = selectedLoc();
+  const mark = (loc, cls, color) => {
+    const g = el("g", {class: "stn " + cls, transform: `translate(${px(loc.lng).toFixed(1)} ${py(loc.lat).toFixed(1)})`});
+    g.appendChild(el("path", {d: `M0 ${-s * 1.3}L${s} 0L0 ${s * 1.3}L${-s} 0Z`, fill: color, stroke: "#fff", "stroke-width": (2.2 / Math.pow(z, .8)).toFixed(2)}));
+    const t = el("title"); t.textContent = loc.name + (cls.includes("cand") ? " (drag to move)" : ""); g.appendChild(t);
+    gStn.appendChild(g);
+  };
+  stationList().forEach(st => mark(st, "fixed", "#0F2744"));
+  if (CAND) mark({name: "Candidate station", ...CAND}, "cand", "#B26A00");
+  if (sel){ const ring = el("circle", {cx: px(sel.lng).toFixed(1), cy: py(sel.lat).toFixed(1), r: (s * 2).toFixed(2), fill: "none", stroke: "#0F2744", "stroke-width": (1.5 / Math.pow(z, .8)).toFixed(2), "stroke-dasharray": "3 2", "pointer-events": "none"}); gStn.prepend(ring); }
+}
+async function calculate(){
+  const loc = selectedLoc(); if (!loc) return;
+  const k = keyOf(loc.lat, loc.lng);
+  if (COV.has(k)){ activeKey = k; refreshCoverage(); return; }
+  const T = M.TRAVEL_TIME, q = {locations: [{lat: +loc.lat.toFixed(5), lon: +loc.lng.toFixed(5)}], costing: T.costing, contours: T.contours.map(t => ({time: t})), polygons: true};
+  $("#stStatus").textContent = "Requesting road-network drive-time areas…"; $("#stCalc").disabled = true;
+  try {
+    const r = await fetch(T.url + "?json=" + encodeURIComponent(JSON.stringify(q)));
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const gj = await r.json();
+    const feats = (gj.features || []).filter(f => f.geometry && (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon") && T.contours.includes(f.properties.contour));
+    if (feats.length !== T.contours.length) throw new Error("service returned " + feats.length + " of " + T.contours.length + " areas");
+    COV.set(k, {name: loc.name === "Candidate" ? `Candidate ${COV.size + 1}` : loc.name, lat: loc.lat, lng: loc.lng, features: feats, bands: M.assignBands(DS, feats)});
+    activeKey = k;
+  } catch (e) {
+    $("#stStatus").textContent = `Could not calculate drive-time areas (${e.message}). The service may be busy or offline; no areas are shown rather than estimates.`;
+    activeKey = null;
+  }
+  refreshCoverage();
+}
+function refreshCoverage(){
+  const loc = selectedLoc();
+  const k = loc ? keyOf(loc.lat, loc.lng) : null;
+  activeKey = k && COV.has(k) ? k : null;
+  $("#stCalc").disabled = !loc;
+  $("#stCalc").textContent = activeKey ? "Calculated ✓" : "Calculate drive-time areas";
+  if (activeKey) $("#stCalc").disabled = true;
+  // polygons
+  gIso.innerHTML = "";
+  const cov = activeKey ? COV.get(activeKey) : null;
+  if (cov) [...cov.features].sort((a, b) => b.properties.contour - a.properties.contour).forEach(f => {
+    const i = M.TRAVEL_TIME.contours.indexOf(f.properties.contour);
+    gIso.appendChild(el("path", {class: "iso", d: featPath(f.geometry), fill: BAND_COLORS[i], "fill-opacity": .42, "fill-rule": "evenodd", "vector-effect": "non-scaling-stroke"}));
+  });
+  drawStations();
+  $("#covTag").textContent = cov ? "Road network" : "Not calculated"; $("#covTag").className = "tag" + (cov ? " real" : "");
+  if (!loc) $("#stStatus").textContent = M.STATIONS.length ? "" : "The CCFD1 station location is not in the project data. Place a candidate on the map (or add the station to STATIONS in shared/cad-metrics.js).";
+  else if (!cov && !$("#stStatus").textContent.startsWith("Could not")) $("#stStatus").textContent = `${loc.name} at ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}. Press Calculate to request drive-time areas.`;
+  else if (cov) $("#stStatus").textContent = `${cov.name} at ${cov.lat.toFixed(4)}, ${cov.lng.toFixed(4)}. Counts follow the current filters.`;
+  renderCoverageTable();
+}
+function renderCoverageTable(){
+  const cov = activeKey ? COV.get(activeKey) : null, incs = CURRENT;
+  if (!cov){ $("#covTable").innerHTML = ""; $("#covCompare").innerHTML = ""; return; }
+  const r = M.coverage(DS, incs, cov.bands);
+  $("#covTable").innerHTML = `<thead><tr><th>Drive time</th><th>Incidents</th><th>%</th><th>Cum. %</th><th>Fire</th><th>EMS</th></tr></thead><tbody>` +
+    r.rows.map((b, i) => `<tr><td><i class="bandsw" style="background:${BAND_COLORS[i] || "#fff"};${i >= 4 ? "border:1px solid var(--line)" : ""}"></i>${esc(b.label)}</td><td>${num(b.incidents)}</td><td>${fmtPct(b.pct)}</td><td>${fmtPct(b.cumulativePct)}</td><td>${num(b.F)}</td><td>${num(b.M)}</td></tr>`).join("") +
+    `<tr class="total"><td>Located incidents</td><td>${num(r.located)}</td><td></td><td></td><td>${num(r.rows.reduce((s, b) => s + b.F, 0))}</td><td>${num(r.rows.reduce((s, b) => s + b.M, 0))}</td></tr></tbody>`;
+  const others = [...COV.values()];
+  $("#covCompare").innerHTML = (r.unlocated ? `<p class="note">${num(r.unlocated)} incident(s) with no location are not counted.</p>` : "") +
+    (others.length > 1 ? `<h3 style="font-size:12.5px;margin:10px 0 2px">Compared locations (current filters)</h3><div class="scroll"><table class="tbl"><thead><tr><th>Location</th><th>≤4</th><th>≤6</th><th>≤8</th><th>≤12</th></tr></thead><tbody>` +
+      others.map(c => { const x = M.coverage(DS, incs, c.bands).rows; return `<tr><td>${esc(c.name)}</td>${x.slice(0, 4).map(b => `<td>${fmtPct(b.cumulativePct)}</td>`).join("")}</tr>`; }).join("") +
+      `</tbody></table></div><p class="note">Cumulative % of located incidents within each drive time.</p>` : "");
+}
 
-  // township highlight + zoom when the selection changes
+/* =============================== Charts (SVG, no library) =============================== */
+const CW = 560, CH = 240;
+function nice(max){ if (!(max > 0)) return {max: 1, step: 1}; const raw = max / 4, p = 10 ** Math.floor(Math.log10(raw)); const s = [1, 2, 2.5, 5, 10].map(m => m * p).find(v => v >= raw); return {max: Math.ceil(max / s) * s, step: s}; }
+const naBox = msg => `<div class="na">${esc(msg)}</div>`;
+function tableView(head, rows){
+  return `<details class="tv"><summary>Show as table</summary><div class="scroll"><table class="tbl"><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("") + `</tbody></table></div></details>`;
+}
+function yAxis(max, step, l, r, y){
+  let g = "";
+  for (let v = 0; v <= max + 1e-9; v += step){ const yy = y(v).toFixed(1); g += `<line class="${v ? "grid" : "base"}" x1="${l}" x2="${r}" y1="${yy}" y2="${yy}"/><text class="ax" x="${l - 6}" y="${(+yy + 4)}" text-anchor="end">${num(v)}</text>`; }
+  return g;
+}
+function legendHTML(items){ return `<div class="legend" style="margin:0 0 6px">${items.map(([n, c, ring]) => `<span><i class="dot" style="${ring ? "background:#fff;border:2px solid #7B8696" : "background:" + c}"></i>${esc(n)}</span>`).join("")}</div>`; }
+
+/* line chart: series [{name,color,values}], labels on x */
+function lineChart(labels, series, {tip, xLabel = i => labels[i], every = 3, aria}){
+  const L = 40, R = CW - 92, T = 12, B = CH - 28, n = labels.length;
+  const {max, step} = nice(Math.max(...series.flatMap(s => s.values)));
+  const x = i => L + (i + .5) * (R - L) / n, y = v => B - v / max * (B - T);
+  let g = yAxis(max, step, L, R, y);
+  labels.forEach((_, i) => { if (i % every === 0) g += `<text class="ax" x="${x(i).toFixed(1)}" y="${CH - 10}" text-anchor="middle">${esc(xLabel(i))}</text>`; });
+  series.forEach(s => {
+    g += `<polyline points="${s.values.map((v, i) => x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ")}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    s.values.forEach((v, i) => g += `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.2" fill="${s.color}" stroke="#fff" stroke-width="1.5"/>`);
+  });
+  // direct labels at line ends, nudged apart
+  const ends = series.map(s => ({s, y: y(s.values[n - 1])})).sort((a, b) => a.y - b.y);
+  for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 14) ends[i].y = ends[i - 1].y + 14;
+  ends.forEach(e => g += `<text class="dl" x="${R + 8}" y="${(e.y + 4).toFixed(1)}">${esc(e.s.name)}</text>`);
+  labels.forEach((_, i) => g += `<rect class="hit" x="${(x(i) - (R - L) / n / 2).toFixed(1)}" y="${T}" width="${((R - L) / n).toFixed(1)}" height="${B - T}" data-tip="${esc(tip(i))}"/>`);
+  return `<svg viewBox="0 0 ${CW} ${CH}" role="img" aria-label="${esc(aria)}">${g}</svg>`;
+}
+/* stacked vertical bars with a 2px surface gap; totals on top */
+function stackedBars(labels, stacks, {tip, aria}){
+  const L = 40, R = CW - 8, T = 18, B = CH - 28, n = labels.length;
+  const totals = labels.map((_, i) => stacks.reduce((s, k) => s + k.values[i], 0));
+  const {max, step} = nice(Math.max(...totals));
+  const y = v => B - v / max * (B - T), bw = Math.min(46, (R - L) / n * .62);
+  let g = yAxis(max, step, L, R, y);
+  labels.forEach((lab, i) => {
+    const cx = L + (i + .5) * (R - L) / n; let acc = 0;
+    stacks.forEach(k => {
+      const v = k.values[i]; if (!v) return;
+      const y0 = y(acc), y1v = y(acc + v), h = Math.max(0, y0 - y1v - 2);
+      g += `<rect x="${(cx - bw / 2).toFixed(1)}" y="${y1v.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${k.fill || k.color}" ${k.ring ? `stroke="${k.ring}" stroke-width="1.5"` : ""} rx="${acc === 0 ? 0 : 0}"/>`;
+      acc += v;
+    });
+    g += `<text class="vl" x="${cx.toFixed(1)}" y="${(y(totals[i]) - 5).toFixed(1)}" text-anchor="middle">${num(totals[i])}</text>`;
+    g += `<text class="ax" x="${cx.toFixed(1)}" y="${CH - 10}" text-anchor="middle">${esc(lab.slice(0, 3))}</text>`;
+    g += `<rect class="hit" x="${(cx - (R - L) / n / 2).toFixed(1)}" y="${T}" width="${((R - L) / n).toFixed(1)}" height="${B - T}" data-tip="${esc(tip(i))}"/>`;
+  });
+  return `<svg viewBox="0 0 ${CW} ${CH}" role="img" aria-label="${esc(aria)}">${g}</svg>`;
+}
+/* horizontal bars: rows [{label, value, color, text, tip}] */
+function hBars(rows, {aria, width = CW, labelW = 150, max}){
+  const rowH = 30, T = 4, Hh = rows.length * rowH + T + 4, L = labelW, R = width - 110;
+  const m = max || Math.max(...rows.map(r => r.value || 0), 1);
+  let g = `<line class="base" x1="${L}" x2="${L}" y1="${T}" y2="${Hh - 4}"/>`;
+  rows.forEach((r, i) => {
+    const yy = T + i * rowH, w = r.value ? Math.max(3, (r.value / m) * (R - L)) : 0;
+    g += `<text class="dl" x="${L - 8}" y="${yy + 19}" text-anchor="end">${esc(r.label)}</text>`;
+    if (r.value) g += `<rect x="${L}" y="${yy + 7}" width="${w.toFixed(1)}" height="16" rx="3" fill="${r.color}"/>`;
+    g += `<text class="vl" x="${L + w + 6}" y="${yy + 19}">${esc(r.text)}</text>`;
+    g += `<rect class="hit" x="0" y="${yy}" width="${width}" height="${rowH}" data-tip="${esc(r.tip || r.label + ": " + r.text)}"/>`;
+  });
+  return `<svg viewBox="0 0 ${width} ${Hh}" role="img" aria-label="${esc(aria)}">${g}</svg>`;
+}
+/* grouped vertical bars: groups x series, one unit */
+function groupedBars(groups, series, {tip, aria, unit = v => v}){
+  const L = 44, R = CW - 8, T = 18, B = CH - 28, n = groups.length, k = series.length;
+  const {max, step} = nice(Math.max(...series.flatMap(s => s.values)));
+  const y = v => B - v / max * (B - T), gw = (R - L) / n, bw = Math.min(54, gw * .7 / k);
+  let g = yAxis(max, step, L, R, y);
+  groups.forEach((lab, gi) => {
+    const cx = L + (gi + .5) * gw;
+    series.forEach((s, si) => {
+      const v = s.values[gi], bx = cx - (k * bw + (k - 1) * 2) / 2 + si * (bw + 2);
+      if (v > 0) g += `<rect x="${bx.toFixed(1)}" y="${y(v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(B - y(v)).toFixed(1)}" fill="${s.color}" data-tip="${esc(tip(gi, si))}"/>`;
+      g += `<text class="vl" x="${(bx + bw / 2).toFixed(1)}" y="${(y(v || 0) - 5).toFixed(1)}" text-anchor="middle">${esc(unit(v))}</text>`;
+    });
+    g += `<text class="ax" x="${cx.toFixed(1)}" y="${CH - 10}" text-anchor="middle">${esc(lab)}</text>`;
+  });
+  return `<svg viewBox="0 0 ${CW} ${CH}" role="img" aria-label="${esc(aria)}">${g}</svg>`;
+}
+/* tooltip for any [data-tip] in a chart */
+const tipEl = $("#tip");
+document.addEventListener("pointerover", e => { const t = e.target.closest && e.target.closest("[data-tip]"); if (!t) return; tipEl.innerHTML = t.dataset.tip.split("\n").map((l, i) => i ? esc(l) : `<b>${esc(l)}</b>`).join("<br>"); tipEl.hidden = false; });
+document.addEventListener("pointermove", e => { if (tipEl.hidden) return; const x = Math.min(e.clientX + 14, innerWidth - tipEl.offsetWidth - 8), y = Math.min(e.clientY + 14, innerHeight - tipEl.offsetHeight - 8); tipEl.style.left = x + "px"; tipEl.style.top = y + "px"; });
+document.addEventListener("pointerout", e => { if (e.target.closest && e.target.closest("[data-tip]")) tipEl.hidden = true; });
+
+/* =============================== Render sections =============================== */
+let CURRENT = [], FILTERS = {}, RANK = "responses";
+const scopeText = f => f.agency ? `${agencyName(f.agency)} incidents` : (DS.hasDetail ? "incidents (all agencies)" : "CCFD1 incidents (published layer)");
+
+function renderKPIs(f, s){
+  const t = f.township === "__outside__" ? "Outside boundaries" : f.township ? short(f.township) : "All townships";
+  const role = f.township && f.township !== "__outside__" ? (G.ROLES[G.townships.features.find(x => x.properties.name === f.township).properties.role] || {}).label : "";
+  const card = (label, value, src, {primary, na, sw} = {}) =>
+    `<div class="kpi${primary ? " primary" : ""}"><span class="label">${sw ? `<i class="sw" style="background:${sw}"></i>` : ""}${esc(label)}</span><span class="value${na ? " na" : ""}">${esc(value)}</span><span class="src">${esc(src)}</span></div>`;
+  const D = DS.hasDetail, n = s.incidents;
+  $("#kpis").innerHTML =
+    card("Incidents shown", num(n), scopeText(f), {primary: true}) +
+    card(EMS_LABEL, num(s.byCategory.M), n ? fmtPct(s.byCategory.M / n * 100) + " of incidents shown" : "No incidents", {sw: CAT("M").color}) +
+    card("Fire / hazard", num(s.byCategory.F), n ? fmtPct(s.byCategory.F / n * 100) + " of incidents shown" : "No incidents", {sw: CAT("F").color}) +
+    card("Selected township", t, role || (f.township ? "" : "Whole county")) +
+    card("Outside service area", fmtPct(s.outsidePctOfAll), s.outsidePctOfAll == null ? "No incidents" : `${num(s.byArea.outside)} incidents; ${fmtPct(s.outsidePctOfLocated)} of located`, {na: s.outsidePctOfAll == null}) +
+    card("Avg time per call", D ? fmtMin(s.avgCallMin) : "N/A", D ? (s.callsWithTimes ? `Median ${fmtMin(s.medianCallMin)} · ${num(s.callsWithTimes)} calls with apparatus times` : "No calls with valid apparatus times") : "Needs detailed CAD data", {na: !D || s.avgCallMin == null}) +
+    card("Avg unit response", D ? fmtMin(s.avgResponseMin) : "N/A", D ? (s.responseN ? `Dispatch → on scene · median ${fmtMin(s.medianResponseMin)} · n=${num(s.responseN)} · ${fmtPct(s.dispatchBackfilledPct)} dispatch times backfilled` : "No valid response times") : "Needs detailed CAD data", {na: !D || s.avgResponseMin == null}) +
+    card("Apparatus responses", D ? num(s.apparatusResponses) : "N/A", D ? "Unit responses (not incidents)" : "Needs detailed CAD data", {na: !D});
+}
+
+function renderHour(f){
+  const box = $("#cHourBody");
+  if (!DS.hasDetail) { box.innerHTML = naBox("N/A: incident times are not in the published layer."); return; }
+  const h = M.byHour(DS, CURRENT), m = h.series.M, fi = h.series.F;
+  if (!m.some(Boolean) && !fi.some(Boolean)) { box.innerHTML = naBox("No EMS or Fire incidents match these filters."); return; }
+  const day = a => a.slice(6, 18).reduce((s, v) => s + v, 0), tot = a => a.reduce((s, v) => s + v, 0);
+  const dm = tot(m) ? day(m) / tot(m) * 100 : null, df = tot(fi) ? day(fi) / tot(fi) * 100 : null;
+  const hh = i => String(i).padStart(2, "0") + ":00";
+  box.innerHTML = legendHTML([[EMS_LABEL, CAT("M").color], ["Fire / hazard", CAT("F").color]]) +
+    lineChart(h.hours, [{name: "EMS", color: CAT("M").color, values: m}, {name: "Fire", color: CAT("F").color, values: fi}],
+      {tip: i => `${hh(i)}–${String(i).padStart(2, "0")}:59\n${EMS_LABEL}: ${m[i]}\nFire / hazard: ${fi[i]}`, xLabel: i => String(i).padStart(2, "0"), aria: "EMS and fire incidents by hour of day"}) +
+    `<p class="answer">Daytime (06:00–17:59): <b>${fmtPct(dm)}</b> of EMS / Medical calls (${num(day(m))} of ${num(tot(m))}) vs <b>${fmtPct(df)}</b> of Fire / hazard calls (${num(day(fi))} of ${num(tot(fi))}).</p>` +
+    `<p class="note">Incident counts by the hour the call was created. Not plotted: Vehicle accident ${num(tot(h.series.V))}, Other ${num(tot(h.series.O))}, Not yet classified ${num(tot(h.series.U))}.${h.missing ? ` ${num(h.missing)} without a time.` : ""}</p>` +
+    tableView(["Hour", EMS_LABEL, "Fire / hazard", "All incidents"], h.hours.map(i => [hh(i), m[i], fi[i], h.total[i]]));
+}
+
+function renderDow(){
+  const box = $("#cDowBody");
+  if (!DS.hasDetail) { box.innerHTML = naBox("N/A: incident dates are not in the published layer."); return; }
+  const d = M.byDayOfWeek(DS, CURRENT);
+  if (!d.total.some(Boolean)) { box.innerHTML = naBox("No incidents match these filters."); return; }
+  const cats = M.CATEGORY_ORDER.filter(c => d.series[c].some(Boolean));
+  const stacks = cats.map(c => ({name: M.CATEGORY_LABEL[c], color: CAT(c).color, fill: c === "U" ? "#fff" : CAT(c).color, ring: c === "U" ? "#7B8696" : null, values: d.series[c]}));
+  const top = d.total.indexOf(Math.max(...d.total)), low = d.total.indexOf(Math.min(...d.total));
+  const avg = d.total.reduce((a, b) => a + b, 0) / 7;
+  box.innerHTML = legendHTML(cats.map(c => [c === "M" ? EMS_LABEL : M.CATEGORY_LABEL[c], CAT(c).color, c === "U"])) +
+    stackedBars(d.days, stacks, {tip: i => `${d.days[i]}: ${num(d.total[i])} incidents\n` + cats.map(c => `${M.CATEGORY_LABEL[c]}: ${d.series[c][i]}`).join("\n"), aria: "Incidents by day of week, stacked by call group"}) +
+    `<p class="answer">Busiest: <b>${d.days[top]}</b> (${num(d.total[top])}, ${fmtPct((d.total[top] / avg - 1) * 100)} above the daily average). Quietest: <b>${d.days[low]}</b> (${num(d.total[low])}).</p>` +
+    tableView(["Day", ...cats.map(c => M.CATEGORY_LABEL[c]), "All"], d.days.map((day, i) => [day, ...cats.map(c => d.series[c][i]), d.total[i]]));
+}
+
+function renderTime(f){
+  const box = $("#cTimeBody");
+  if (!DS.hasDetail) { box.innerHTML = naBox("N/A: apparatus timestamps are not in the published layer."); return; }
+  const t = M.timeOnCall(DS, CURRENT, f), c2 = ["M", "F"];
+  if (!t.M.callsWithTimes && !t.F.callsWithTimes) { box.innerHTML = naBox("No EMS or Fire calls with valid apparatus times match these filters."); return; }
+  const lab = c => c === "M" ? EMS_LABEL : "Fire / hazard";
+  box.innerHTML = `<div class="mini"><div><h3>Average minutes per call</h3>` +
+    hBars(c2.map(c => ({label: lab(c), value: t[c].avgCallMin, color: CAT(c).color, text: fmtMin(t[c].avgCallMin), tip: `${lab(c)}\nAverage ${fmtMin(t[c].avgCallMin)} · median ${fmtMin(t[c].medianCallMin)}\n${num(t[c].callsWithTimes)} of ${num(t[c].calls)} calls with valid times`})), {aria: "Average minutes per call", width: 360, labelW: 120}) +
+    `</div><div><h3>Total hours committed</h3>` +
+    hBars(c2.map(c => ({label: lab(c), value: t[c].callHours, color: CAT(c).color, text: fmtH(t[c].callHours), tip: `${lab(c)}\n${fmtH(t[c].callHours)} on calls · ${fmtH(t[c].unitHours)} apparatus-hours`})), {aria: "Total hours committed", width: 360, labelW: 120}) +
+    `</div></div>` +
+    `<p class="note"><b>Metric:</b> time committed per call = first apparatus dispatch → last apparatus clear on that call (in-scope agency/unit). Apparatus-hours add each apparatus's dispatch → clear. Response time is not used. ` +
+    `Apparatus rows with out-of-order times are excluded; dispatch times the CAD marks as backfilled are kept (see notes). Averages are skewed by long calls, so medians are in the table.</p>` +
+    tableView(["Group", "Calls", "With times", "Avg min/call", "Median", "Hours on calls", "Apparatus responses", "Apparatus-hours"],
+      M.CATEGORY_ORDER.filter(c => t[c].calls).map(c => [M.CATEGORY_LABEL[c], num(t[c].calls), num(t[c].callsWithTimes), fmtMin(t[c].avgCallMin), fmtMin(t[c].medianCallMin), fmtH(t[c].callHours), num(t[c].apparatusResponses), fmtH(t[c].unitHours)]));
+}
+
+function renderOutside(f){
+  const box = $("#cOutBody"), o = M.outsideArea(DS, CURRENT, f), D = DS.hasDetail;
+  const tile = (l, v, s, na) => `<div class="tile"><span>${esc(l)}</span><b class="${na ? "na" : ""}">${esc(v)}</b>${s ? `<small>${esc(s)}</small>` : ""}</div>`;
+  const tm = o.time, outCalls = M.CATEGORY_ORDER.reduce((s, c) => s + tm[c].callHours, 0), withT = M.CATEGORY_ORDER.reduce((s, c) => s + tm[c].callsWithTimes, 0);
+  let h = `<div class="tiles">` +
+    tile("Outside-area incidents", num(o.outside), `of ${num(o.total)} shown`) +
+    tile("Share of all incidents", fmtPct(o.pctOfAll), `${fmtPct(o.pctOfLocated)} of located`, o.pctOfAll == null) +
+    tile("Time on outside calls", D ? fmtH(outCalls) : "N/A", D ? `${num(withT)} calls with times` : "Needs detail", !D) +
+    tile("Avg per outside call", D && withT ? fmtMin(outCalls * 60 / withT) : "N/A", "", !D || !withT) + `</div>`;
+  if (D && (tm.M.callHours || tm.F.callHours))
+    h += legendHTML([[EMS_LABEL, CAT("M").color], ["Fire / hazard", CAT("F").color]]) +
+      groupedBars(["Hours on outside calls", "Outside apparatus-hours"], [
+        {name: EMS_LABEL, color: CAT("M").color, values: [tm.M.callHours, tm.M.unitHours]},
+        {name: "Fire / hazard", color: CAT("F").color, values: [tm.F.callHours, tm.F.unitHours]}],
+        {unit: v => fmtH(v), aria: "Hours on outside-area calls, EMS vs Fire",
+         tip: (g, s) => { const c = s ? "F" : "M"; return `${s ? "Fire / hazard" : EMS_LABEL}, outside area\n${num(tm[c].calls)} calls · ${g ? fmtH(tm[c].unitHours) + " apparatus-hours" : fmtH(tm[c].callHours) + " on calls"}\nAvg ${fmtMin(tm[c].avgCallMin)} per call`; }});
+  else if (!D) h += naBox("Time outside the area needs the detailed CAD data.");
+  h += `<p class="note">Outside = incident location falls outside Clay, Noble, Eel and Washington townships (Washington served by contract). Percentages count incidents, not apparatus.` +
+    (f.agency ? "" : " With All agencies selected, Eel Township includes City of Logansport calls.") + `</p>`;
+  if (o.byTownship.length) h += tableView(["Township", "Outside incidents"], o.byTownship.map(([t, n]) => [short(t), n]));
+  box.innerHTML = h;
+}
+
+function renderApparatus(f){
+  const box = $("#cAppBody");
+  if (!DS.hasDetail) { box.innerHTML = naBox("N/A: apparatus are not in the published layer."); return; }
+  const list = M.apparatus(DS, CURRENT, f);
+  if (!list.length) { box.innerHTML = naBox("No apparatus responses match these filters."); return; }
+  const sorted = [...list].sort((a, b) => (b[RANK] || 0) - (a[RANK] || 0)).slice(0, 12);
+  const val = a => RANK === "responses" ? a.responses : RANK === "hours" ? a.hours : a.avgMin;
+  const text = a => RANK === "responses" ? `${num(a.responses)} · ${fmtH(a.hours)}` : RANK === "hours" ? `${fmtH(a.hours)} · ${num(a.responses)} resp.` : `${fmtMin(a.avgMin)} · n=${num(a.withTimes)}`;
+  const color = a => a.org === M.HOME_AGENCY ? "#2F6FB3" : "#7B8696";
+  const flagged = sorted.filter(a => a.flag);
+  box.innerHTML = hBars(sorted.map(a => ({label: `${a.unit}${a.flag ? " ⚑" : ""} · ${a.org}`, value: val(a), color: color(a), text: text(a),
+      tip: `${a.unit} (${agencyName(a.org)})\n${num(a.responses)} apparatus responses\n${fmtH(a.hours)} committed · avg ${fmtMin(a.avgMin)} (n=${num(a.withTimes)})\nAvg response ${fmtMin(a.avgResponseMin)} (n=${num(a.responseN)})${a.flag ? "\n⚑ " + a.flag : ""}`})),
+      {aria: "Apparatus ranked by " + RANK, labelW: 170}) +
+    `<p class="note">${f.agency ? "" : '<span style="color:#2F6FB3">■</span> CCFD1 apparatus · <span style="color:#7B8696">■</span> other agencies. '}Counts apparatus responses (one per unit per incident); agency-summary, law-enforcement and towing rows are excluded. Names as recorded in CAD.</p>` +
+    (flagged.length ? `<p class="warnnote">⚑ ${flagged.map(a => `${esc(a.unit)}: ${esc(a.flag)}`).join(" ")}</p>` : "") +
+    tableView(["Apparatus", "Agency", "Responses", "With times", "Hours", "Avg min", "Avg response min"], list.map(a => [a.unit, a.org, num(a.responses), num(a.withTimes), fmtH(a.hours), fmtMin(a.avgMin), fmtMin(a.avgResponseMin)]));
+}
+
+function renderLfd(f){
+  const box = $("#cLfdBody");
+  if (!DS.hasDetail) { box.innerHTML = naBox("N/A: responding agencies are not in the published layer."); return; }
+  const r = M.mutualAid(DS, f), b = r.buckets, A = b.insideExCity, E = b.cityTownship;
+  const tile = (l, v, s, na) => `<div class="tile"><span>${esc(l)}</span><b class="${na ? "na" : ""}">${esc(v)}</b>${s ? `<small>${esc(s)}</small>` : ""}</div>`;
+  const withDist = A.withHomeAgency + E.withHomeAgency;
+  box.innerHTML = `<div class="tiles">` +
+    tile("Incidents with both LFD and CCFD1", num(withDist), "inside the CCFD1 service area") +
+    tile("LFD incidents: Clay, Noble, Washington", num(A.incidents), `${num(A.withHomeAgency)} also had CCFD1`) +
+    tile("LFD apparatus responses there", num(A.apparatusResponses), "unit responses, not incidents") +
+    tile("LFD apparatus-hours there", fmtH(A.unitHours), `avg ${fmtMin(A.avgUnitMin)} per response`, A.unitHours == null) +
+    tile("Avg LFD scene time there", fmtMin(A.avgSceneMin), `on scene → clear, n=${num(A.sceneN)}`, A.avgSceneMin == null) + `</div>` +
+    `<p class="warnnote"><b>Eel Township:</b> ${num(E.incidents)} LFD incidents (${num(E.apparatusResponses)} apparatus responses, ${fmtH(E.unitHours)}), ${num(E.withHomeAgency)} with CCFD1. Eel contains the City of Logansport, LFD's own jurisdiction; city limits are not in the project, so these cannot be split into city vs. CCFD1-area calls. If the city also extends into Clay, Noble or Washington, those counts include city calls too.</p>` +
+    `<p class="note">Logansport Fire = CAD agency code <code>LFD</code> (one source row reads "LFD GTFD" and is kept separate). Applies every filter except Agency and Inside/Outside. Outside the service area: ${num(b.outside.incidents)} LFD incidents; no location: ${num(b.unknown.incidents)}.</p>` +
+    tableView(["Area", "LFD incidents", "With CCFD1", "LFD apparatus responses", "Apparatus-hours", "Avg min / response", "Avg scene min"],
+      [["Clay, Noble, Washington", A], ["Eel Township (incl. city)", E], ["Outside service area", b.outside], ["No location", b.unknown]]
+        .map(([n, x]) => [n, num(x.incidents), num(x.withHomeAgency), num(x.apparatusResponses), fmtH(x.unitHours), fmtMin(x.avgUnitMin), fmtMin(x.avgSceneMin)]));
+}
+
+function renderNotes(){
+  const D = DS.hasDetail, q = DS.qa;
+  const st = s => `<span class="st ${s}">${{yes: "Source", derived: "Derived", no: "N/A", flag: "Flag"}[s]}</span>`;
+  const rows = [
+    ["Township", "Incident lat/lng × township polygons", st("derived"), "Point-in-polygon once, at build time (pipeline/build_gis_detail.py), against the simplified boundaries in shared/cad-gis.js. Coordinates unchanged."],
+    ["Incident type", D ? "event_type" : "-", st(D ? "yes" : "no"), "Raw CAD event type, as recorded."],
+    ["Service / call group", "event_type → category table", st("derived"), "The dashboard's existing category per event type (shared/cad-metrics.js EVENT_TYPE_CATEGORY). Types not in that table are 'Not yet classified'."],
+    ["Agency / organization", D ? "unit_org" : "-", st(D ? "yes" : "no"), "Incident matches if any response row has that agency (apparatus or agency row)."],
+    ["Unit / apparatus", D ? "unit_id + unit_org (record_type = unit)" : "-", st(D ? "yes" : "no"), "Apparatus rows only; names as recorded."],
+    ["Inside / outside", "township → service area", st("derived"), "Inside = Clay, Noble, Eel (district) + Washington (contract). Same definition as the dashboard's published counts."],
+    ["Date range", D ? "create_datetime (date)" : "-", st(D ? "yes" : "no"), "Incident creation date."],
+    ["Day of week / hour", D ? "day_of_week, hour_of_day" : "-", st(D ? "yes" : "no"), "From incident creation time (extractor fields)."]
+  ];
+  let h = `<div><h3>Filters and the fields they use</h3><div class="scroll"><table class="tbl left"><thead><tr><th>Filter</th><th>Field</th><th>Status</th><th>Notes</th></tr></thead><tbody>${rows.map(r => `<tr><td><b>${esc(r[0])}</b></td><td><code>${esc(r[1])}</code></td><td>${r[2]}</td><td>${esc(r[3])}</td></tr>`).join("")}</tbody></table></div></div>`;
+  h += `<div><h3>Definitions</h3><ul>
+    <li><b>Incident vs apparatus response.</b> Incident counts (cards, hour/day charts, outside %) count each CAD incident once. Apparatus metrics count one row per unit per incident. Agency-summary rows (agency code in both Unit and Org) are never apparatus.</li>
+    <li><b>Time per call</b> = first apparatus dispatch → last apparatus clear on the call. <b>Apparatus-hours</b> = sum of each apparatus's dispatch → clear. <b>Response time</b> = dispatch → on scene, per apparatus. <b>Scene time</b> = on scene → clear.</li>
+    <li><b>Daytime</b> = 06:00–17:59, matching the dashboard's existing daytime share.</li>
+    <li><b>Agency names:</b> ${Object.entries(M.AGENCY).map(([k, a]) => `${esc(k)} = ${esc(a.name)} (${esc(a.basis)})`).join("; ")}. Other agencies are shown by CAD code.</li></ul></div>`;
+  if (D){
+    h += `<div><h3>Data quality</h3><ul>
+      <li><b>Dispatch times backfilled:</b> the CAD marks ${num(q.dispatchBackfilled)} of ${num(q.apparatusRows)} apparatus dispatch times (${fmtPct(q.dispatchBackfilled / q.apparatusRows * 100)}) as backfilled (entered after the fact). They are kept: their gap from call creation matches non-backfilled rows. Treat response times as approximate. Clear times are never backfilled.</li>
+      <li><b>Out-of-order timestamps:</b> ${num(q.timeOrderExcluded)} apparatus rows (e.g. clear before on scene) are excluded from all time metrics; source values are kept and shown in popups (⚠).</li>
+      <li><b>No location:</b> ${num(q.unlocated)} incidents have no valid coordinates in the CAD; they count in totals but not on the map or in coverage. ${num(q.outsideBoundaries)} located incidents fall outside every township boundary.</li>
+      <li><b>Township boundaries are simplified:</b> CCFD1 inside-district count is ${num(M.summary(DS, M.filterIncidents(DS, {agency: M.HOME_AGENCY})).byArea.district)} here vs 451 in the dashboard's published facts (incidents near township edges).</li>
+      <li><b>Classification issue kept as published:</b> “FALLS/ACCIDENTS MED” is in Vehicle accident in the existing table, so it is not counted as EMS / Medical. Review before relying on EMS totals.</li>
+      <li><b>Not yet classified:</b> ${num(q.unclassifiedTypes.length)} event types (${num(q.unclassifiedTypes.reduce((s, x) => s + x[1], 0))} incidents, mostly other agencies' calls) are not in the existing table. None is guessed.
+        <details class="tv"><summary>Show the ${num(q.unclassifiedTypes.length)} types</summary><ul class="cols">${q.unclassifiedTypes.map(([t, n]) => `<li>${esc(t)} (${num(n)})</li>`).join("")}</ul></details></li>
+      ${q.extractionErrorTypes.length ? `<li><b>Likely extraction errors in event type:</b> ${q.extractionErrorTypes.map(([t, n]) => `“${esc(t)}” (${n})`).join(", ")}. Kept as recorded.</li>` : ""}
+      ${q.unitFlags.map(x => `<li><b>Apparatus names ${esc(x.units.join(" / "))} (${esc(x.org)}):</b> ${esc(x.note)}</li>`).join("")}
+      <li><b>City of Logansport:</b> inside Eel Township; city limits are not in the project data (affects Logansport Fire and all-agency inside/outside figures).</li>
+      <li><b>Left out of the local data file:</b> ${esc((DS.meta.excluded_columns || []).join(", "))}.</li></ul></div>`;
+  }
+  h += `<div><h3>Station coverage method</h3><ul>
+    <li>Drive-time areas come from the public <b>Valhalla</b> routing server (OpenStreetMap roads; ${esc(M.TRAVEL_TIME.url)}), <b>standard car speeds</b>, not adjusted for emergency driving, turnout time or apparatus. No API key, no cost. Requested only when you press Calculate; only the station coordinates are sent.</li>
+    <li>Each incident is placed in the first band whose road-network polygon contains it. These are not distance circles.</li>
+    <li>The CCFD1 station location is not in the project data; add it to <code>STATIONS</code> in shared/cad-metrics.js to make it selectable.</li></ul></div>`;
+  $("#notesBody").innerHTML = h;
+  $("#covMethod").innerHTML = `Road-network drive time (OpenStreetMap via the public Valhalla server, standard car speeds; not emergency response time). Pressing Calculate sends only the station coordinates to <code>valhalla1.openstreetmap.de</code>.`;
+}
+
+/* =============================== Update loop =============================== */
+let lastTwp;
+function update(){
+  const f = readFilters(); FILTERS = f;
+  CURRENT = M.filterIncidents(DS, f);
+  shown = new Set(CURRENT.map(x => x.i));
+  ptEls.forEach((c, i) => { if (c) c.style.display = shown.has(i) ? "" : "none"; });
+  closePop();
+  const located = CURRENT.filter(x => x.located).length;
+  $("#empty").hidden = located > 0;
   Object.values(twpEls).forEach(p => p.classList.remove("sel"));
-  const sel = f.township && f.township !== OUTSIDE ? twpEls[f.township] : null;
+  const sel = f.township && f.township !== "__outside__" ? twpEls[f.township] : null;
   if (sel){ sel.classList.add("sel"); sel.parentNode.appendChild(sel); }
   svg.classList.toggle("dim", !!sel);
   if (f.township !== lastTwp){
@@ -476,65 +952,49 @@ function update(){
     else if (lastTwp) setView(FULL);
     lastTwp = f.township;
   }
-
-  // cards
-  const n = vis.length, total = REC.length;
-  setCard("kShown", num(n), n === total ? `All ${num(total)} mapped incidents` : `of ${num(total)} mapped incidents`);
-  if (!f.township) setCard("kTwp", "All townships", "Whole map");
-  else if (f.township === OUTSIDE) setCard("kTwp", "Outside boundaries", "Points outside every township boundary");
-  else { const role = G.townships.features.find(x => x.properties.name === f.township).properties.role;
-    setCard("kTwp", short(f.township), (G.ROLES[role] || {}).label || role); }
-  ["M", "F", "V"].forEach(c => {
-    const k = vis.filter(r => r.category === c).length;
-    setCard("k" + c, num(k), n ? `${Math.round(k / n * 100)}% of incidents shown` : "No incidents shown");
-  });
-  if (!AVAIL.rt) setCard("kRt", "Not in data", "No response-time field in the published CAD extract", true);
-  else {
-    const v = vis.filter(validRt);
-    if (!v.length) setCard("kRt", "No valid times", n ? `0 of ${num(n)} shown incidents have a valid time` : "No incidents shown", true);
-    else setCard("kRt", (v.reduce((s, r) => s + r.responseMin, 0) / v.length).toFixed(1) + " min",
-      `Mean of ${num(v.length)} of ${num(n)} shown incidents with a valid time`);
-  }
-
-  const parts = [];
-  if (f.township) parts.push(f.township === OUTSIDE ? "outside township boundaries" : short(f.township) + " Township");
-  if (f.group) parts.push((G.CATEGORIES[f.group] || {label: "code " + f.group}).label.toLowerCase());
-  if (f.type) parts.push(f.type); if (f.unit) parts.push("unit " + f.unit);
-  if (f.start || f.end) parts.push(`${f.start || "start"} to ${f.end || "end"}`);
-  $("#mapNote").textContent = `Showing ${num(n)} of ${num(total)} mapped incidents${parts.length ? " (" + parts.join(", ") + ")" : ""}. ` +
-    `${num(UNMAPPED)} of ${num(G.incidentsTotal)} CCFD1 incidents in the CAD period have no location and are not on any map. ` +
-    `Overlapping incidents at the same rounded location are drawn on top of each other; click a dot to list them all.`;
+  const s = M.summary(DS, CURRENT, f);
+  renderKPIs(f, s);
+  $("#mapNote").textContent = `Showing ${num(located)} located of ${num(CURRENT.length)} ${scopeText(f)}` +
+    (CURRENT.length - located ? `; ${num(CURRENT.length - located)} have no location in CAD and are not mapped.` : ".") +
+    (DS.hasDetail ? "" : ` ${num(DS.meta.unlocated)} more CCFD1 incidents have no location.`);
+  const active = Object.keys(f).filter(k => f[k] !== (DEFAULTS[k] || "")).length;
+  $("#fCount").textContent = active ? `${active} changed from default · ${num(CURRENT.length)} incidents` : `${num(CURRENT.length)} incidents`;
+  renderHour(f); renderDow(); renderTime(f); renderOutside(f); renderApparatus(f); renderLfd(f);
+  renderCoverageTable();
   writeHash(f);
 }
 
-/* ---------- Data availability table ---------- */
-(function availability(){
-  const S = {yes: '<span class="st yes">Available</span>', derived: '<span class="st derived">Derived</span>', no: '<span class="st no">Not in data</span>'};
-  const derivedTwp = REC.some(r => r.townshipSource === "location");
-  const rows = [
-    ["Township", derivedTwp ? "Incident lat/lng × township boundaries" : "township", derivedTwp ? S.derived : S.yes,
-      derivedTwp ? "Not a CAD field. Assigned once when the page loads, by testing each published location against the simplified township boundaries. Source coordinates are not changed." : "Township recorded on each incident."],
-    ["Service / incident group", "category (M, F, V, O)", S.yes,
-      "The CAD extract's category code, shown with the dashboard's existing labels. F covers fire and hazard calls together; the extract does not separate them."],
-    ["Incident type", "type", AVAIL.type ? S.yes : S.no, AVAIL.type ? "Raw CAD incident type." : "Only the category code is published, so this filter is turned off."],
-    ["Unit / apparatus", "unit", AVAIL.unit ? S.yes : S.no, AVAIL.unit ? "Units listed on the incident." : "Responding units are not in the published extract."],
-    ["Date range", "datetime", AVAIL.date ? S.yes : S.no, AVAIL.date ? "Incident date (YYYY-MM-DD). Incidents without a date are excluded when a date filter is set." : `The extract has no per-incident dates, only totals for ${G.cadPeriod}.`],
-    ["Response time", "responseMin", AVAIL.rt ? S.yes : S.no, AVAIL.rt ? "Minutes; only finite, non-negative values are used." : "Not in the published extract, so no average is calculated."],
-    ["Incident ID", "id", AVAIL.id ? S.yes : S.no, AVAIL.id ? "Shown in the popup." : "Incidents are de-identified; popups identify them by location only."]
-  ];
-  $("#avail").innerHTML = rows.map(r => `<tr><td><b>${r[0]}</b></td><td><code>${esc(r[1])}</code></td><td>${r[2]}</td><td>${esc(r[3])}</td></tr>`).join("");
-  $("#availNote").textContent = "Filters marked Not in data switch on automatically if the published extract (shared/cad-gis.js) gains that field.";
-})();
+function init(){
+  buildFilters();
+  drawMap();
+  $("#legend").innerHTML =
+    Object.values(G.ROLES).map(r => `<span><i style="background:${r.fill};${r.fill === "#E8EFF7" ? "border:1px solid var(--line)" : ""}"></i>${esc(r.label)}</span>`).join("") +
+    `<span><i class="dash"></i>CCFD1 service area (Clay, Noble, Eel, Washington)</span>` +
+    M.CATEGORY_ORDER.filter(c => DS.incidents.some(x => x.category === c)).map(c => c === "U" ? `<span><i class="ring"></i>${esc(M.CATEGORY_LABEL[c])}</span>` : `<span><i class="dot" style="background:${CAT(c).color}"></i>${esc(c === "M" ? EMS_LABEL : M.CATEGORY_LABEL[c])}</span>`).join("") +
+    `<span><i class="dot" style="background:#B26A00;border-radius:2px;transform:rotate(45deg)"></i>Candidate station</span>` +
+    BAND_COLORS.map((c, i) => `<span><i style="background:${c};opacity:.75"></i>${esc(M.TRAVEL_TIME.bands[i])} drive</span>`).join("");
+  wireMap();
+  setView(FULL);
+  fillStations();
+  renderNotes();
+  applyState(new URLSearchParams(location.hash.slice(1)));
+  if (matchMedia("(max-width: 760px)").matches) $("#filterBox").open = false;
+  update();
+  refreshCoverage();
+  $("#filters").addEventListener("change", e => { if (e.target.id === "fAgency") fillUnits(); update(); });
+  $("#resetBtn").onclick = () => { applyState(new URLSearchParams()); update(); };
+  window.addEventListener("hashchange", () => { applyState(new URLSearchParams(location.hash.slice(1))); update(); });
+  $("#showOutside").onclick = () => { setControl("#fArea", "outside"); update(); document.querySelector(".maprow").scrollIntoView({behavior: "smooth", block: "start"}); };
+  document.querySelectorAll("#cApp [data-rank]").forEach(b => b.onclick = () => {
+    RANK = b.dataset.rank; document.querySelectorAll("#cApp [data-rank]").forEach(x => x.setAttribute("aria-pressed", x === b)); renderApparatus(FILTERS);
+  });
+  $("#stPlace").onclick = () => togglePlacing(!placing);
+  $("#stCalc").onclick = calculate;
+  $("#stSel").onchange = () => { $("#stStatus").textContent = ""; refreshCoverage(); };
+  if (!DS.hasDetail) ["#showOutside"].forEach(s => $(s).disabled = false);
+}
 
-/* ---------- Wire up ---------- */
-$("#subtitle").textContent = `CCFD1 incidents by township, ${G.cadPeriod}`;
-setView(FULL);
-applyHash();
-update();
-$("#filters").addEventListener("change", update);
-$("#filters").addEventListener("input", e => { if (e.target.type === "number") update(); });
-$("#resetBtn").onclick = () => { Object.values(KEYS).forEach(id => { if (!$(id).disabled) $(id).value = ""; }); update(); };
-window.addEventListener("hashchange", () => { applyHash(); update(); });
+load();
 </script>
 </body>
 </html>
