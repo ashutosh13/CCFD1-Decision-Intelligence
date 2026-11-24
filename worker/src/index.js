@@ -9,6 +9,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { SYSTEM_PROMPT } from "./system-prompt.js";
 import { TOOL_SCHEMAS } from "./tool-schemas.js";
+import { VIZ_SYSTEM_PROMPT } from "./viz-system-prompt.js";
+import { VIZ_TOOL_SCHEMAS } from "./viz-tool-schemas.js";
 
 export const MODEL = "claude-haiku-5-5";
 export const MAX_TOKENS = 1024;
@@ -18,6 +20,14 @@ export const MAX_TOOL_ROUND_TRIPS = 8;
 export const RATE_LIMIT = { requests: 20, windowSeconds: 600 };
 const MAX_MESSAGES = 60;
 const TOOL_NAMES = new Set(TOOL_SCHEMAS.map(t => t.name));
+
+/* "Ask CCFD1 AI" panel: POST /viz. Same model, key, origin check, rate limit and validation as the
+   "Ask the data" panel (POST /), with its own fixed system prompt and tool list. Every other path
+   behaves exactly as before. */
+export const VIZ_PATH = "/viz";
+export const VIZ_MAX_BODY_BYTES = 40 * 1024;   // chart answers carry larger tool results
+const VIZ_TOOL_NAMES = new Set(VIZ_TOOL_SCHEMAS.map(t => t.name));
+const VIZ = { system: VIZ_SYSTEM_PROMPT, tools: VIZ_TOOL_SCHEMAS, toolNames: VIZ_TOOL_NAMES, maxBody: VIZ_MAX_BODY_BYTES };
 
 /* ---------- responses ---------- */
 const SAFE = {
@@ -106,11 +116,11 @@ function validUserBlock(b) {
   }
   return false; // no images, documents, cache_control or other block types from the browser
 }
-function validAssistantBlock(b) {
+function validAssistantBlock(b, toolNames = TOOL_NAMES) {
   if (!isObj(b)) return false;
   switch (b.type) {
     case "text": return onlyKeys(b, ["type", "text", "citations"]) && typeof b.text === "string" && (b.citations == null);
-    case "tool_use": return onlyKeys(b, ["type", "id", "name", "input", "caller"]) && str(b.id, 200) && TOOL_NAMES.has(b.name) && isObj(b.input);
+    case "tool_use": return onlyKeys(b, ["type", "id", "name", "input", "caller"]) && str(b.id, 200) && toolNames.has(b.name) && isObj(b.input);
     case "thinking": return onlyKeys(b, ["type", "thinking", "signature"]) && typeof b.thinking === "string" && typeof b.signature === "string";
     case "redacted_thinking": return onlyKeys(b, ["type", "data"]) && typeof b.data === "string";
     default: return false;
@@ -120,7 +130,7 @@ const isQuestion = m => m.role === "user" &&
   (typeof m.content === "string" || m.content.some(b => b.type === "text"));
 
 /* Returns { messages } or { error, status } */
-export function validateBody(body) {
+export function validateBody(body, toolNames = TOOL_NAMES) {
   if (!isObj(body)) return { status: 400, error: "badRequest" };
   for (const k of ["system", "tools", "model", "max_tokens", "tool_choice", "thinking", "output_config", "stream", "metadata"]) {
     if (k in body) return { status: 400, error: "forbiddenField" };
@@ -136,7 +146,7 @@ export function validateBody(body) {
     if (typeof m.content === "string") {
       if (!m.content || m.content.length > 8000) return { status: 400, error: "badRequest" };
     } else if (Array.isArray(m.content) && m.content.length > 0) {
-      const ok = m.role === "user" ? m.content.every(validUserBlock) : m.content.every(validAssistantBlock);
+      const ok = m.role === "user" ? m.content.every(validUserBlock) : m.content.every(b => validAssistantBlock(b, toolNames));
       if (!ok) return { status: 400, error: "badRequest" };
     } else return { status: 400, error: "badRequest" };
   }
@@ -151,9 +161,9 @@ export function validateBody(body) {
   return { messages: msgs };
 }
 
-async function readBody(request) {
+async function readBody(request, maxBytes = MAX_BODY_BYTES) {
   const declared = parseInt(request.headers.get("Content-Length") || "0", 10);
-  if (declared > MAX_BODY_BYTES) return { tooLarge: true };
+  if (declared > maxBytes) return { tooLarge: true };
   if (!request.body) return { text: "" };
   // Read with a hard cap, whatever Content-Length said.
   const reader = request.body.getReader();
@@ -162,7 +172,7 @@ async function readBody(request) {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > MAX_BODY_BYTES) { try { await reader.cancel(); } catch {} return { tooLarge: true }; }
+    if (size > maxBytes) { try { await reader.cancel(); } catch {} return { tooLarge: true }; }
     chunks.push(value);
   }
   const all = new Uint8Array(size); let off = 0;
@@ -171,12 +181,12 @@ async function readBody(request) {
 }
 
 /* ---------- forwarding ---------- */
-export function buildUpstreamParams(messages) {
+export function buildUpstreamParams(messages, route) {
   return {
     model: MODEL,
     max_tokens: MAX_TOKENS,
-    system: SYSTEM_PROMPT,
-    tools: TOOL_SCHEMAS,
+    system: route ? route.system : SYSTEM_PROMPT,
+    tools: route ? route.tools : TOOL_SCHEMAS,
     output_config: { effort: "low" }, // thinking counts toward max_tokens; low effort keeps answers within 1024
     messages
   };
@@ -192,11 +202,13 @@ export default {
 
     if (!(await checkRateLimit(request, env))) return fail(429, "rateLimited", allowed);
 
-    const raw = await readBody(request);
+    let route = null;   // null = "Ask the data" (unchanged); VIZ = "Ask CCFD1 AI"
+    try { if (new URL(request.url).pathname === VIZ_PATH) route = VIZ; } catch {}
+    const raw = await readBody(request, route ? route.maxBody : MAX_BODY_BYTES);
     if (raw.tooLarge) return fail(413, "tooLarge", allowed);
     let body;
     try { body = JSON.parse(raw.text); } catch { return fail(400, "badRequest", allowed); }
-    const v = validateBody(body);
+    const v = route ? validateBody(body, route.toolNames) : validateBody(body);
     if (v.error) return fail(v.status, v.error, allowed);
 
     if (!env || typeof env.ANTHROPIC_API_KEY !== "string" || !env.ANTHROPIC_API_KEY) {
@@ -205,7 +217,7 @@ export default {
     }
     try {
       const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 1, timeout: 30_000 });
-      const message = await client.messages.create(buildUpstreamParams(v.messages));
+      const message = await client.messages.create(buildUpstreamParams(v.messages, route));
       return json(200, message, allowed);
     } catch (err) {
       // Log only the status and error class - never the message text, request or headers.
