@@ -508,12 +508,12 @@ footer.foot span:last-child{margin-left:auto}
           <div class="body"><div class="slot" data-slot="scenario" style="min-height:0">
             <div class="scn split">
               <div class="scn">
-                <p class="desc">Change base salary, the PERF 77 employer rate and the health premium per employee.</p>
+                <p class="desc">Change base salary, the PERF 77 employer rate and the health premium per employee. Only base (first-class) salary is pensionable: a raise costs the salary plus the PERF share on top, while overtime, allowances and health premiums carry no pension cost. Per the partner, overtime is never zero: Scenario 4 assumes each firefighter works about the same overtime as last year (164 hrs), costed at the scenario salary.</p>
                 <div class="ctrls">
                 <div><label for="sal">Base salary adjustment <output id="salO">0%</output></label>
                   <input type="range" id="sal" min="-10" max="10" step="0.5" value="0"></div>
-                <div><label for="perfRate"><span><a href="https://www.in.gov/inprs/" target="_blank" rel="noopener">PERF 77</a> employer rate</span> <output id="perfRateO">26.5%</output></label>
-                  <input type="range" id="perfRate" min="20" max="30" step="0.5" value="26.5"></div>
+                <div><label for="perfRate"><span><a href="https://www.in.gov/inprs/" target="_blank" rel="noopener">PERF 77</a> employer rate</span> <output id="perfRateO">23.3%</output></label>
+                  <input type="range" id="perfRate" min="20" max="30" step="0.1" value="23.3"></div>
                 <div><label for="prem">Health premium per employee <output id="premO">$10,000 (assumption)</output></label>
                   <input type="range" id="prem" min="0" max="30000" step="1000" value="10000"></div>
                 <label class="toggle"><input type="checkbox" id="perf" checked> Fund PERF 77</label>
@@ -529,11 +529,17 @@ footer.foot span:last-child{margin-left:auto}
                   <div><span>Total operating rate</span><b id="rateO">–</b></div>
                   <div><span>Household tax increase at $150,000 AV, per year</span><b id="hhO">–</b><em class="sub" id="hhSub"></em></div>
                 </div>
-                <p class="note" style="margin:0">Rates are gross, before circuit-breaker caps, deductions and credits. PERF rate is partner-stated, not yet verified with INPRS. The health premium is an assumption: there is no health insurance today and no quote exists.</p>
+                <p class="note" style="margin:0">Rates are gross, before circuit-breaker caps, deductions and credits. The PERF default is the 2026 rate (23.3%); the rate rises each year, so it is set to the 2026 rate for now and the 2027 rate (26.5%) is one slider move away. INPRS's page is inconsistent on 2026 (an older table shows 20.3%), so confirm with INPRS. The health premium is an assumption: there is no health insurance today and no quote exists.</p>
               </div>
               <div class="scn">
                 <div class="cchart"><h3 class="ctitle">Loaded cost per firefighter, today vs. scenario</h3><div id="costChart"></div>
-                  <div class="legend"><span><i style="background:var(--navy-2)"></i>Salary</span><span><i style="background:var(--blue)"></i>PERF 77</span><span><i style="background:var(--blue-soft)"></i>Payroll tax</span><span><i style="background:#C77700"></i>Health premium</span></div></div>
+                  <div class="legend"><span><i style="background:var(--navy-2)"></i>Salary (pensionable)</span><span><i style="background:var(--blue)"></i>PERF 77</span><span><i style="background:var(--blue-soft)"></i>Payroll tax</span><span><i style="background:#C77700"></i>Health premium (not pensionable)</span></div></div>
+              </div>
+              <div class="scn">
+                <div class="cchart"><h3 class="ctitle">PERF 77 employer rate by year, and PERF cost per firefighter at the scenario salary</h3><div id="perfChart"></div>
+                  <div class="legend"><span><i style="background:var(--blue)"></i>INPRS employer rate</span><span><i style="background:var(--blue-soft)"></i>2026, confirm with INPRS</span><span><i style="background:#C77700"></i>Scenario rate</span></div>
+                  <p class="note" style="margin:8px 0 0">Members contribute 6% of base salary; the employer may pick up all or part of it. Cost per firefighter is the rate times the scenario salary.</p>
+                  <p class="note" id="perfYearNote" style="margin:4px 0 0"></p></div>
               </div>
             </div></div></div>
         </section>
@@ -1066,7 +1072,7 @@ if(!EMBEDS.map){ buildServiceMap(document.querySelector('[data-slot="map"]')); }
    costEngine (Scenario 3&4), fundingEngine (Scenario 1), their constants and yearsLabel live in
    shared/engine.js, which assistant/tools.js also uses, so the panels and the assistant can
    never disagree. This page only reads the controls and displays the results. */
-const {ENG,S1,costEngine,fundingEngine,defaultFirefighters,yearsLabel}=window.CCFD1Engine;
+const {ENG,S1,PERF,costEngine,fundingEngine,defaultFirefighters,yearsLabel}=window.CCFD1Engine;
 
 /* ---------- Scenario: staffing and compensation cost engine (spec v3) ---------- */
 function staffingInput(){
@@ -1085,27 +1091,31 @@ function runScenario(ev){
   $("#perfRateO").textContent=(i.perfRate*100).toFixed(1).replace(/\.0$/,"")+"%";
   $("#perfRate").disabled=!i.perf;
   $("#premO").textContent=i.premium?money(i.premium)+" (assumption)":"$0 (no insurance)";
-  const r=costEngine(i), pp=r.perPerson;
-  $("#hiresO").textContent=num(r.hires);
+  const r3=costEngine(i);
+  const r=costEngine({...i,otPerPerson:true}), pp=r.perPerson;   // Scenario 4: partner says overtime is never zero, same hours per person as last year
+  $("#hiresO").textContent=num(r3.hires);
   $("#perO").textContent=money(r.perEmployee);
   $("#perSub").textContent="salary "+money(pp.salary)+" + PERF "+money(pp.perf)+" + payroll tax "+money(pp.tax)+" + health "+money(pp.health);
   $("#healthO").textContent=money(r.healthTotal);
   $("#healthSub").textContent=r.firefighters+" firefighters x "+money(pp.health)+" = "+r.healthShare.toFixed(1)+"% of personnel cost";
   $("#persTotO").textContent=money(r.personnelTotal);
-  $("#persTotSub").textContent="today: "+money(ENG.BASE_PERSONNEL)+" plus "+money(r.otBase.cost)+" overtime";
-  $("#l1O").textContent=money(r.layer1); $("#l2O").textContent=money(r.layer2);
-  $("#otO").textContent=money(r.otChange);
-  $("#otSub").textContent=num(Math.round(r.otBase.hours))+" hrs now, "+num(Math.round(r.otScen.hours))+" hrs in scenario"+(r.otScen.hours===0?" (target, to be confirmed with partner)":"");
-  $("#totO").textContent=money(r.total);
-  $("#gapO").textContent=money(r.gap); $("#gapO").style.color=r.gap>0?C.alert:"#1E7B4F";
+  $("#persTotSub").textContent="today: "+money(ENG.BASE_PERSONNEL)+" plus "+money(r.otBase.cost)+" overtime; scenario overtime "+money(r.otScen.cost)+" ("+num(Math.round(ENG.OT_HOURS_PER_FF))+" hrs per firefighter, as last year)";
+  $("#l1O").textContent=money(r.layer1); $("#l2O").textContent=money(r3.layer2);
+  $("#otO").textContent=money(r3.otChange);
+  $("#otSub").textContent=num(Math.round(r3.otBase.hours))+" hrs now, "+num(Math.round(r3.otScen.hours))+" hrs in scenario"+(r3.otScen.hours===0?" (target, to be confirmed with partner)":"");
+  $("#totO").textContent=money(r3.total);
+  $("#gapO").textContent=money(r3.gap); $("#gapO").style.color=r3.gap>0?C.alert:"#1E7B4F";
   $("#addO").textContent="$"+r.addRate.toFixed(4);
   $("#rateO").textContent="$"+r.totalRate.toFixed(4);
   $("#hhO").textContent="+"+r.householdPct.toFixed(1)+"%";
   $("#hhSub").textContent="+$"+r.household.toFixed(2)+" on the current operating rate of $"+ENG.CURRENT_RATE.toFixed(4);
-  $("#yrsO").textContent=yearsLabel(r.years);
-  $("#staffChart").innerHTML=staffChart(r,i);
+  $("#yrsO").textContent=yearsLabel(r3.years);
+  $("#staffChart").innerHTML=staffChart(r3,i);
   $("#costChart").innerHTML=costChart(pp,i);
-  LAST.staffing=r; updateKpis(); renderShared();
+  $("#perfChart").innerHTML=perfChart(pp,i);
+  const pr=PERF.EMPLOYER_RATES, d0=pr.find(x=>x[0]===PERF.DEFAULT_YEAR), nx=pr.find(x=>x[0]===PERF.DEFAULT_YEAR+1);
+  $("#perfYearNote").textContent="The rate rises every year: "+pr.map(x=>x[0]+" "+x[1].toFixed(1)+"%").join(", ")+". The scenario starts at the "+d0[0]+" rate"+(nx?"; the "+nx[0]+" rate adds "+money(Math.round(pp.salary*(nx[1]-d0[1])/100))+" per firefighter at this salary.":".");
+  LAST.staffing=r3; updateKpis(); renderShared();
 }
 /* Scenario 3 visual: firefighters needed to cover the posts (FTE) vs. firefighters employed, today and in the scenario */
 function staffChart(r,i){
@@ -1121,19 +1131,44 @@ function staffChart(r,i){
     g+=`<text x="${L+emp*sc+5}" y="${y+41}" font-size="11.5" fill="${C.muted}">${emp}</text>`;});
   return `<svg viewBox="0 0 ${W} 148" role="img" aria-label="Firefighters needed to cover the posts and firefighters employed, today and in the scenario">${g}</svg>`;
 }
-/* Scenario 4 visual: loaded cost per firefighter, stacked by component, today (salary + payroll tax) vs. scenario */
+/* Scenario 4 visuals. Loaded cost per firefighter, stacked by component, today (salary + payroll tax) vs. scenario,
+   with each segment labelled and the change vs. today spelled out. */
 function costChart(pp,i){
+  const kf=v=>"$"+(v/1000).toFixed(1)+"K";
   const today={salary:ENG.AVG_SALARY,perf:0,tax:Math.floor(ENG.AVG_SALARY*ENG.PAYROLL_TAX),health:0};
-  const parts=[["salary","Salary",C.navy],["perf","PERF 77",C.blue],["tax","Payroll tax",C.soft],["health","Health premium","#C77700"]];
-  const rows=[["Today",today],["Scenario",pp]];
-  const W=420,L=64,m=Math.max(...rows.map(([n,p])=>parts.reduce((a,q)=>a+p[q[0]],0)),1), sc=(W-L-62)/m;
+  const parts=[["salary","Salary",C.navy,"#fff"],["perf","PERF 77",C.blue,"#fff"],["tax","Payroll tax",C.soft,C.navy],["health","Health premium","#C77700","#fff"]];
+  const rows=[["Today",today],["Scenario",pp]], tot=p=>parts.reduce((a,q)=>a+p[q[0]],0);
+  const W=420,L=64,m=Math.max(...rows.map(([n,p])=>tot(p)),1), sc=(W-L-62)/m;
   let g="";
-  rows.forEach(([n,p],k)=>{const y=8+k*48; let x=L, tot=0;
+  rows.forEach(([n,p],r)=>{const y=8+r*48; let x=L;
     g+=`<text x="0" y="${y+20}" font-size="12" fill="${C.muted}">${n}</text>`;
-    parts.forEach(([key,lab,col])=>{const w=p[key]*sc; if(w<=0) return;
-      g+=`<rect x="${x}" y="${y+4}" width="${w}" height="24" fill="${col}"><title>${lab}: ${money(p[key])}</title></rect>`; x+=w; tot+=p[key];});
-    g+=`<text x="${x+5}" y="${y+21}" font-size="11.5" font-weight="600" fill="${C.navy}">${money(tot)}</text>`;});
-  return `<svg viewBox="0 0 ${W} 108" role="img" aria-label="Loaded cost per firefighter by component, today and in the scenario">${g}</svg>`;
+    parts.forEach(([key,lab,col,ink])=>{const w=p[key]*sc; if(w<=0) return;
+      g+=`<rect x="${x}" y="${y+4}" width="${w}" height="24" fill="${col}"><title>${lab}: ${money(p[key])}</title></rect>`;
+      if(w>=44) g+=`<text x="${x+w/2}" y="${y+20}" font-size="10.5" font-weight="600" text-anchor="middle" fill="${ink}" pointer-events="none">${kf(p[key])}</text>`;
+      x+=w;});
+    g+=`<text x="${x+5}" y="${y+21}" font-size="11.5" font-weight="600" fill="${C.navy}">${money(tot(p))}</text>`;});
+  const d=tot(pp)-tot(today);
+  g+=`<text x="${L}" y="120" font-size="11.5" fill="${C.muted}">${d?(d>0?"+":"\u2212")+money(Math.abs(d))+" per firefighter vs. today":"Same as today"}; only salary earns PERF.</text>`;
+  return `<svg viewBox="0 0 ${W} 130" role="img" aria-label="Loaded cost per firefighter by component, today and in the scenario">${g}</svg>`;
+}
+/* PERF 77 employer rate by year (INPRS) with the scenario's chosen rate as a line, and the PERF cost per firefighter at the
+   scenario salary under each year's rate. Rates come from PERF in shared/engine.js. */
+function perfChart(pp,i){
+  const W=420,H=200,L=38,R=76,T=22,B=44,yMax=30, rates=PERF.EMPLOYER_RATES;
+  const sy=v=>T+(1-v/yMax)*(H-T-B), bw=(W-L-R)/rates.length, kf=v=>"$"+(v/1000).toFixed(1)+"K";
+  let g="";
+  [0,10,20,30].forEach(t=>{g+=`<line x1="${L}" x2="${W-R}" y1="${sy(t)}" y2="${sy(t)}" stroke="${C.line}"/><text x="${L-6}" y="${sy(t)+3.5}" font-size="10.5" text-anchor="end" fill="${C.muted}">${t}%</text>`;});
+  rates.forEach(([yr,rate],k)=>{const x=L+k*bw+bw*.18, w=bw*.64, unsure=yr===PERF.SCHEDULE_UNCONFIRMED, cost=Math.round(pp.salary*rate/100);
+    g+=`<rect x="${x}" y="${sy(rate)}" width="${w}" height="${sy(0)-sy(rate)}" rx="2" fill="${unsure?C.soft:C.blue}"><title>${yr}: ${rate.toFixed(1)}% employer rate, ${money(cost)} per firefighter at ${money(pp.salary)}${unsure?" (INPRS lists an older 20.3% for 2026; confirm)":""}</title></rect>`;
+    g+=`<text x="${x+w/2}" y="${sy(rate)-5}" font-size="11.5" font-weight="600" text-anchor="middle" fill="${C.navy}" stroke="#fff" stroke-width="3" paint-order="stroke">${rate.toFixed(1)}%</text>`;
+    g+=`<text x="${x+w/2}" y="${H-26}" font-size="11.5" font-weight="600" text-anchor="middle" fill="${C.navy}">${yr}</text>`;
+    g+=`<text x="${x+w/2}" y="${H-11}" font-size="10.5" text-anchor="middle" fill="${C.muted}">${kf(cost)}</text>`;});
+  g+=`<text x="${L-6}" y="${H-11}" font-size="10" text-anchor="end" fill="${C.muted}">per FF</text>`;
+  if($("#perf").checked){const ry=sy(i.perfRate*100);
+    g+=`<line x1="${L}" x2="${W-R+4}" y1="${ry}" y2="${ry}" stroke="#C77700" stroke-width="2" stroke-dasharray="5 3"/>`;
+    g+=`<text x="${W-R+8}" y="${ry-2}" font-size="11" font-weight="600" fill="#C77700">Scenario</text><text x="${W-R+8}" y="${ry+11}" font-size="11" font-weight="600" fill="#C77700">${(i.perfRate*100).toFixed(1)}%</text>`;
+  } else g+=`<text x="${W-R+8}" y="${sy(15)}" font-size="11" fill="${C.muted}">PERF not</text><text x="${W-R+8}" y="${sy(15)+13}" font-size="11" fill="${C.muted}">funded</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="PERF 77 employer rate by year, 2024 to 2027, with the scenario rate and the PERF cost per firefighter">${g}</svg>`;
 }
 ["posts","perf","perfRate","prem","sal"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runScenario)});
 runScenario();

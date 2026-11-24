@@ -91,8 +91,8 @@
     return [
       { input: "posts_proposed", value: v.posts_proposed, status: "user_input" },
       { input: "perf_rate", value: v.fund_perf ? v.perf_rate : null,
-        status: v.fund_perf ? (v.perf_rate === 26.5 ? "partner_stated" : "user_input") : "not_used",
-        note: "26.5% is partner-stated, not yet verified with INPRS." },
+        status: v.fund_perf ? (Math.round(v.perf_rate * 10) / 10 === 23.3 ? "partner_stated" : "user_input") : "not_used",
+        note: "Default is the 2026 employer rate, 23.3%, which the partner's PERF 77 estimate matches. The rate rises every year (INPRS: 2024 19.1%, 2025 20.3%, 2026 23.3%, 2027 26.5%); 2026 conflicts with an older INPRS table (20.3%), so confirm with INPRS. PERF applies to base first-class salary only; overtime, allowances and premiums are not pensionable." },
       { input: "premium", value: v.premium, status: v.premium === 0 ? "placeholder" : "assumption",
         note: v.premium === 0 ? "No health insurance today, so $0 is the no-benefit case; it understates the cost of funding health cover." :
           "Assumed premium per employee; there is no insurance today and no quote exists. It is the one input not derived from a document." },
@@ -478,7 +478,7 @@
         input_status: inputStatus,
         depends_on_placeholder: inputStatus.some(x => x.status === "placeholder"),
         caveats: "Debt service is already inside the 2027 budget, so it is not added again. Rates are gross, before " +
-          "circuit-breaker caps, deductions and credits. PERF rate is partner-stated, not yet verified with INPRS. " +
+          "circuit-breaker caps, deductions and credits. The PERF rate defaults to the 2026 rate (23.3%, partner-stated); it rises each year to 26.5% in 2027, and 2026 is inconsistent on the INPRS page, so confirm with INPRS. Only base salary is pensionable (overtime and health premiums are not). " +
           "The health premium is an assumption (no insurance exists today and no quote has been obtained). Zero overtime is a target pending partner investigation."
       }, sources, "model_output");
     }
@@ -615,7 +615,7 @@
       description: "Line firefighters employed, 12-32. Omit to size the roster automatically to cover the posts (12 at 4 posts, 16 at 5). Fewer than 3.18 per post leaves overtime." },
     fund_perf: { type: "boolean", description: "Fund PERF 77 pension for firefighters. Default true. False reproduces today's cost basis." },
     perf_rate: { type: "number", minimum: 20, maximum: 30,
-      description: "PERF 77 employer rate in percent, 20-30 (dashboard steps of 0.5). Default 26.5, which is partner-stated and not yet verified with INPRS. Ignored when fund_perf is false." },
+      description: "PERF 77 employer rate in percent, 20-30 (dashboard steps of 0.1). Default 23.3, the 2026 rate; it rises each year (2027: 26.5%) and is not yet verified with INPRS. Ignored when fund_perf is false." },
     premium: { type: "number", minimum: 0, maximum: 30000,
       description: "Health premium per employee in US dollars per year, 0-30000 (dashboard steps of 1000). Default 10000, an assumption: there is no health insurance today and no quote exists. 0 is the no-benefit case." },
     salary_adj: { type: "number", minimum: 0, maximum: 10,

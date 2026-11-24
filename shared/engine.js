@@ -25,6 +25,18 @@
 /* Overtime hours implied by the recorded overtime cost: $61,569 at 1.5x the average hourly rate (about 2,013). Derived, not a timesheet hours total. */
 ENG.OT_HOURS_LAST = Math.round(ENG.OT_COST_CAP/(ENG.OT_MULT*ENG.AVG_SALARY/ENG.FLSA_DIVISOR));
 
+/* Partner statement: overtime is never zero, and each person is expected to work about as much as in the prior year. Prior-year
+   baseline overtime per line firefighter (1,968 structural hours / 12 = 164). Used by Scenario 4 via costEngine's otPerPerson option. */
+ENG.OT_HOURS_PER_FF = (ENG.POSTS_NOW*ENG.FTE_PER_POST-ENG.LINE_FF)*ENG.FLSA_DIVISOR/ENG.LINE_FF;
+
+  /* PERF 77 reference figures (INPRS, per the pension synopsis). Context for Scenario 4's figures only; the engine
+     math still uses the rate the user picks. Pensionable pay is the certified first-class salary: overtime,
+     allowances, incentive and holiday pay, insurance and other premiums are excluded, so they carry no PERF cost.
+     INPRS's page is inconsistent about 2026 (an older table lists 20.30%), so SCHEDULE_UNCONFIRMED marks it.
+     The rate rises every year; DEFAULT_YEAR is the year the dashboard uses until told otherwise (2026). */
+  const PERF = {EMPLOYER_RATES:[[2024,19.10],[2025,20.30],[2026,23.30],[2027,26.50]], SCHEDULE_UNCONFIRMED:2026, DEFAULT_YEAR:2026,
+    MEMBER_RATE:6, MEMBER_PICKUP_NOTE:"The employer may pick up all or part of the 6% member contribution."};
+
   /* Firefighters needed to cover `posts` with no overtime; today's 12 when nothing changes */
   function defaultFirefighters(posts){
     return posts<=ENG.POSTS_NOW?ENG.LINE_FF:Math.ceil(posts*ENG.FTE_PER_POST-1e-9);
@@ -37,8 +49,15 @@ ENG.OT_HOURS_LAST = Math.round(ENG.OT_COST_CAP/(ENG.OT_MULT*ENG.AVG_SALARY/ENG.F
     return {hours, cost:hours*E.OT_MULT*(salary/E.FLSA_DIVISOR)};
   }
 
+  /* Partner-stated: overtime is never zero; expect the prior year's overtime per person at every roster size. */
+  function overtimePerPerson(firefighters,salary){
+    const E=ENG, hours=firefighters*E.OT_HOURS_PER_FF;
+    return {hours, cost:hours*E.OT_MULT*(salary/E.FLSA_DIVISOR)};
+  }
+
   /* i = {posts, firefighters (optional, line firefighters employed), perf (bool), perfRate (0.20-0.30),
-          premium ($/yr per employee), adj (-0.10 to 0.10)} */
+          premium ($/yr per employee), adj (-0.10 to 0.10),
+          otPerPerson (bool, optional: overtime = employed firefighters x prior-year hours per person, never zero; Scenario 4)} */
   function costEngine(i){
     const E=ENG, R=Math.round;
     const firefighters=i.firefighters==null?defaultFirefighters(i.posts):i.firefighters;
@@ -48,7 +67,8 @@ ENG.OT_HOURS_LAST = Math.round(ENG.OT_COST_CAP/(ENG.OT_MULT*ENG.AVG_SALARY/ENG.F
     const perEmployee=salary+perfCost+taxCost+i.premium;                   // loaded cost, computed once
     const layer1=E.LINE_FF*perEmployee-E.BASE_PERSONNEL;                   // existing staff only
     const layer2=hires*perEmployee;                                        // new hires only
-    const otBase=overtime(E.POSTS_NOW,E.LINE_FF,E.AVG_SALARY), otScen=overtime(i.posts,firefighters,salary);
+    const otBase=overtime(E.POSTS_NOW,E.LINE_FF,E.AVG_SALARY);
+    const otScen=i.otPerPerson?overtimePerPerson(firefighters,salary):overtime(i.posts,firefighters,salary);
     const otChange=otScen.cost-otBase.cost;
     const total=layer1+layer2+otChange, gap=E.BASE_GAP+total;
     const addRate=gap/E.AV*100, totalRate=E.CURRENT_RATE+addRate;
@@ -90,9 +110,9 @@ ENG.OT_HOURS_LAST = Math.round(ENG.OT_COST_CAP/(ENG.OT_MULT*ENG.AVG_SALARY/ENG.F
 
   /* Default inputs, matching the dashboard controls' starting positions */
   const DEFAULTS = {
-    staffing: {posts:5, firefighters:null, perf:true, perfRate:0.265, premium:10000, adj:0},
+    staffing: {posts:5, firefighters:null, perf:true, perfRate:0.233, premium:10000, adj:0},
     funding:  {funding:0, oneTime:false, source:"", pct:0, useStaffing:false, staffingGap:ENG.BASE_GAP}
   };
 
-  return Object.freeze({ENG, S1, DEFAULTS, defaultFirefighters, overtime, costEngine, fundingEngine, yearsLabel});
+  return Object.freeze({ENG, S1, PERF, DEFAULTS, defaultFirefighters, overtime, overtimePerPerson, costEngine, fundingEngine, yearsLabel});
 });

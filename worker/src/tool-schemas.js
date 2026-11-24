@@ -316,7 +316,7 @@ export const TOOL_SCHEMAS = [
               "type": "number",
               "minimum": 20,
               "maximum": 30,
-              "description": "PERF 77 employer rate in percent, 20-30 (dashboard steps of 0.5). Default 26.5, which is partner-stated and not yet verified with INPRS. Ignored when fund_perf is false."
+              "description": "PERF 77 employer rate in percent, 20-30 (dashboard steps of 0.1). Default 23.3, the 2026 rate; it rises each year (2027: 26.5%) and is not yet verified with INPRS. Ignored when fund_perf is false."
             },
             "premium": {
               "type": "number",
@@ -366,7 +366,7 @@ export const TOOL_SCHEMAS = [
           "type": "number",
           "minimum": 20,
           "maximum": 30,
-          "description": "PERF 77 employer rate in percent, 20-30 (dashboard steps of 0.5). Default 26.5, which is partner-stated and not yet verified with INPRS. Ignored when fund_perf is false."
+          "description": "PERF 77 employer rate in percent, 20-30 (dashboard steps of 0.1). Default 23.3, the 2026 rate; it rises each year (2027: 26.5%) and is not yet verified with INPRS. Ignored when fund_perf is false."
         },
         "premium": {
           "type": "number",

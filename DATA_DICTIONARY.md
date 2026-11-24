@@ -65,6 +65,7 @@ numbers or individual pay.
 | `POSTS_NOW` | 4 | Continuously staffed posts today |
 | `PAYROLL_TAX` | 7.65% | |
 | `OT_COST_CAP` | $61,569 | Overtime recorded in the 2026 timesheet; reference only, no longer used in the math |
+| `OT_HOURS_PER_FF` | 164 hrs | **Partner-stated** principle: overtime is never zero and each person works about the same OT as the prior year. 164 = 1,968 baseline OT hours / 12. Scenario 4 only (`otPerPerson`) |
 | `FTE_PER_POST` | 3.179 | Derived: 8,760 post hours / 2,756 FLSA hours |
 | `BASE_PERSONNEL` | $726,036 | 12 x $60,503 (salary + payroll tax); source of truth for the existing personnel line |
 | `BASE_GAP` | $635,758 | = structural gap |
@@ -74,8 +75,7 @@ numbers or individual pay.
 | `HOUSEHOLD_AV` | $150,000 | |
 | `FUND_BALANCE` | $1,624,691 | Partner-stated |
 
-User inputs: posts (4–8), fund PERF 77 pension, PERF rate (20–30%, default 26.5% **partner-stated, not
-verified with INPRS**), health premium per employee ($0–30,000, default $10,000 is an **assumption**: there is no
+User inputs: posts (4–8), fund PERF 77 pension, PERF rate (20–30%, default 23.3%, the 2026 rate, **partner-stated** and matching the partner's PERF 77 cost estimate; the rate rises each year to 26.5% in 2027 and the 2026 figure is inconsistent on the INPRS page, so confirm with INPRS), health premium per employee ($0–30,000, default $10,000 is an **assumption**: there is no
 health insurance today and no quote exists), salary adjustment (0–10%), firefighters employed (12–32;
 follows the posts until set directly). Overtime is computed in the baseline and the scenario and
 differenced; zero scenario overtime is a target pending partner investigation. Outputs include the
@@ -87,6 +87,15 @@ per-firefighter loaded cost, total health program cost and total personnel cost 
 end-2025 balance; revenue sources use 2024 AFR amounts: property tax $882,965, local income tax $212,041,
 vehicle excise tax $64,785, fire protection contracts $21,042. Inputs: funding change (−$500k to $1M),
 recurring or one-time, one source changed by ±50%, optionally starting from the Scenario 3&4 gap.
+
+**PERF reference figures (`PERF`)** — shown in Scenario 4's rate-by-year figure; the engine math still uses the rate the
+user picks. INPRS employer rate: 19.10% (2024), 20.30% (2025), 23.30% (2026, an older INPRS table lists 20.30%, confirm),
+26.50% (2027). Members contribute 6% of base salary; the employer may pick up all or part. Pensionable pay is the
+certified first-class salary only: overtime, allowances, incentive and holiday pay and insurance are excluded, so they add no PERF
+cost. Employer-paid health premiums are not pensionable and do not change the pension. Source: pension synopsis from INPRS
+materials. The partner's PERF 77 cost estimate ($12,465 each for 10 fully employed, $31,756.54 for 2 partially employed,
+$156,406.54 total) is in `data/facts.json` as `eng.perf77.*`. It equals 23.19% of current line payroll, close to INPRS's 2026
+rate of 23.3%, and is $22,321 below what 26.5% (the 2027 rate) would give. The engine defaults to the 2026 rate and uses whatever rate the user picks.
 
 Both are planning comparisons, not forecasts. Rates are gross, before circuit-breaker caps.
 
