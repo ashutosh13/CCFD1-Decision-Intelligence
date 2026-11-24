@@ -194,7 +194,8 @@ test("TOOL_SCHEMAS follow the Messages API client-tool format", () => {
 test("CAD facts cite the aggregated extract only (no source-PDF references anywhere)", () => {
   const root = path.join(__dirname, "..");
   const pdfName = new RegExp(["blot", "ter"].join(""), "i");   // the raw CAD report name, assembled so this file doesn't contain it
-  for (const f of ["data/facts.json", "index.html", "assistant/tools.js", "assistant/tools.test.js", "shared/engine.js"]) {
+  for (const f of ["data/facts.json", "index.html", "assistant/tools.js", "assistant/tools.test.js", "shared/engine.js",
+                   "shared/cad-gis.js", "gis-map/index.html"]) {
     assert.doesNotMatch(fs.readFileSync(path.join(root, f), "utf8"), pdfName, f);
   }
   const cad = loadFacts().facts.filter(f => f.id.startsWith("cad."));
@@ -203,4 +204,27 @@ test("CAD facts cite the aggregated extract only (no source-PDF references anywh
     assert.equal(f.source, "CCFD1 CAD extract (aggregated)");
     assert.equal(f.status, "verified");
   }
+});
+
+/* ---------- shared/cad-gis.js: the layer drawn by index.html and gis-map/ ---------- */
+test("CAD/GIS layer matches the verified CAD facts and never alters source points", () => {
+  const GIS = require("../shared/cad-gis.js");
+  const fact = id => loadFacts().facts.find(f => f.id === id).value;
+  assert.equal(GIS.incidentsTotal, fact("cad.incidents"));
+  assert.equal(GIS.incidentPoints.length, fact("cad.mapped_points"));
+  assert.equal(GIS.incidentsTotal - GIS.incidentPoints.length, fact("cad.location.3"));   // no location in CAD
+  const recs = GIS.records();
+  recs.forEach((r, i) => {
+    const [lat, lng, cat] = GIS.incidentPoints[i];
+    assert.deepEqual([r.lat, r.lng, r.category, r.index], [lat, lng, cat, i]);
+    assert.ok(cat in GIS.CATEGORIES, "unknown category " + cat);
+  });
+  // township is derived from the rounded published location; these match the facts exactly
+  const n = name => recs.filter(r => r.township === name).length;
+  assert.equal(n("Washington Township"), fact("cad.location.1"));
+  assert.equal(n("Jefferson Township"), fact("cad.outside.jefferson"));
+  assert.equal(n("Clinton Township"), fact("cad.outside.clinton"));
+  // inside the District: within 2 of the published count (rounding near boundaries)
+  const inside = ["Clay Township", "Noble Township", "Eel Township"].reduce((s, t) => s + n(t), 0);
+  assert.ok(Math.abs(inside - fact("cad.location.0")) <= 2, "inside-District count " + inside);
 });

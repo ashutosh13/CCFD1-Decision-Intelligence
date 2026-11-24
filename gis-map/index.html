@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CAD Incident Map · CCFD1 Decision Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Full CAD incident map. Data and symbology: ../shared/cad-gis.js (same source as the
+   dashboard map). Styles follow index.html; only the tokens and pieces used here. */
+:root{
+  --navy:#0F2744; --navy-2:#17365D; --blue:#2F6FB3; --blue-soft:#8FB3DC;
+  --tint:#E8EFF7; --bg:#F3F6FA; --card:#FFFFFF; --ink:#132033; --muted:#5B6B80;
+  --line:#D9E2EC; --alert:#B3261E; --ok:#1E7B4F;
+  box-sizing:border-box;
+}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.top{background:var(--navy-2);color:#fff;padding:14px 28px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;padding-right:18px;border-right:1px solid rgba(255,255,255,.18)}
+.top h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.top p{margin:2px 0 0;color:#BFD0E4;font-size:13.5px}
+.back{margin-left:auto;display:inline-flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-size:13.5px;font-weight:600;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);padding:7px 12px;border-radius:6px}
+.back:hover{background:rgba(255,255,255,.18)}
+.content{padding:18px 28px 28px;display:grid;gap:14px;flex:1}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-width:0}
+.panel header{display:flex;align-items:center;gap:8px;padding:12px 16px 8px}
+.panel h2{margin:0;font-size:15px;font-weight:600}
+.panel header .tag{margin-left:auto;font-size:11.5px;color:var(--muted);background:var(--tint);padding:3px 8px;border-radius:999px;white-space:nowrap}
+.panel header .tag.real{color:#fff;background:var(--ok);font-weight:600}
+.panel.updated{border-color:var(--ok);box-shadow:inset 0 3px 0 var(--ok)}
+.body{padding:0 16px 14px}
+.filters{display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) auto;gap:10px 14px;align-items:end;padding:12px 16px}
+.filters label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:600;color:var(--ink);min-width:0}
+.filters label small{font-weight:400;color:var(--muted);font-size:11px;line-height:1.3}
+.filters select,.filters input{width:100%;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;font-size:13px;background:#fff;color:var(--ink)}
+.filters select:disabled,.filters input:disabled{background:var(--bg);color:var(--muted);cursor:not-allowed}
+.filters .dates{display:flex;gap:6px}
+.filters .span2{grid-column:span 2}
+.filters button{border:1px solid var(--line);background:#fff;color:var(--navy-2);border-radius:6px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.filters button:hover{border-color:var(--blue)}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi .label{font-size:12.5px;color:var(--muted);font-weight:500}
+.kpi .value{font-size:22px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.kpi .value.na{font-size:15px;color:var(--muted);font-weight:600;letter-spacing:0;padding:5px 0 4px}
+.kpi .src{font-size:11.5px;color:var(--muted)}
+.kpi.primary{background:var(--navy-2);border-color:var(--navy-2);color:#fff}
+.kpi.primary .label,.kpi.primary .src{color:#BFD0E4}
+.kpi .sw{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0}
+.mapbox{position:relative;height:calc(100vh - 330px);min-height:520px;background:#F8FAFC;border:1px solid var(--line);border-radius:8px;overflow:hidden;touch-action:none;cursor:grab}
+.mapbox.dragging{cursor:grabbing}
+.mapbox svg{width:100%;height:100%;display:block;user-select:none}
+.tw{stroke:#fff;stroke-width:1.4;transition:opacity .15s}
+.tw.sel{stroke:var(--navy);stroke-width:2.6}
+.dim .tw:not(.sel){opacity:.45}
+.lbl{fill:#132033;pointer-events:none;paint-order:stroke;stroke:rgba(255,255,255,.75);stroke-width:3px;font-weight:600}
+.pt{stroke:#fff;cursor:pointer}
+.pt:hover{stroke:var(--ink)}
+.zoom{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(19,32,51,.12)}
+.zoom button{border:0;border-bottom:1px solid var(--line);background:#fff;width:34px;height:32px;font:inherit;font-size:17px;font-weight:600;color:var(--navy-2);cursor:pointer}
+.zoom button:last-child{border-bottom:0;font-size:12px}
+.zoom button:hover{background:var(--tint)}
+.hint{position:absolute;left:10px;bottom:8px;font-size:11.5px;color:var(--muted);background:rgba(255,255,255,.85);padding:2px 8px;border-radius:4px;pointer-events:none}
+.empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.empty span{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-size:13.5px;color:var(--muted);box-shadow:0 2px 8px rgba(19,32,51,.1)}
+.pop{position:absolute;z-index:2;width:270px;max-height:calc(100% - 20px);overflow:auto;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(19,32,51,.18);font-size:12.5px;cursor:auto}
+.pop header{display:flex;align-items:center;gap:8px;padding:9px 10px 7px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff}
+.pop header b{font-size:13px}
+.pop header button{margin-left:auto;border:0;background:var(--tint);border-radius:5px;width:24px;height:24px;font:inherit;font-size:15px;line-height:1;cursor:pointer;color:var(--ink)}
+.pop dl{margin:0;padding:8px 12px 10px;display:grid;grid-template-columns:auto 1fr;gap:3px 10px}
+.pop dt{color:var(--muted)}
+.pop dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
+.pop .inc{border-top:1px solid var(--line)}
+.pop .inc:first-of-type{border-top:0}
+.pop p{margin:0;padding:0 12px 10px;color:var(--muted);font-size:11.5px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.legend i.dot{border-radius:50%}
+.legend i.outline{background:#fff;border:2px solid var(--navy)}
+.note{font-size:12px;color:var(--muted);margin:8px 0 0}
+table.avail{width:100%;border-collapse:collapse;font-size:12.5px}
+table.avail th,table.avail td{text-align:left;padding:7px 10px 7px 0;border-bottom:1px solid var(--line);vertical-align:top}
+table.avail th{color:var(--muted);font-weight:600;font-size:12px}
+.st{display:inline-block;font-size:10.5px;font-weight:600;padding:0 7px;border-radius:999px;color:#fff;white-space:nowrap}
+.st.yes{background:var(--ok)}.st.derived{background:var(--blue)}.st.no{background:var(--muted)}
+footer.foot{padding:12px 28px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 24px;background:#fff}
+footer.foot span:last-child{margin-left:auto}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:1280px){
+  .filters{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  .content,.top{padding-left:14px;padding-right:14px}
+  .filters,.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .filters .span2{grid-column:1 / -1}
+  .brand{border-right:0;padding-right:0}
+  .top h1{font-size:19px}
+  .back{margin-left:0}
+  .mapbox{height:70vh;min-height:420px}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg width="26" height="30" viewBox="0 0 30 34" aria-hidden="true"><path d="M15 1 28 6v10c0 8-5.6 14-13 17C7.6 30 2 24 2 16V6z" fill="none" stroke="#8FB3DC" stroke-width="2"/><path d="M15 9c3 3 5 5.5 5 9a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.3 1.6 1.2 2.5 2.2 2.5C13.5 13 14 11 15 9z" fill="#8FB3DC"/></svg>
+    CCFD1
+  </div>
+  <div>
+    <h1>CAD incident map</h1>
+    <p id="subtitle">CCFD1 incidents by township and service area</p>
+  </div>
+  <a class="back" href="../#gis"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Back to Dashboard</a>
+</header>
+
+<main class="content">
+  <form class="panel filters" id="filters" aria-label="Map filters" onsubmit="return false">
+    <label>Township
+      <select id="fTownship"></select></label>
+    <label>Incident type
+      <select id="fType"></select></label>
+    <label>Service / incident group
+      <select id="fGroup"></select></label>
+    <label>Unit / apparatus
+      <select id="fUnit"></select></label>
+    <label class="span2">Date range
+      <span class="dates">
+        <input type="date" id="fStart" aria-label="Start date">
+        <input type="date" id="fEnd" aria-label="End date">
+      </span></label>
+    <button type="button" id="resetBtn">Reset filters</button>
+    <label id="rtWrap" hidden>Response time (min)
+      <span class="dates">
+        <input type="number" id="fRtMin" min="0" step="0.5" placeholder="Min" aria-label="Minimum response time, minutes">
+        <input type="number" id="fRtMax" min="0" step="0.5" placeholder="Max" aria-label="Maximum response time, minutes">
+      </span></label>
+  </form>
+
+  <section class="kpis" aria-label="Summary for the current filters" aria-live="polite">
+    <div class="kpi primary"><span class="label">Incidents shown</span><span class="value" id="kShown">–</span><span class="src" id="kShownSrc"></span></div>
+    <div class="kpi"><span class="label">Selected township</span><span class="value" id="kTwp" style="font-size:18px">–</span><span class="src" id="kTwpSrc"></span></div>
+    <div class="kpi"><span class="label"><i class="sw" id="swM"></i>Medical</span><span class="value" id="kM">–</span><span class="src" id="kMSrc"></span></div>
+    <div class="kpi"><span class="label"><i class="sw" id="swF"></i>Fire / hazard</span><span class="value" id="kF">–</span><span class="src" id="kFSrc"></span></div>
+    <div class="kpi"><span class="label"><i class="sw" id="swV"></i>Vehicle accident</span><span class="value" id="kV">–</span><span class="src" id="kVSrc"></span></div>
+    <div class="kpi"><span class="label">Average response time</span><span class="value" id="kRt">–</span><span class="src" id="kRtSrc"></span></div>
+  </section>
+
+  <section class="panel updated" aria-label="Incident map">
+    <header><h2>Townships and CCFD1 incidents</h2><span class="tag real">Updated: CAD + GIS</span></header>
+    <div class="body">
+      <div class="mapbox" id="mapbox">
+        <svg id="map" role="img" aria-label="Map of Cass County townships with CCFD1 incident locations"></svg>
+        <div class="zoom" role="group" aria-label="Map zoom">
+          <button type="button" id="zIn" aria-label="Zoom in">+</button>
+          <button type="button" id="zOut" aria-label="Zoom out">−</button>
+          <button type="button" id="zFit" aria-label="Show whole county">Fit</button>
+        </div>
+        <div class="empty" id="empty" hidden><span>No incidents match these filters.</span></div>
+        <div class="hint">Scroll or pinch to zoom · drag to pan · click a dot for details</div>
+        <div class="pop" id="pop" hidden role="dialog" aria-label="Incident details"></div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <p class="note" id="mapNote"></p>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Data used by this map">
+    <header><h2>What each filter uses</h2></header>
+    <div class="body">
+      <table class="avail">
+        <thead><tr><th>Filter or detail</th><th>Field</th><th>Status</th><th>Notes</th></tr></thead>
+        <tbody id="avail"></tbody>
+      </table>
+      <p class="note" id="availNote"></p>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <span>Prototype. Locations are de-identified: coordinates are published rounded to 3 decimals (about 100 m).</span>
+  <span id="footSrc">Source: Cass County E911 CAD extract (aggregated), CCFD1 township boundaries.</span>
+</footer>
+
+<script src="../shared/cad-gis.js"></script>
+<script>
+"use strict";
+const G = window.CCFD1GIS;
+const $ = s => document.querySelector(s);
+const num = n => Math.round(n).toLocaleString("en-US");
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const short = n => n.replace(/ Township$/, "");
+const OUTSIDE = "__outside__";   // township filter value for points outside every boundary
+
+/* ---------- Records: built once (township assigned once, in shared/cad-gis.js) ---------- */
+const REC = G.records();
+const has = f => REC.some(r => r[f] != null && r[f] !== "");
+const unitsOf = r => r.unit == null ? [] : (Array.isArray(r.unit) ? r.unit : [r.unit]);
+const validRt = r => typeof r.responseMin === "number" && isFinite(r.responseMin) && r.responseMin >= 0;
+const dateOf = r => typeof r.datetime === "string" && /^\d{4}-\d{2}-\d{2}/.test(r.datetime) ? r.datetime.slice(0, 10) : null;
+const AVAIL = {
+  id: has("id"), type: has("type"), unit: REC.some(r => unitsOf(r).length),
+  date: REC.some(dateOf), rt: REC.some(validRt)
+};
+const UNMAPPED = G.incidentsTotal - G.incidentPoints.length;
+
+/* ---------- Filter controls (options come from the data) ---------- */
+function opt(v, t){ return `<option value="${esc(v)}">${esc(t)}</option>`; }
+function unavailable(sel, why){
+  sel.innerHTML = opt("", "Not in published data"); sel.disabled = true; sel.title = why;
+}
+(function buildControls(){
+  // Township: every boundary in the GIS layer, grouped by role
+  const groups = {};
+  G.townships.features.forEach(f => (groups[f.properties.role] ||= []).push(f.properties.name));
+  let h = opt("", "All townships");
+  Object.keys(G.ROLES).forEach(role => {
+    if (!groups[role]) return;
+    h += `<optgroup label="${esc(G.ROLES[role].label)}">` + groups[role].sort().map(n => opt(n, short(n))).join("") + "</optgroup>";
+  });
+  if (REC.some(r => r.township == null)) h += opt(OUTSIDE, "Outside township boundaries");
+  $("#fTownship").innerHTML = h;
+
+  // Service / incident group: the category codes present in the extract
+  const cats = Object.keys(G.CATEGORIES).filter(c => REC.some(r => r.category === c));
+  const extra = [...new Set(REC.map(r => r.category))].filter(c => !G.CATEGORIES[c]).sort();
+  $("#fGroup").innerHTML = opt("", "All") + cats.map(c => opt(c, G.CATEGORIES[c].label)).join("") +
+    extra.map(c => opt(c, "Code " + c)).join("");
+
+  // Incident type (raw CAD description)
+  if (AVAIL.type) $("#fType").innerHTML = opt("", "All") +
+    [...new Set(REC.map(r => r.type).filter(Boolean))].sort().map(t => opt(t, t)).join("");
+  else unavailable($("#fType"), "The published CAD extract has a category code (see Service / incident group) but no raw incident type.");
+
+  // Unit / apparatus
+  if (AVAIL.unit) $("#fUnit").innerHTML = opt("", "All") +
+    [...new Set(REC.flatMap(unitsOf))].sort().map(u => opt(u, u)).join("");
+  else unavailable($("#fUnit"), "The published CAD extract does not include responding units.");
+
+  // Date range
+  if (AVAIL.date){
+    const ds = REC.map(dateOf).filter(Boolean).sort();
+    ["#fStart", "#fEnd"].forEach(id => { $(id).min = ds[0]; $(id).max = ds[ds.length - 1]; });
+  } else ["#fStart", "#fEnd"].forEach(id => {
+    $(id).disabled = true; $(id).title = "The published CAD extract has no incident dates (only totals by hour of day).";
+  });
+
+  // Response time: optional, shown only when the data carries a valid field
+  $("#rtWrap").hidden = !AVAIL.rt;
+})();
+
+/* ---------- Filter state <-> URL hash (shareable, survives refresh on GitHub Pages) ---------- */
+const KEYS = {township:"#fTownship", type:"#fType", group:"#fGroup", unit:"#fUnit", start:"#fStart", end:"#fEnd", rtmin:"#fRtMin", rtmax:"#fRtMax"};
+function readControls(){
+  const f = {};
+  for (const [k, id] of Object.entries(KEYS)){ const el = $(id); if (!el.disabled && el.value !== "") f[k] = el.value; }
+  return f;
+}
+function applyHash(){
+  const p = new URLSearchParams(location.hash.slice(1));
+  for (const [k, id] of Object.entries(KEYS)){
+    const el = $(id), v = p.get(k);
+    if (el.disabled) continue;
+    if (el.tagName === "SELECT") el.value = [...el.options].some(o => o.value === v) ? v : "";
+    else el.value = v || "";
+  }
+}
+function writeHash(f){
+  const s = new URLSearchParams(f).toString();
+  history.replaceState(null, "", s ? "#" + s : location.pathname + location.search);
+}
+
+function matches(r, f){
+  if (f.township && (f.township === OUTSIDE ? r.township != null : r.township !== f.township)) return false;
+  if (f.group && r.category !== f.group) return false;
+  if (f.type && r.type !== f.type) return false;
+  if (f.unit && !unitsOf(r).includes(f.unit)) return false;
+  if (f.start || f.end){ const d = dateOf(r); if (!d || (f.start && d < f.start) || (f.end && d > f.end)) return false; }
+  if (f.rtmin || f.rtmax){
+    if (!validRt(r)) return false;
+    if (f.rtmin && r.responseMin < +f.rtmin) return false;
+    if (f.rtmax && r.responseMin > +f.rtmax) return false;
+  }
+  return true;
+}
+
+/* ---------- Map: SVG, same projection and symbology as the dashboard map ---------- */
+const svg = $("#map"), box = $("#mapbox");
+const NS = "http://www.w3.org/2000/svg";
+let x0 = 180, x1 = -180, y0 = 90, y1 = -90;
+const rings = f => f.geometry.type === "MultiPolygon" ? f.geometry.coordinates.flat() : f.geometry.coordinates;
+G.townships.features.forEach(f => rings(f).forEach(r => r.forEach(([x, y]) => {
+  x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+})));
+const K = Math.cos((y0 + y1) / 2 * Math.PI / 180), W = 1000, PAD = 14, SC = (W - 2 * PAD) / ((x1 - x0) * K);
+const H = Math.round((y1 - y0) * SC + 2 * PAD);
+const px = x => PAD + (x - x0) * K * SC, py = y => PAD + (y1 - y) * SC;
+const FULL = {x: 0, y: 0, w: W, h: H};
+const R_PT = 6, FONT = 19;
+
+const twpEls = {}, lblEls = [], ptEls = [];
+(function drawMap(){
+  const gT = document.createElementNS(NS, "g"), gP = document.createElementNS(NS, "g"), gL = document.createElementNS(NS, "g");
+  G.townships.features.forEach(f => {
+    const role = G.ROLES[f.properties.role] || G.ROLES["Other Cass County"];
+    const polys = f.geometry.type === "MultiPolygon" ? f.geometry.coordinates : [f.geometry.coordinates];
+    const d = polys.map(p => p.map(ring => "M" + ring.map(([x, y]) => px(x).toFixed(1) + " " + py(y).toFixed(1)).join("L") + "Z").join("")).join("");
+    const p = document.createElementNS(NS, "path");
+    p.setAttribute("class", "tw"); p.setAttribute("d", d); p.setAttribute("fill", role.fill);
+    p.setAttribute("fill-opacity", role.opacity); p.setAttribute("fill-rule", "evenodd");
+    p.setAttribute("vector-effect", "non-scaling-stroke");
+    const t = document.createElementNS(NS, "title"); t.textContent = `${f.properties.name} (${role.label})`; p.appendChild(t);
+    gT.appendChild(p); twpEls[f.properties.name] = p;
+    // label at the vertex mean of the outer ring (as on the dashboard map)
+    const ring = polys[0][0]; let sx = 0, sy = 0; ring.forEach(([x, y]) => { sx += x; sy += y; });
+    const l = document.createElementNS(NS, "text");
+    l.setAttribute("class", "lbl"); l.setAttribute("x", px(sx / ring.length).toFixed(1)); l.setAttribute("y", py(sy / ring.length).toFixed(1));
+    l.setAttribute("text-anchor", "middle"); l.textContent = short(f.properties.name);
+    gL.appendChild(l); lblEls.push(l);
+  });
+  REC.forEach(r => {
+    const c = document.createElementNS(NS, "circle"), cat = G.CATEGORIES[r.category];
+    c.setAttribute("class", "pt"); c.setAttribute("cx", px(r.lng).toFixed(1)); c.setAttribute("cy", py(r.lat).toFixed(1));
+    c.setAttribute("fill", cat ? cat.color : G.CATEGORIES.O.color); c.setAttribute("fill-opacity", ".85");
+    c.dataset.i = r.index; gP.appendChild(c); ptEls[r.index] = c;
+  });
+  svg.append(gT, gP, gL);   // labels on top, not clickable
+})();
+
+/* view box, zoom and pan */
+let vb = {...FULL};
+function zoomLevel(){ return Math.max(W / vb.w, H / vb.h); }
+function setView(v){
+  const z = Math.min(40, Math.max(1, Math.max(W / v.w, H / v.h)));
+  const w = W / z, h = H / z;
+  const cx = v.x + v.w / 2, cy = v.y + v.h / 2;
+  vb = {x: cx - w / 2, y: cy - h / 2, w, h};
+  // keep some of the county in view
+  vb.x = Math.min(Math.max(vb.x, -w * .5), W - w * .5); vb.y = Math.min(Math.max(vb.y, -h * .5), H - h * .5);
+  svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  const zl = zoomLevel(), r = (R_PT / Math.pow(zl, .8)).toFixed(2), sw = (1 / zl).toFixed(3);
+  ptEls.forEach(c => { c.setAttribute("r", r); c.setAttribute("stroke-width", sw * .8); });
+  lblEls.forEach(l => l.setAttribute("font-size", (FONT / Math.pow(zl, .85)).toFixed(2)));
+}
+function toSvg(clientX, clientY){
+  const m = svg.getScreenCTM(); return new DOMPoint(clientX, clientY).matrixTransform(m.inverse());
+}
+function zoomAt(factor, cx, cy){   // factor < 1 zooms in, around svg point (cx, cy)
+  const z = zoomLevel(), nz = Math.min(40, Math.max(1, z / factor)), f = z / nz;
+  setView({x: cx - (cx - vb.x) * f, y: cy - (cy - vb.y) * f, w: vb.w * f, h: vb.h * f});
+}
+function fitTo(b, pad = .12){
+  const w = b.w * (1 + pad * 2), h = b.h * (1 + pad * 2), z = Math.min(W / w, H / h);
+  setView({x: b.x + b.w / 2 - W / z / 2, y: b.y + b.h / 2 - H / z / 2, w: W / z, h: H / z});
+}
+svg.addEventListener("wheel", e => {
+  e.preventDefault(); closePop(); const p = toSvg(e.clientX, e.clientY);
+  zoomAt(e.deltaY < 0 ? 1 / 1.25 : 1.25, p.x, p.y);
+}, {passive: false});
+$("#zIn").onclick = () => closePop() || zoomAt(1 / 1.5, vb.x + vb.w / 2, vb.y + vb.h / 2);
+$("#zOut").onclick = () => closePop() || zoomAt(1.5, vb.x + vb.w / 2, vb.y + vb.h / 2);
+$("#zFit").onclick = () => { closePop(); setView(FULL); };
+
+// drag to pan; two-finger pinch to zoom
+const ptrs = new Map(); let drag = null, moved = false, pinch = null;
+svg.addEventListener("pointerdown", e => {
+  if (e.button !== 0) return;
+  ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  moved = false;
+  if (ptrs.size === 1) drag = {x: e.clientX, y: e.clientY, vb: {...vb}};
+  else if (ptrs.size === 2){ const [a, b] = [...ptrs.values()]; pinch = {d: Math.hypot(a.x - b.x, a.y - b.y)}; drag = null; }
+});
+svg.addEventListener("pointermove", e => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  if (pinch && ptrs.size === 2){
+    const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (d > 0 && pinch.d > 0){ const c = toSvg((a.x + b.x) / 2, (a.y + b.y) / 2); zoomAt(pinch.d / d, c.x, c.y); pinch.d = d; moved = true; }
+    return;
+  }
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!moved && Math.hypot(dx, dy) < 4) return;
+  // capture only once a drag starts, so a plain click still targets the dot under it
+  if (!moved){ svg.setPointerCapture(e.pointerId); closePop(); }
+  moved = true; box.classList.add("dragging");
+  const s = svg.getScreenCTM().a;
+  setView({...drag.vb, x: drag.vb.x - dx / s, y: drag.vb.y - dy / s});
+});
+function endPtr(e){
+  ptrs.delete(e.pointerId);
+  if (ptrs.size < 2) pinch = null;
+  if (!ptrs.size){ drag = null; box.classList.remove("dragging"); }
+}
+svg.addEventListener("pointerup", endPtr); svg.addEventListener("pointercancel", endPtr);
+
+/* ---------- Popup: every shown incident at the clicked location ---------- */
+const pop = $("#pop");
+const fmtDT = s => { const d = new Date(s); return isNaN(d) ? s : d.toLocaleString("en-US", {dateStyle: "medium", timeStyle: "short"}); };
+function detailRows(r){
+  const cat = G.CATEGORIES[r.category], rows = [];
+  if (r.id != null) rows.push(["Incident ID", r.id]);
+  if (r.datetime) rows.push(["Date / time", fmtDT(r.datetime)]);
+  if (r.type) rows.push(["Incident type", r.type]);
+  rows.push(["Group", cat ? `${cat.label} (code ${r.category})` : `Code ${r.category}`]);
+  if (unitsOf(r).length) rows.push(["Unit", unitsOf(r).join(", ")]);
+  if (validRt(r)) rows.push(["Response time", r.responseMin.toFixed(1) + " min"]);
+  return rows;
+}
+let shown = new Set(REC.map(r => r.index));
+function openPop(rec, clientX, clientY){
+  const here = REC.filter(r => shown.has(r.index) && r.lat === rec.lat && r.lng === rec.lng);
+  const role = rec.townshipRole && G.ROLES[rec.townshipRole] ? ` (${G.ROLES[rec.townshipRole].label})` : "";
+  const twp = rec.township ? short(rec.township) + " Twp." + role : "Outside township boundaries";
+  let h = `<header><b>${here.length === 1 ? "1 incident" : num(here.length) + " incidents"} at this location</b><button type="button" aria-label="Close" id="popX">×</button></header>`;
+  h += `<dl><dt>Township</dt><dd>${esc(twp)}</dd><dt>Location</dt><dd>${rec.lat.toFixed(3)}, ${rec.lng.toFixed(3)}</dd></dl>`;
+  if (AVAIL.id || AVAIL.date || AVAIL.type || AVAIL.unit || AVAIL.rt)   // per-incident details exist: list each
+    here.forEach(r => { h += `<dl class="inc">` + detailRows(r).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("") + `</dl>`; });
+  else {   // category is the only per-incident field: count by group
+    const by = {}; here.forEach(r => by[r.category] = (by[r.category] || 0) + 1);
+    h += `<dl class="inc">` + Object.entries(by).map(([c, k]) => `<dt>${esc(G.CATEGORIES[c] ? G.CATEGORIES[c].label : "Code " + c)}</dt><dd>${num(k)}</dd>`).join("") + `</dl>`;
+  }
+  const miss = ["Incident ID", "date/time", "incident type", "unit", "response time"].filter((_, i) => ![AVAIL.id, AVAIL.date, AVAIL.type, AVAIL.unit, AVAIL.rt][i]);
+  h += `<p>Township is ${rec.townshipSource === "cad" ? "from the CAD record" : "derived from the published location"}. Location is rounded to about 100 m.` +
+    (miss.length ? ` Not in the published extract: ${miss.join(", ")}.` : "") + `</p>`;
+  pop.innerHTML = h; pop.hidden = false;
+  const b = box.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = clientX - b.left + 12, top = clientY - b.top - 20;
+  if (left + pw > b.width - 8) left = clientX - b.left - pw - 12;
+  pop.style.left = Math.max(8, left) + "px";
+  pop.style.top = Math.max(8, Math.min(top, b.height - ph - 8)) + "px";
+  $("#popX").onclick = closePop; $("#popX").focus({preventScroll: true});
+}
+function closePop(){ pop.hidden = true; }
+svg.addEventListener("click", e => {
+  if (moved) return;
+  const c = e.target.closest("circle.pt");
+  if (c && c.style.display !== "none") openPop(REC[+c.dataset.i], e.clientX, e.clientY); else closePop();
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !pop.hidden) closePop(); });
+
+/* ---------- Legend ---------- */
+$("#legend").innerHTML =
+  Object.values(G.ROLES).map(r => `<span><i style="background:${r.fill};${r.fill === "#E8EFF7" ? "border:1px solid var(--line)" : ""}"></i>${esc(r.label)}</span>`).join("") +
+  Object.values(G.CATEGORIES).map(c => `<span><i class="dot" style="background:${c.color}"></i>${esc(c.label)}</span>`).join("") +
+  `<span><i class="outline"></i>Selected township</span>`;
+["M", "F", "V"].forEach(c => $("#sw" + c).style.background = G.CATEGORIES[c].color);
+
+/* ---------- Update: filter, toggle points, refresh cards. No rebuild, no reload. ---------- */
+function setCard(id, value, src, na){
+  const v = $("#" + id); v.textContent = value; v.classList.toggle("na", !!na);
+  if (src != null) $("#" + id + "Src").textContent = src;
+}
+let lastTwp = null;
+function update(){
+  const f = readControls();
+  const vis = REC.filter(r => matches(r, f));
+  shown = new Set(vis.map(r => r.index));
+  REC.forEach(r => { ptEls[r.index].style.display = shown.has(r.index) ? "" : "none"; });
+  closePop();
+  $("#empty").hidden = vis.length > 0;
+
+  // township highlight + zoom when the selection changes
+  Object.values(twpEls).forEach(p => p.classList.remove("sel"));
+  const sel = f.township && f.township !== OUTSIDE ? twpEls[f.township] : null;
+  if (sel){ sel.classList.add("sel"); sel.parentNode.appendChild(sel); }
+  svg.classList.toggle("dim", !!sel);
+  if (f.township !== lastTwp){
+    if (sel){ const b = sel.getBBox(); fitTo({x: b.x, y: b.y, w: b.width, h: b.height}, .25); }
+    else if (lastTwp) setView(FULL);
+    lastTwp = f.township;
+  }
+
+  // cards
+  const n = vis.length, total = REC.length;
+  setCard("kShown", num(n), n === total ? `All ${num(total)} mapped incidents` : `of ${num(total)} mapped incidents`);
+  if (!f.township) setCard("kTwp", "All townships", "Whole map");
+  else if (f.township === OUTSIDE) setCard("kTwp", "Outside boundaries", "Points outside every township boundary");
+  else { const role = G.townships.features.find(x => x.properties.name === f.township).properties.role;
+    setCard("kTwp", short(f.township), (G.ROLES[role] || {}).label || role); }
+  ["M", "F", "V"].forEach(c => {
+    const k = vis.filter(r => r.category === c).length;
+    setCard("k" + c, num(k), n ? `${Math.round(k / n * 100)}% of incidents shown` : "No incidents shown");
+  });
+  if (!AVAIL.rt) setCard("kRt", "Not in data", "No response-time field in the published CAD extract", true);
+  else {
+    const v = vis.filter(validRt);
+    if (!v.length) setCard("kRt", "No valid times", n ? `0 of ${num(n)} shown incidents have a valid time` : "No incidents shown", true);
+    else setCard("kRt", (v.reduce((s, r) => s + r.responseMin, 0) / v.length).toFixed(1) + " min",
+      `Mean of ${num(v.length)} of ${num(n)} shown incidents with a valid time`);
+  }
+
+  const parts = [];
+  if (f.township) parts.push(f.township === OUTSIDE ? "outside township boundaries" : short(f.township) + " Township");
+  if (f.group) parts.push((G.CATEGORIES[f.group] || {label: "code " + f.group}).label.toLowerCase());
+  if (f.type) parts.push(f.type); if (f.unit) parts.push("unit " + f.unit);
+  if (f.start || f.end) parts.push(`${f.start || "start"} to ${f.end || "end"}`);
+  $("#mapNote").textContent = `Showing ${num(n)} of ${num(total)} mapped incidents${parts.length ? " (" + parts.join(", ") + ")" : ""}. ` +
+    `${num(UNMAPPED)} of ${num(G.incidentsTotal)} CCFD1 incidents in the CAD period have no location and are not on any map. ` +
+    `Overlapping incidents at the same rounded location are drawn on top of each other; click a dot to list them all.`;
+  writeHash(f);
+}
+
+/* ---------- Data availability table ---------- */
+(function availability(){
+  const S = {yes: '<span class="st yes">Available</span>', derived: '<span class="st derived">Derived</span>', no: '<span class="st no">Not in data</span>'};
+  const derivedTwp = REC.some(r => r.townshipSource === "location");
+  const rows = [
+    ["Township", derivedTwp ? "Incident lat/lng × township boundaries" : "township", derivedTwp ? S.derived : S.yes,
+      derivedTwp ? "Not a CAD field. Assigned once when the page loads, by testing each published location against the simplified township boundaries. Source coordinates are not changed." : "Township recorded on each incident."],
+    ["Service / incident group", "category (M, F, V, O)", S.yes,
+      "The CAD extract's category code, shown with the dashboard's existing labels. F covers fire and hazard calls together; the extract does not separate them."],
+    ["Incident type", "type", AVAIL.type ? S.yes : S.no, AVAIL.type ? "Raw CAD incident type." : "Only the category code is published, so this filter is turned off."],
+    ["Unit / apparatus", "unit", AVAIL.unit ? S.yes : S.no, AVAIL.unit ? "Units listed on the incident." : "Responding units are not in the published extract."],
+    ["Date range", "datetime", AVAIL.date ? S.yes : S.no, AVAIL.date ? "Incident date (YYYY-MM-DD). Incidents without a date are excluded when a date filter is set." : `The extract has no per-incident dates, only totals for ${G.cadPeriod}.`],
+    ["Response time", "responseMin", AVAIL.rt ? S.yes : S.no, AVAIL.rt ? "Minutes; only finite, non-negative values are used." : "Not in the published extract, so no average is calculated."],
+    ["Incident ID", "id", AVAIL.id ? S.yes : S.no, AVAIL.id ? "Shown in the popup." : "Incidents are de-identified; popups identify them by location only."]
+  ];
+  $("#avail").innerHTML = rows.map(r => `<tr><td><b>${r[0]}</b></td><td><code>${esc(r[1])}</code></td><td>${r[2]}</td><td>${esc(r[3])}</td></tr>`).join("");
+  $("#availNote").textContent = "Filters marked Not in data switch on automatically if the published extract (shared/cad-gis.js) gains that field.";
+})();
+
+/* ---------- Wire up ---------- */
+$("#subtitle").textContent = `CCFD1 incidents by township, ${G.cadPeriod}`;
+setView(FULL);
+applyHash();
+update();
+$("#filters").addEventListener("change", update);
+$("#filters").addEventListener("input", e => { if (e.target.type === "number") update(); });
+$("#resetBtn").onclick = () => { Object.values(KEYS).forEach(id => { if (!$(id).disabled) $(id).value = ""; }); update(); };
+window.addEventListener("hashchange", () => { applyHash(); update(); });
+</script>
+</body>
+</html>
