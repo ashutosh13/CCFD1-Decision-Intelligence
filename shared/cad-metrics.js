@@ -76,9 +76,17 @@
     {org: "LFD", units: ["EMERGENCY 10"], note: "Unit name may be truncated in the source; kept as recorded."}
   ];
 
-  /* Stations for the coverage tool. The CCFD1 station location is not in the project data.
-     Add it here as {name, lat, lng, source} and it becomes selectable on the page. */
-  const STATIONS = [];
+  /* Stations for the coverage tool, as {name, lat, lng, source}. Coordinates are stored here once;
+     the page never geocodes. CCFD1: geocoded 2026-11-24 from "1444 Holland St, Logansport, IN 46947".
+     U.S. Census Geocoder (TIGER address range 1400-1450, right side) -> 40.762348, -86.382863;
+     OpenStreetMap Nominatim (same address) -> 40.762298, -86.382830; the two agree within ~6 m.
+     Both are address-range points, not a surveyed building point: OSM has no fire-station feature here. */
+  const STATIONS = [{
+    name: "CCFD1 Station", full: "Cass County Fire District No. 1",
+    address: ["1444 Holland St", "Logansport, IN 46947"],
+    lat: 40.76235, lng: -86.38286,
+    source: "U.S. Census Geocoder, cross-checked with OpenStreetMap (2026-11-24)"
+  }];
 
   /* Road-network drive-time areas: public Valhalla server (OpenStreetMap data), no API key, no
      cost. Standard passenger-car speeds; not adjusted for emergency driving or turnout time.

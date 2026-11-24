@@ -85,6 +85,13 @@ details.filters[open] > summary::before{transform:rotate(45deg)}
 .pt:hover{stroke:var(--ink)!important}
 .iso{pointer-events:none;stroke:#fff;stroke-width:1}
 .stn{cursor:grab}
+.stn.fixed{cursor:pointer}
+.covhead{background:var(--bg);border-radius:8px;padding:8px 10px;font-size:12.5px;line-height:1.45}
+.covhead b{font-size:13.5px}
+.covhead .n{font-size:17px;font-variant-numeric:tabular-nums}
+.tbl caption{text-align:left;font-size:12px;font-weight:600;color:var(--ink);padding:8px 0 3px}
+.tbl caption span{font-weight:400;color:var(--muted)}
+.tbl tr.sep td{border-top:2px solid var(--line)}
 .zoom{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(19,32,51,.12)}
 .zoom button{border:0;border-bottom:1px solid var(--line);background:#fff;width:36px;height:34px;font:inherit;font-size:17px;font-weight:600;color:var(--navy-2);cursor:pointer}
 .zoom button:last-child{border-bottom:0;font-size:12px}
@@ -250,6 +257,7 @@ footer.foot{padding:12px 28px;border-top:1px solid var(--line);font-size:12.5px;
           <button type="button" class="btn primary" id="stCalc" disabled>Calculate drive-time areas</button>
         </div>
         <p class="note" id="stStatus" aria-live="polite"></p>
+        <div id="covSummary"></div>
         <div class="scroll"><table class="tbl" id="covTable"></table></div>
         <div id="covCompare"></div>
         <p class="note" id="covMethod"></p>
@@ -523,6 +531,8 @@ function wireMap(){
   svg.addEventListener("click", e => {
     if (moved) return;
     if (placing){ const p = toSvg(e.clientX, e.clientY); setCandidate(unpy(p.y), unpx(p.x), false); togglePlacing(false); return; }
+    const stn = e.target.closest(".stn.fixed");
+    if (stn){ openStationPop(stationList().find(s => s.id === stn.dataset.id), e.clientX, e.clientY); return; }
     const c = e.target.closest("circle.pt");
     if (c && c.style.display !== "none") openPop(DS.incidents[+c.dataset.i], e.clientX, e.clientY); else closePop();
   });
@@ -565,7 +575,19 @@ function openPop(rec, cx, cy){
   });
   if (here.length > 25) h += `<p style="padding:0 12px 10px">…and ${num(here.length - 25)} more. Zoom in or filter to narrow.</p>`;
   if (!DS.hasDetail) h += `<p style="padding:0 12px 10px">Published layer: incident ID, date/time, type, agency and apparatus are not available.</p>`;
-  pop.innerHTML = h; pop.hidden = false;
+  pop.innerHTML = h; placePop(cx, cy);
+}
+/* station popup: the station is not an incident, so it is never filtered or counted */
+function openStationPop(st, cx, cy){
+  if (!st) return;
+  pop.innerHTML = `<header><b>${esc(st.name)}</b><button type="button" aria-label="Close" id="popX">×</button></header>` +
+    `<div class="inc"><dl><dt>Station</dt><dd>${esc(st.full || st.name)}</dd><dt>Address</dt><dd>${(st.address || []).map(esc).join("<br>")}</dd>` +
+    `<dt>Location</dt><dd>${st.lat.toFixed(5)}, ${st.lng.toFixed(5)}</dd><dt>Source</dt><dd>${esc(st.source || "")}</dd></dl>` +
+    `<p>Fire station, not an incident: always shown, not affected by filters. Default origin for Station Coverage Analysis.</p></div>`;
+  placePop(cx, cy);
+}
+function placePop(cx, cy){
+  pop.hidden = false;
   const b = box.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
   let left = cx - b.left + 12, top = cy - b.top - 20;
   if (left + pw > b.width - 8) left = cx - b.left - pw - 12;
@@ -576,22 +598,25 @@ function closePop(){ pop.hidden = true; }
 
 /* =============================== Station coverage =============================== */
 const BAND_COLORS = ["#3B2A6E", "#6550A0", "#9683C4", "#C9BEE3"];   // sequential, one hue: nearer = darker
-const COV = new Map();   // "lat,lng" -> {name, lat, lng, features, bands}
-let CAND = null, placing = false, activeKey = null;
+const BAND_LABELS = ["0–4 min", "> 4–6 min", "> 6–8 min", "> 8–12 min", "> 12 min"];   // exclusive bands
+const FLAME = "M15 9c3 3 5 5.5 5 9a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.3 1.6 1.2 2.5 2.2 2.5C13.5 13 14 11 15 9z";   // header logo flame
+const STN_RED = "#B3261E";
+const COV = new Map();   // "lat,lng" -> {name, kind, lat, lng, features, bands}
+let CAND = null, placing = false, activeKey = null, covError = "";
 const keyOf = (lat, lng) => lat.toFixed(5) + "," + lng.toFixed(5);
-function stationList(){ return M.STATIONS.map((s, i) => ({id: "s" + i, name: s.name, lat: s.lat, lng: s.lng, source: s.source})); }
+function stationList(){ return M.STATIONS.map((s, i) => ({...s, id: "s" + i, kind: "station"})); }
 function fillStations(){
   const st = stationList();
   let h = st.map(s => opt(s.id, s.name)).join("");
   if (!st.length) h += `<option value="" disabled>Existing CCFD1 station: location not in project data</option>`;
-  h += opt("cand", CAND ? `Candidate (${CAND.lat.toFixed(4)}, ${CAND.lng.toFixed(4)})` : "Candidate location (place on map)");
+  h += opt("cand", CAND ? `Candidate Location (${CAND.lat.toFixed(4)}, ${CAND.lng.toFixed(4)})` : "Candidate Location (place on map)");
   const keep = $("#stSel").value;
   $("#stSel").innerHTML = h;
   $("#stSel").value = [...$("#stSel").options].some(o => o.value === keep && !o.disabled) ? keep : (st.length ? "s0" : "cand");
 }
 function selectedLoc(){
   const v = $("#stSel").value;
-  if (v === "cand") return CAND ? {name: "Candidate", ...CAND} : null;
+  if (v === "cand") return CAND ? {name: "Candidate Station", kind: "candidate", ...CAND} : null;
   const s = stationList().find(x => x.id === v); return s || null;
 }
 function togglePlacing(on){
@@ -601,40 +626,59 @@ function togglePlacing(on){
 function setCandidate(lat, lng, dragging){
   CAND = {lat, lng}; $("#stSel").value = "cand"; fillStations(); $("#stSel").value = "cand";
   drawStations();
-  if (!dragging) refreshCoverage();
+  if (!dragging){ covError = ""; refreshCoverage(); }
 }
 function drawStations(){
   if (!gStn) return;
   gStn.innerHTML = "";
-  const z = zoomLevel(), s = 11 / Math.pow(z, .8), sel = selectedLoc();
-  const mark = (loc, cls, color) => {
-    const g = el("g", {class: "stn " + cls, transform: `translate(${px(loc.lng).toFixed(1)} ${py(loc.lat).toFixed(1)})`});
-    g.appendChild(el("path", {d: `M0 ${-s * 1.3}L${s} 0L0 ${s * 1.3}L${-s} 0Z`, fill: color, stroke: "#fff", "stroke-width": (2.2 / Math.pow(z, .8)).toFixed(2)}));
-    const t = el("title"); t.textContent = loc.name + (cls.includes("cand") ? " (drag to move)" : ""); g.appendChild(t);
+  const z = zoomLevel(), s = 11 / Math.pow(z, .8), sw = (2.2 / Math.pow(z, .8)).toFixed(2), sel = selectedLoc();
+  const fs = FONT * .78 / Math.pow(z, .85);
+  const at = loc => `translate(${px(loc.lng).toFixed(1)} ${py(loc.lat).toFixed(1)})`;
+  const finish = (g, name, tip, dy) => {
+    const l = el("text", {class: "lbl", y: (dy + fs).toFixed(2), "text-anchor": "middle", "font-size": fs.toFixed(2)}); l.textContent = name; g.appendChild(l);
+    const t = el("title"); t.textContent = tip; g.appendChild(t);
     gStn.appendChild(g);
   };
-  stationList().forEach(st => mark(st, "fixed", "#0F2744"));
-  if (CAND) mark({name: "Candidate station", ...CAND}, "cand", "#B26A00");
+  // permanent CCFD1 station: red badge with a flame, distinct from the round incident dots
+  stationList().forEach(st => {
+    const g = el("g", {class: "stn fixed", transform: at(st), "data-id": st.id}), b = s * 1.25;
+    g.appendChild(el("rect", {x: (-b).toFixed(2), y: (-b).toFixed(2), width: (2 * b).toFixed(2), height: (2 * b).toFixed(2), rx: (b * .3).toFixed(2), fill: STN_RED, stroke: "#fff", "stroke-width": sw}));
+    g.appendChild(el("path", {d: FLAME, fill: "#fff", transform: `scale(${(b * 1.5 / 15).toFixed(4)}) translate(-15 -16)`}));
+    finish(g, st.name, [st.full || st.name, ...(st.address || [])].join("\n"), b);
+  });
+  // candidate: orange diamond, draggable
+  if (CAND){
+    const g = el("g", {class: "stn cand", transform: at(CAND)});
+    g.appendChild(el("path", {d: `M0 ${-s * 1.3}L${s} 0L0 ${s * 1.3}L${-s} 0Z`, fill: "#B26A00", stroke: "#fff", "stroke-width": sw}));
+    finish(g, "Candidate Station", "Candidate Station (drag to move)", s * 1.3);
+  }
   if (sel){ const ring = el("circle", {cx: px(sel.lng).toFixed(1), cy: py(sel.lat).toFixed(1), r: (s * 2).toFixed(2), fill: "none", stroke: "#0F2744", "stroke-width": (1.5 / Math.pow(z, .8)).toFixed(2), "stroke-dasharray": "3 2", "pointer-events": "none"}); gStn.prepend(ring); }
+}
+/* One road-network isochrone request per location (cached for the session). Throws on any failure:
+   no fallback circles, no estimates. */
+async function fetchCoverage(loc){
+  const k = keyOf(loc.lat, loc.lng);
+  if (COV.has(k)) return COV.get(k);
+  const T = M.TRAVEL_TIME, q = {locations: [{lat: +loc.lat.toFixed(5), lon: +loc.lng.toFixed(5)}], costing: T.costing, contours: T.contours.map(t => ({time: t})), polygons: true};
+  const r = await fetch(T.url + "?json=" + encodeURIComponent(JSON.stringify(q)), AbortSignal.timeout ? {signal: AbortSignal.timeout(45000)} : {});
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const gj = await r.json();
+  const feats = (gj.features || []).filter(f => f.geometry && (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon") && T.contours.includes(f.properties.contour));
+  if (feats.length !== T.contours.length) throw new Error("service returned " + feats.length + " of " + T.contours.length + " areas");
+  const cand = loc.kind === "candidate";
+  const c = {name: cand ? `Candidate ${[...COV.values()].filter(x => x.kind === "candidate").length + 1}` : loc.name, kind: cand ? "candidate" : "station",
+    address: loc.address, lat: loc.lat, lng: loc.lng, features: feats, bands: M.assignBands(DS, feats)};
+  COV.set(k, c);
+  return c;
 }
 async function calculate(){
   const loc = selectedLoc(); if (!loc) return;
-  const k = keyOf(loc.lat, loc.lng);
-  if (COV.has(k)){ activeKey = k; refreshCoverage(); return; }
-  const T = M.TRAVEL_TIME, q = {locations: [{lat: +loc.lat.toFixed(5), lon: +loc.lng.toFixed(5)}], costing: T.costing, contours: T.contours.map(t => ({time: t})), polygons: true};
+  covError = "";
   $("#stStatus").textContent = "Requesting road-network drive-time areas…"; $("#stCalc").disabled = true;
-  try {
-    const r = await fetch(T.url + "?json=" + encodeURIComponent(JSON.stringify(q)));
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    const gj = await r.json();
-    const feats = (gj.features || []).filter(f => f.geometry && (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon") && T.contours.includes(f.properties.contour));
-    if (feats.length !== T.contours.length) throw new Error("service returned " + feats.length + " of " + T.contours.length + " areas");
-    COV.set(k, {name: loc.name === "Candidate" ? `Candidate ${COV.size + 1}` : loc.name, lat: loc.lat, lng: loc.lng, features: feats, bands: M.assignBands(DS, feats)});
-    activeKey = k;
-  } catch (e) {
-    $("#stStatus").textContent = `Could not calculate drive-time areas (${e.message}). The service may be busy or offline; no areas are shown rather than estimates.`;
-    activeKey = null;
-  }
+  try { await fetchCoverage(loc); }
+  catch (e) { covError = `Drive-time service is temporarily unavailable (${e.message}). Incident and GIS data remain available. No drive-time areas are shown rather than estimates.`; }
+  // a candidate is compared against the CCFD1 station, so fetch the station's areas once too
+  if (!covError && loc.kind === "candidate" && stationList().length){ try { await fetchCoverage(stationList()[0]); } catch (e) { /* comparison only; noted in the panel */ } }
   refreshCoverage();
 }
 function refreshCoverage(){
@@ -644,31 +688,64 @@ function refreshCoverage(){
   $("#stCalc").disabled = !loc;
   $("#stCalc").textContent = activeKey ? "Calculated ✓" : "Calculate drive-time areas";
   if (activeKey) $("#stCalc").disabled = true;
-  // polygons
+  // polygons: one non-overlapping band per contour (this contour minus the next-nearer one, even-odd fill),
+  // so transparency does not stack and incidents, township lines and markers stay visible
   gIso.innerHTML = "";
   const cov = activeKey ? COV.get(activeKey) : null;
-  if (cov) [...cov.features].sort((a, b) => b.properties.contour - a.properties.contour).forEach(f => {
-    const i = M.TRAVEL_TIME.contours.indexOf(f.properties.contour);
-    gIso.appendChild(el("path", {class: "iso", d: featPath(f.geometry), fill: BAND_COLORS[i], "fill-opacity": .42, "fill-rule": "evenodd", "vector-effect": "non-scaling-stroke"}));
-  });
+  if (cov){
+    const sorted = [...cov.features].sort((a, b) => a.properties.contour - b.properties.contour);
+    sorted.forEach((f, j) => {
+      const i = M.TRAVEL_TIME.contours.indexOf(f.properties.contour);
+      gIso.appendChild(el("path", {class: "iso", d: featPath(f.geometry) + (j ? featPath(sorted[j - 1].geometry) : ""), fill: BAND_COLORS[i], "fill-opacity": .4, "fill-rule": "evenodd", "vector-effect": "non-scaling-stroke"}));
+    });
+  }
   drawStations();
-  $("#covTag").textContent = cov ? "Road network" : "Not calculated"; $("#covTag").className = "tag" + (cov ? " real" : "");
-  if (!loc) $("#stStatus").textContent = M.STATIONS.length ? "" : "The CCFD1 station location is not in the project data. Place a candidate on the map (or add the station to STATIONS in shared/cad-metrics.js).";
-  else if (!cov && !$("#stStatus").textContent.startsWith("Could not")) $("#stStatus").textContent = `${loc.name} at ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}. Press Calculate to request drive-time areas.`;
-  else if (cov) $("#stStatus").textContent = `${cov.name} at ${cov.lat.toFixed(4)}, ${cov.lng.toFixed(4)}. Counts follow the current filters.`;
+  $("#covTag").textContent = cov ? "Road network" : covError ? "Service unavailable" : "Not calculated"; $("#covTag").className = "tag" + (cov ? " real" : covError ? " na" : "");
+  if (!loc) $("#stStatus").textContent = !M.STATIONS.length ? "The CCFD1 station location is not in the project data. Place a candidate on the map (or add the station to STATIONS in shared/cad-metrics.js)."
+    : "Press “Place candidate on map”, then click the map to set the candidate station.";
+  else if (covError) $("#stStatus").textContent = covError;
+  else if (!cov) $("#stStatus").textContent = `${loc.name} at ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}. Press Calculate to request road-network drive-time areas.`;
+  else $("#stStatus").textContent = `${cov.name} at ${cov.lat.toFixed(5)}, ${cov.lng.toFixed(5)}. Counts follow the current filters.`;
   renderCoverageTable();
 }
 function renderCoverageTable(){
   const cov = activeKey ? COV.get(activeKey) : null, incs = CURRENT;
-  if (!cov){ $("#covTable").innerHTML = ""; $("#covCompare").innerHTML = ""; return; }
-  const r = M.coverage(DS, incs, cov.bands);
-  $("#covTable").innerHTML = `<thead><tr><th>Drive time</th><th>Incidents</th><th>%</th><th>Cum. %</th><th>Fire</th><th>EMS</th></tr></thead><tbody>` +
-    r.rows.map((b, i) => `<tr><td><i class="bandsw" style="background:${BAND_COLORS[i] || "#fff"};${i >= 4 ? "border:1px solid var(--line)" : ""}"></i>${esc(b.label)}</td><td>${num(b.incidents)}</td><td>${fmtPct(b.pct)}</td><td>${fmtPct(b.cumulativePct)}</td><td>${num(b.F)}</td><td>${num(b.M)}</td></tr>`).join("") +
-    `<tr class="total"><td>Located incidents</td><td>${num(r.located)}</td><td></td><td></td><td>${num(r.rows.reduce((s, b) => s + b.F, 0))}</td><td>${num(r.rows.reduce((s, b) => s + b.M, 0))}</td></tr></tbody>`;
-  const others = [...COV.values()];
-  $("#covCompare").innerHTML = (r.unlocated ? `<p class="note">${num(r.unlocated)} incident(s) with no location are not counted.</p>` : "") +
-    (others.length > 1 ? `<h3 style="font-size:12.5px;margin:10px 0 2px">Compared locations (current filters)</h3><div class="scroll"><table class="tbl"><thead><tr><th>Location</th><th>≤4</th><th>≤6</th><th>≤8</th><th>≤12</th></tr></thead><tbody>` +
-      others.map(c => { const x = M.coverage(DS, incs, c.bands).rows; return `<tr><td>${esc(c.name)}</td>${x.slice(0, 4).map(b => `<td>${fmtPct(b.cumulativePct)}</td>`).join("")}</tr>`; }).join("") +
+  if (!cov){ $("#covSummary").innerHTML = ""; $("#covTable").innerHTML = ""; $("#covCompare").innerHTML = ""; return; }
+  const r = M.coverage(DS, incs, cov.bands), n = r.located;
+  const zero = () => ({incidents: 0, M: 0, F: 0, V: 0, O: 0, U: 0}), add = (t, b) => { for (const k in t) t[k] += b[k]; return t; };
+  const other = b => b.V + b.O + b.U, pc = v => n ? fmtPct(v / n * 100) : "N/A";
+  const sw = i => `<i class="bandsw" style="background:${BAND_COLORS[i] || "#fff"};${i >= 4 ? "border:1px solid var(--line)" : ""}"></i>`;
+  const head = `<thead><tr><th></th><th>Incidents</th><th>%</th><th>EMS</th><th>Fire</th><th>Other</th></tr></thead>`;
+  const row = (label, b, cls = "") => `<tr${cls ? ` class="${cls}"` : ""}><td>${label}</td><td>${num(b.incidents)}</td><td>${pc(b.incidents)}</td><td>${num(b.M)}</td><td>${num(b.F)}</td><td>${num(other(b))}</td></tr>`;
+  // cumulative: "within X min" includes every nearer band
+  const acc = zero(), cum = r.rows.slice(0, 4).map(b => ({...add(acc, b)}));
+  const sub = cov.kind === "station" ? (cov.address || [])[0] || "" : `${cov.lat.toFixed(5)}, ${cov.lng.toFixed(5)}`;
+  $("#covSummary").innerHTML = `<div class="covhead"><b>${esc(cov.name)}</b>${sub ? ` · ${esc(sub)}` : ""}<br>` +
+    `Historical incidents analyzed: <b class="n">${num(n)}</b><br><span style="color:var(--muted)">Located ${esc(scopeText(FILTERS))} matching the current filters` +
+    `${r.unlocated ? `; ${num(r.unlocated)} without a location not counted` : ""}.</span></div>` +
+    `<div class="scroll"><table class="tbl"><caption>Cumulative <span>· each row includes all nearer incidents</span></caption>${head}<tbody>` +
+    cum.map((b, i) => row(`Within ${M.TRAVEL_TIME.contours[i]} min`, b)).join("") +
+    row(`Beyond ${M.TRAVEL_TIME.contours[3]} min`, r.rows[4], "sep") + `</tbody></table></div>`;
+  // exclusive: each incident in exactly one band; total reconciles to the incidents analyzed
+  $("#covTable").innerHTML = `<caption>Exclusive bands <span>· each incident counted once</span></caption>${head}<tbody>` +
+    r.rows.map((b, i) => row(sw(i) + esc(BAND_LABELS[i]), b)).join("") +
+    row("Total analyzed", r.rows.reduce(add, zero()), "total") + `</tbody>`;
+  // CCFD1 station vs candidate (only after a candidate has been calculated)
+  const all = [...COV.values()], stn = all.find(c => c.kind === "station"), cands = all.filter(c => c.kind === "candidate");
+  const cand = cov.kind === "candidate" ? cov : cands[cands.length - 1];
+  const within = c => { let s = 0; return M.coverage(DS, incs, c.bands).rows.slice(0, 4).map(b => s += b.incidents); };
+  const signed = (v, d = 0) => (v > 0 ? "+" : v < 0 ? "−" : "±") + Math.abs(v).toFixed(d);
+  let cmp = "";
+  if (stn && cand){
+    const a = within(stn), b = within(cand);
+    cmp = `<div class="scroll"><table class="tbl"><caption>${esc(stn.name)} vs ${esc(cand.name)} <span>· cumulative, current filters</span></caption>` +
+      `<thead><tr><th></th><th>Current station</th><th>Candidate</th><th>Difference</th></tr></thead><tbody>` +
+      M.TRAVEL_TIME.contours.map((t, i) => `<tr><td>Within ${t} min</td><td>${num(a[i])} / ${pc(a[i])}</td><td>${num(b[i])} / ${pc(b[i])}</td>` +
+        `<td>${n ? `${signed(b[i] - a[i])} / ${signed((b[i] - a[i]) / n * 100, 1)} pts` : "N/A"}</td></tr>`).join("") + `</tbody></table></div>`;
+  } else if (cands.length && stationList().length) cmp = `<p class="note">CCFD1 Station drive-time areas could not be loaded, so no station vs candidate comparison is shown.</p>`;
+  $("#covCompare").innerHTML = cmp + `<p class="note">EMS = EMS / Medical; Fire = Fire / hazard; Other = Vehicle accident, Other and Not yet classified (existing categories, unchanged).</p>` +
+    (all.length > 2 ? `<h3 style="font-size:12.5px;margin:10px 0 2px">Compared locations (current filters)</h3><div class="scroll"><table class="tbl"><thead><tr><th>Location</th><th>≤4</th><th>≤6</th><th>≤8</th><th>≤12</th></tr></thead><tbody>` +
+      all.map(c => { const x = M.coverage(DS, incs, c.bands).rows; return `<tr><td>${esc(c.name)}</td>${x.slice(0, 4).map(b => `<td>${fmtPct(b.cumulativePct)}</td>`).join("")}</tr>`; }).join("") +
       `</tbody></table></div><p class="note">Cumulative % of located incidents within each drive time.</p>` : "");
 }
 
@@ -927,8 +1004,9 @@ function renderNotes(){
   }
   h += `<div><h3>Station coverage method</h3><ul>
     <li>Drive-time areas come from the public <b>Valhalla</b> routing server (OpenStreetMap roads; ${esc(M.TRAVEL_TIME.url)}), <b>standard car speeds</b>, not adjusted for emergency driving, turnout time or apparatus. No API key, no cost. Requested only when you press Calculate; only the station coordinates are sent.</li>
-    <li>Each incident is placed in the first band whose road-network polygon contains it. These are not distance circles.</li>
-    <li>The CCFD1 station location is not in the project data; add it to <code>STATIONS</code> in shared/cad-metrics.js to make it selectable.</li></ul></div>`;
+    <li>Each incident is placed in the first band whose road-network polygon contains it (point-in-polygon on the incident coordinates), so bands are exclusive (0–4, &gt;4–6, &gt;6–8, &gt;8–12, &gt;12 min) and sum to the incidents analyzed. These are not distance circles. Incidents without a location are not counted. Counts recompute for the current filters.</li>
+    ${M.STATIONS.map(s => `<li><b>${esc(s.name)}</b> (${esc(s.full || "")}, ${esc((s.address || []).join(", "))}): ${s.lat.toFixed(5)}, ${s.lng.toFixed(5)}. ${esc(s.source || "")}; stored in <code>STATIONS</code> in shared/cad-metrics.js (not geocoded on page load). Address-range geocode, not a surveyed building point.</li>`).join("") ||
+      "<li>The CCFD1 station location is not in the project data; add it to <code>STATIONS</code> in shared/cad-metrics.js to make it selectable.</li>"}</ul></div>`;
   $("#notesBody").innerHTML = h;
   $("#covMethod").innerHTML = `Road-network drive time (OpenStreetMap via the public Valhalla server, standard car speeds; not emergency response time). Pressing Calculate sends only the station coordinates to <code>valhalla1.openstreetmap.de</code>.`;
 }
@@ -971,8 +1049,9 @@ function init(){
     Object.values(G.ROLES).map(r => `<span><i style="background:${r.fill};${r.fill === "#E8EFF7" ? "border:1px solid var(--line)" : ""}"></i>${esc(r.label)}</span>`).join("") +
     `<span><i class="dash"></i>CCFD1 service area (Clay, Noble, Eel, Washington)</span>` +
     M.CATEGORY_ORDER.filter(c => DS.incidents.some(x => x.category === c)).map(c => c === "U" ? `<span><i class="ring"></i>${esc(M.CATEGORY_LABEL[c])}</span>` : `<span><i class="dot" style="background:${CAT(c).color}"></i>${esc(c === "M" ? EMS_LABEL : M.CATEGORY_LABEL[c])}</span>`).join("") +
-    `<span><i class="dot" style="background:#B26A00;border-radius:2px;transform:rotate(45deg)"></i>Candidate station</span>` +
-    BAND_COLORS.map((c, i) => `<span><i style="background:${c};opacity:.75"></i>${esc(M.TRAVEL_TIME.bands[i])} drive</span>`).join("");
+    (M.STATIONS.length ? `<span><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-1px;margin-right:6px"><rect width="24" height="24" rx="6" fill="${STN_RED}"/><path d="${FLAME}" fill="#fff" transform="translate(12 12) scale(1.15) translate(-15 -16)"/></svg>CCFD1 Station</span>` : "") +
+    `<span><i class="dot" style="background:#B26A00;border-radius:2px;transform:rotate(45deg)"></i>Candidate Station</span>` +
+    BAND_COLORS.map((c, i) => `<span><i style="background:${c};opacity:.75"></i>${esc(BAND_LABELS[i])} drive</span>`).join("");
   wireMap();
   setView(FULL);
   fillStations();
@@ -990,7 +1069,7 @@ function init(){
   });
   $("#stPlace").onclick = () => togglePlacing(!placing);
   $("#stCalc").onclick = calculate;
-  $("#stSel").onchange = () => { $("#stStatus").textContent = ""; refreshCoverage(); };
+  $("#stSel").onchange = () => { covError = ""; refreshCoverage(); };
   if (!DS.hasDetail) ["#showOutside"].forEach(s => $(s).disabled = false);
 }
 
