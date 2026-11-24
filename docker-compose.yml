@@ -1,0 +1,15 @@
+# Both images build for your own machine with `docker compose up --build` (see start.sh).
+# build-all.sh builds both for Intel/AMD and ARM.
+services:
+  assistant:
+    image: ccfd1-assistant:latest
+    build: { context: ., dockerfile: docker/assistant.Dockerfile }
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    restart: unless-stopped
+  web:
+    image: ccfd1-web:latest
+    build: { context: ., dockerfile: docker/web.Dockerfile }
+    ports: ["${PORT:-8000}:80"]
+    depends_on: [assistant]
+    restart: unless-stopped

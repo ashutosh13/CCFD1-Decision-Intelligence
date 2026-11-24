@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCFD1 Dashboard Setup</title>
+<style>
+  body{font:17px/1.55 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 16px;color:#1a1a1a}
+  h1{font-size:26px} h2{font-size:19px;margin-top:32px}
+  code,pre{font-family:ui-monospace,Menlo,monospace;font-size:14.5px}
+  pre{background:#f3f4f6;padding:12px 14px;border-radius:6px;overflow-x:auto}
+  li{margin:10px 0}
+  .note{color:#555}
+</style>
+</head>
+<body>
+<h1>CCFD1 Dashboard: Setup</h1>
+<p class="note">About 15 minutes. Do these in order.</p>
+
+<h2>Accounts</h2>
+<ol>
+  <li><b>Get a GitHub account:</b> go to <code>github.com/signup</code> and complete with your email. Send me your username so I can add you to the project.</li>
+  <li><b>Get an Anthropic API key:</b> go to <code>console.anthropic.com</code> and sign up. Open <b>Billing</b> and add $5 of credit. Open <b>API Keys</b>, click <b>Create Key</b>, and copy it (starts with <code>sk-ant-</code>).</li>
+</ol>
+
+<h2>Option A: Run on your own computer (Mac or Windows)</h2>
+<ol start="3">
+  <li><b>Install Docker:</b> go to <code>docker.com/products/docker-desktop</code>, download, install, and open it.</li>
+  <li><b>Install Git:</b> Mac: open Terminal and run <code>xcode-select --install</code>. Windows: go to <code>git-scm.com</code> and install, then use <b>Git Bash</b> for the next step.</li>
+  <li><b>Download and start it</b> (paste your API key when asked):
+<pre>git clone https://github.com/ashutosh13/CCFD1-Decision-Intelligence.git ~/ccfd1 &amp;&amp; cd ~/ccfd1 &amp;&amp; ./start.sh</pre></li>
+  <li><b>Open it:</b> go to <code>http://localhost:8000</code></li>
+</ol>
+
+<h2>Option B: Run on a server (Linux, Ubuntu)</h2>
+<ol start="3">
+  <li><b>Install Docker and Git:</b>
+<pre>curl -fsSL https://get.docker.com | sh &amp;&amp; sudo apt-get install -y git</pre></li>
+  <li><b>Download and start it</b> (paste your API key when asked):
+<pre>git clone https://github.com/ashutosh13/CCFD1-Decision-Intelligence.git ~/ccfd1 &amp;&amp; cd ~/ccfd1 &amp;&amp; sudo ./start.sh</pre></li>
+  <li><b>Open it:</b> go to <code>http://YOUR-SERVER-IP:8000</code></li>
+</ol>
+
+<h2>Day to day</h2>
+<pre>cd ~/ccfd1 &amp;&amp; git pull &amp;&amp; ./start.sh     # get the latest and restart
+cd ~/ccfd1 &amp;&amp; ./stop.sh                  # stop it</pre>
+<p class="note">Use <code>sudo</code> in front of these on a server. To use a different port, run <code>PORT=9000 ./start.sh</code>.</p>
+</body>
+</html>

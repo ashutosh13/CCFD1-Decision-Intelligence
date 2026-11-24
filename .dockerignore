@@ -1,0 +1,15 @@
+# Allowlist: nothing goes into an image unless listed here (keeps .env, the database and incident data out).
+*
+!build_site.py
+!index.html
+!config.json
+!shared
+!assistant
+!datasets
+!assets
+!data/facts.json
+!worker
+!docker
+worker/node_modules
+worker/.wrangler
+worker/.dev.vars*

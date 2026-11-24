@@ -22,6 +22,8 @@
   ENG.FTE_PER_POST = ENG.POST_HOURS/ENG.FLSA_DIVISOR;                    // 3.179 - derived, never hard-coded as 3
   ENG.BASE_LOADED = ENG.AVG_SALARY+Math.floor(ENG.AVG_SALARY*ENG.PAYROLL_TAX);   // 60,503 (tax truncated to whole dollars)
   ENG.BASE_PERSONNEL = ENG.LINE_FF*ENG.BASE_LOADED;                       // 726,036
+/* Overtime hours implied by the recorded overtime cost: $61,569 at 1.5x the average hourly rate (about 2,013). Derived, not a timesheet hours total. */
+ENG.OT_HOURS_LAST = Math.round(ENG.OT_COST_CAP/(ENG.OT_MULT*ENG.AVG_SALARY/ENG.FLSA_DIVISOR));
 
   /* Firefighters needed to cover `posts` with no overtime; today's 12 when nothing changes */
   function defaultFirefighters(posts){
@@ -36,7 +38,7 @@
   }
 
   /* i = {posts, firefighters (optional, line firefighters employed), perf (bool), perfRate (0.20-0.30),
-          premium ($/yr per employee), adj (0-0.10)} */
+          premium ($/yr per employee), adj (-0.10 to 0.10)} */
   function costEngine(i){
     const E=ENG, R=Math.round;
     const firefighters=i.firefighters==null?defaultFirefighters(i.posts):i.firefighters;
