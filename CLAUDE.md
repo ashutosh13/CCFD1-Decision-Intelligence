@@ -47,7 +47,7 @@ Run from the repo root. Stop at the first failing step.
 6. **Verify.**
    - `node --test assistant/tools.test.js assistant/chart.test.js` (some expected values, such as 604 incidents, will need
      updating deliberately when data changes; update the test and say so).
-   - Serve with `python -m http.server 8000` and open the page. The console must say
+   - Serve with `./start.sh --dev` and open the page. The console must say
      "all N mapped numbers match the page".
    - From `worker/`, `npm test`. If `TOOL_SCHEMAS` changed, `npm run sync-tools` first.
 7. **Record.** Note what changed and why in the commit message. Do not commit `ccfd1.db`, the

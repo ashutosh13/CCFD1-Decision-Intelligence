@@ -3,22 +3,21 @@
 A static dashboard (GitHub Pages) with an optional "Ask the data" assistant (a small Cloudflare Worker that
 calls the Claude API so the key never reaches the browser).
 
-## Two scripts
+## Two ways to run it
 
-| Script | Where | What it does |
+Both use the same Docker image (the built site plus the assistant Worker in one container).
+
+| Method | Command | What it does |
 |---|---|---|
-| `python3 run.py` | your machine | The full local data pipeline (below). It ends at the push. |
-| `python3 build_site.py` | GitHub Actions | Assembles the `site/` folder from files in the repo. No database or keys. |
+| Local | `./start.sh` (peers) or `./start.sh --dev` (you) | `start.sh` pulls the pre-built multi-architecture image `ghcr.io/ashutosh13/ccfd1` and runs it at http://localhost:8000; it only needs Docker and asks for the API key the first time (saved in `.env`). `--dev` builds the image from your working copy first. `./stop.sh` stops it. If `datasets.private/` exists it is mounted read-only into the container (the sanitized rows are never in the image). Only `http://localhost:<port>` is allowed to call the assistant. |
+| CI | push to `main` | `.github/workflows/pages.yml` runs the tests, publishes Pages, deploys the Cloudflare Worker, and builds and pushes the Intel/AMD + ARM image that `start.sh` pulls. |
 
-```
-python3 run.py            # Mac/Linux      (Windows: run.bat, Mac: double-click run.command)
-python3 run.py --dry-run  # extract + validate only; changes nothing
-python3 run.py --setup    # first time only: saves your keys to .env
-```
+For a machine with no registry access, `docker save ghcr.io/ashutosh13/ccfd1:latest -o ccfd1-image.tar` and put the file next to `start.sh`; it loads it instead of pulling.
+`python3 run.py` is the data-refresh pipeline that feeds both: it ends at the push, which starts the CI run.
 
 `run.py` (1) checks setup, (2) extracts new PDFs from `inbox/`, (3) validates and loads them into `ccfd1.db`,
 (4) exports datasets and builds the dataset schemas and the sanitized incident table (with the PII scan), (5) runs
-every test (pytest, Node, Worker), (6) deploys the assistant Worker and uploads the sanitized rows, (7) assembles
+every test (pytest, Node, Worker), (6) syncs the assistant's tool schemas and uploads the sanitized rows, (7) assembles
 `site/` as a preview, (8) asks to commit and push. It stops at the first failure. After the push, the workflow in
 `.github/workflows/pages.yml` runs the tests again, runs `build_site.py`, publishes Pages and deploys the Worker.
 
@@ -36,7 +35,7 @@ Every update:
 1. Put the new Daily Blotter PDFs in `inbox/`. File names must contain **FIRE** or **EMS**.
    (Already-extracted folders containing `incidents.csv` and `unit_responses.csv` also work.)
 2. Run `python3 run.py` (or double-click `run.command` / `run.bat`). It extracts, validates, loads, exports,
-   tests, deploys the assistant, builds the site and pushes to GitHub, which publishes it.
+   tests, builds the site and pushes to GitHub, whose workflow publishes it and deploys the assistant.
 
 Running again with the same files does nothing new. `python3 run.py --dry-run` only validates.
 
@@ -53,7 +52,7 @@ Running again with the same files does nothing new. `python3 run.py --dry-run` o
 
 - `datasets/` is the only copy of the numbers the page and assistant use (tidy JSON, aggregates only, plus `index.json`
   with the last-updated date). The page builds its figures from these files when it loads. `assets/` holds the map shapes.
-- `config.json` is the only place for the Pages address and the assistant's Worker URL (`run.py` fills the URL in).
+- `config.json` is the only place for the Pages address and the assistant's Worker URL (fixed; the Worker deploys to it).
 - `data/facts.json` is the assistant's registry of sourced scalars (see Known gaps).
 - `run.py` is the pipeline; `pipeline/` (validation, SQLite ingest, dataset export), `ocr-pipe/` (PDF extraction),
   `worker/` (assistant proxy), `shared/` and `assistant/` (scenario math and assistant tools).

@@ -3,12 +3,13 @@
 
     python run.py --setup        first time only: asks for your keys, writes .env
     python run.py                extract -> validate/ingest -> export + schemas + sanitized table -> test ->
-                                 deploy assistant + upload data -> assemble site/ (preview) -> push
+                                 sync tools + upload data -> assemble site/ (preview) -> push
     python run.py --dry-run      extract + validate only (no database or site changes)
 
 Put new blotter PDFs (file name must contain FIRE or EMS) or already-extracted folders
 (incidents.csv + unit_responses.csv) in inbox/. Re-running with the same files does nothing new.
-The run ends at the push (with a confirmation prompt); GitHub Actions then runs build_site.py and publishes.
+The run ends at the push (with a confirmation prompt); GitHub Actions then runs build_site.py, publishes Pages
+and deploys the Worker. For local viewing use `./start.sh --dev`.
 Uses only the Python standard library; it creates .venv for the extractor's dependencies.
 """
 from __future__ import annotations
@@ -17,7 +18,6 @@ import argparse
 import hashlib
 import json
 import os
-import re
 import shutil
 import sqlite3
 import subprocess
@@ -65,15 +65,21 @@ def need(cmd, hint):
 
 
 # ---------- config ----------
-def load_env():
+def read_env() -> dict:
+    out = {}
     f = ROOT / ".env"
-    if not f.exists():
-        return
-    for line in f.read_text().splitlines():
-        line = line.strip()
-        if line and not line.startswith("#") and "=" in line:
-            k, v = line.split("=", 1)
-            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    if f.exists():
+        for line in f.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                out[k.strip()] = v.strip().strip('"').strip("'")
+    return out
+
+
+def load_env():
+    for k, v in read_env().items():
+        os.environ.setdefault(k, v)
 
 
 def config() -> dict:
@@ -87,12 +93,7 @@ def save_config(cfg: dict):
 def setup():
     say("First-time setup. Press Enter to keep an existing value. Keys are saved only in .env (never committed).")
     env_file = ROOT / ".env"
-    cur = {}
-    if env_file.exists():
-        for line in env_file.read_text().splitlines():
-            if "=" in line and not line.startswith("#"):
-                k, v = line.split("=", 1)
-                cur[k.strip()] = v.strip()
+    cur = read_env()
     out = {}
     for key, label in (("ANTHROPIC_API_KEY", "Anthropic API key (starts with sk-ant-)"),
                        ("CLOUDFLARE_API_TOKEN", "Cloudflare API token (Workers Scripts:Edit, KV:Edit)"),
@@ -110,6 +111,7 @@ def setup():
     if org:
         cfg["pages_origin"] = org.rstrip("/")
         save_config(cfg)
+        say("Also put this address in ALLOWED_ORIGINS in worker/wrangler.toml so the deployed Worker accepts it.")
     say("Saved. Add files to inbox/ and run: python run.py")
 
 
@@ -256,49 +258,29 @@ def test_all():
                        "datasets/ may already hold the new data locally (undo with `git checkout datasets`).")
 
 
-def deploy_worker(cfg: dict):
-    key, tok = os.environ.get("ANTHROPIC_API_KEY"), os.environ.get("CLOUDFLARE_API_TOKEN")
-    if not (key and tok):
-        say("No ANTHROPIC_API_KEY / CLOUDFLARE_API_TOKEN in .env: leaving the assistant as it is.")
-        return
+def sync_and_upload():
+    """Sync the Worker's tool schemas (committed, checked by CI) and upload the sanitized rows.
+    The Worker itself is deployed by GitHub Actions after the push; the private rows never reach CI."""
     need("npm", "Install Node.js from https://nodejs.org")
     if not (WORKER / "node_modules").exists():
         if run(["npm", "ci", "--silent"], cwd=WORKER).returncode:
             raise Stop("npm install failed in worker/.")
-    origins = ",".join([cfg["pages_origin"], "http://localhost:8000"])
-    toml = WORKER / "wrangler.toml"
-    text = toml.read_text()
-    block = f'# BEGIN run.py\n[vars]\nALLOWED_ORIGINS = "{origins}"\n# END run.py'
-    if "# BEGIN run.py" in text:
-        text = re.sub(r"# BEGIN run\.py.*?# END run\.py", block, text, flags=re.S)
-    else:
-        text = text.rstrip("\n") + "\n\n" + block + "\n"
-    text = re.sub(r'^name = ".*"$', f'name = "{cfg["worker_name"]}"', text, count=1, flags=re.M)
-    toml.write_text(text)
     if run(["npm", "run", "sync-tools", "--silent"], cwd=WORKER).returncode:
         raise Stop("Could not sync the assistant tool definitions.")
-    r = run(["npx", "wrangler", "secret", "put", "ANTHROPIC_API_KEY"], cwd=WORKER, input=key, capture=True)
-    if r.returncode:
-        raise Stop("Cloudflare rejected the API key upload. Check CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in .env.")
-    r = run(["npx", "wrangler", "deploy"], cwd=WORKER, capture=True)
-    out = (r.stdout or "") + (r.stderr or "")
-    if r.returncode:
-        raise Stop("Deploying the assistant failed. Last lines:\n" + "\n".join(out.strip().splitlines()[-6:]))
-    m = re.search(r"https://[\w.-]+\.workers\.dev", out)
-    if m and m.group(0) != cfg.get("assistant_url"):
-        cfg["assistant_url"] = m.group(0)
-        save_config(cfg)
-    say(f"Assistant deployed: {cfg.get('assistant_url')}")
-    if (ROOT / "datasets.private").exists() and any((ROOT / "datasets.private").glob("*.json")):
-        if run(["npm", "run", "upload-data", "--silent"], cwd=WORKER).returncode:
-            raise Stop("Uploading the sanitized incident table to the Worker failed.")
-        say("Sanitized incident table uploaded to the Worker (never published as a static file).")
+    private = ROOT / "datasets.private"
+    if not (private.exists() and any(private.glob("*.json"))):
+        return
+    if not (os.environ.get("CLOUDFLARE_API_TOKEN") and os.environ.get("CLOUDFLARE_ACCOUNT_ID")):
+        say("No Cloudflare credentials in .env: the sanitized incident table was not uploaded.")
+        return
+    if run(["npm", "run", "upload-data", "--silent"], cwd=WORKER).returncode:
+        raise Stop("Uploading the sanitized incident table to the Worker failed.")
+    say("Sanitized incident table uploaded (never published as a static file).")
 
 
 def push():
     need("git", "Install git from https://git-scm.com")
-    paths = [p for p in ("datasets", "config.json", "index.html", "data/facts.json", "worker/wrangler.toml",
-                         "worker/src/tool-schemas.js") if (ROOT / p).exists()]
+    paths = [p for p in ("datasets", "config.json", "index.html", "data/facts.json", "worker/src/tool-schemas.js") if (ROOT / p).exists()]
     run(["git", "add", "--"] + paths)
     if run(["git", "diff", "--cached", "--quiet"]).returncode == 0:
         say("Nothing new to publish.")
@@ -324,7 +306,6 @@ def main() -> int:
             setup()
             return 0
         load_env()
-        cfg = config()
         need("python3" if os.name != "nt" else "python", "Install Python 3.10+ from https://python.org")
         need("node", "Install Node.js from https://nodejs.org")
         step(1, "Checking setup")
@@ -332,7 +313,7 @@ def main() -> int:
         step(2, "Extracting new PDFs")
         extract()
         step(3, "Validating and loading into the database")
-        loaded = ingest(a.dry_run, cfg["township"])
+        loaded = ingest(a.dry_run, config()["township"])
         if a.dry_run:
             say("\nDry run finished: nothing was loaded or published.")
             return 0
@@ -340,8 +321,8 @@ def main() -> int:
         export_and_promote()
         step(5, "Running checks (pytest, Node, Worker)")
         test_all()
-        step(6, "Deploying the assistant")
-        deploy_worker(cfg)
+        step(6, "Syncing assistant tools and uploading the sanitized table")
+        sync_and_upload()
         step(7, "Assembling site/ (preview of what GitHub Actions will publish)")
         build_site()
         step(8, "Publishing to GitHub")

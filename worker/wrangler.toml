@@ -15,7 +15,5 @@ preview_urls = false
 binding = "RATE_LIMIT"
 id = "841e9bd3246e4886999f56172c3e4830"
 
-# BEGIN run.py
 [vars]
 ALLOWED_ORIGINS = "https://ashutosh13.github.io,http://localhost:8000"
-# END run.py
