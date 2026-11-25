@@ -315,6 +315,7 @@ paket-files/
 # Python Tools for Visual Studio (PTVS)
 __pycache__/
 *.pyc
+*.DS_STORE
 
 # Cake - Uncomment if you are using it
 # tools/**
@@ -384,3 +385,15 @@ worker/.env*
 worker/.wrangler/
 worker/dist/
 .dev.vars*
+
+# Handoff pipeline
+inbox/
+site/
+ccfd1.db
+.env
+.venv/
+
+# Candidate datasets for potential ingestion - skipped for PII
+datasets.candidate/
+# Sanitized record-level rows - skipped for general data privacy of CCFD1/CC
+datasets.private/

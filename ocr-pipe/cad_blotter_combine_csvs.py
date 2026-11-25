@@ -15,10 +15,12 @@ OUTPUT
 """
 import glob, os, sys
 import pandas as pd
-INPUT_FOLDER  = r"C:\Users\amsus\OneDrive\Desktop\purdue\final\output"
-OUTPUT_FOLDER = r"C:\Users\amsus\OneDrive\Desktop\purdue\final\combined"
+# Optional: python cad_blotter_combine_csvs.py <input_folder> <output_folder> [start] [end]
+INPUT_FOLDER  = sys.argv[1] if len(sys.argv) > 1 else "extracted"
+OUTPUT_FOLDER = sys.argv[2] if len(sys.argv) > 2 else "combined"
 
-START, END = "2025-09-01", "2026-09-30 23:59:59"   # evaluation window
+START = sys.argv[3] if len(sys.argv) > 3 else "2025-09-01"                   # evaluation window
+END   = sys.argv[4] if len(sys.argv) > 4 else "2026-09-30 23:59:59"
 
 def read(path):
     return pd.read_csv(path, dtype=str, keep_default_na=False, encoding="utf-8-sig")

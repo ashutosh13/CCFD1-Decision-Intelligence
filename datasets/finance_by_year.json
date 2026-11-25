@@ -1,0 +1,117 @@
+{
+  "id": "finance_by_year",
+  "title": "Operating revenue, spending and ending balance by year",
+  "panel": "financial",
+  "grain": "year",
+  "period": "2011-2024",
+  "status": "verified",
+  "source": "Indiana Gateway Annual Financial Reports",
+  "source_detail": "Receipts and disbursements; operating figures only",
+  "note": "Operating figures exclude loan proceeds, interfund transfers and payroll pass-throughs.",
+  "dimensions": [
+    {
+      "name": "year",
+      "type": "int"
+    }
+  ],
+  "measures": [
+    {
+      "name": "revenue",
+      "unit": "USD"
+    },
+    {
+      "name": "spending",
+      "unit": "USD"
+    },
+    {
+      "name": "balance",
+      "unit": "USD"
+    }
+  ],
+  "rows": [
+    {
+      "year": 2011,
+      "revenue": 245306,
+      "spending": 715327,
+      "balance": 126403
+    },
+    {
+      "year": 2012,
+      "revenue": 303735,
+      "spending": 984971,
+      "balance": 115024
+    },
+    {
+      "year": 2013,
+      "revenue": 854028,
+      "spending": 970849,
+      "balance": 211970
+    },
+    {
+      "year": 2014,
+      "revenue": 966327,
+      "spending": 939420,
+      "balance": 443914
+    },
+    {
+      "year": 2015,
+      "revenue": 952993,
+      "spending": 776912,
+      "balance": 633880
+    },
+    {
+      "year": 2016,
+      "revenue": 1055713,
+      "spending": 869389,
+      "balance": 820204
+    },
+    {
+      "year": 2017,
+      "revenue": 996658,
+      "spending": 801658,
+      "balance": 1015204
+    },
+    {
+      "year": 2018,
+      "revenue": 981150,
+      "spending": 784225,
+      "balance": 1212129
+    },
+    {
+      "year": 2019,
+      "revenue": 1122409,
+      "spending": 1336772,
+      "balance": 1397766
+    },
+    {
+      "year": 2020,
+      "revenue": 1060043,
+      "spending": 874535,
+      "balance": 1583273
+    },
+    {
+      "year": 2021,
+      "revenue": 1121481,
+      "spending": 950929,
+      "balance": 1753825
+    },
+    {
+      "year": 2022,
+      "revenue": 1045228,
+      "spending": 987886,
+      "balance": 1811167
+    },
+    {
+      "year": 2023,
+      "revenue": 1238278,
+      "spending": 1806802,
+      "balance": 1932643
+    },
+    {
+      "year": 2024,
+      "revenue": 1279649,
+      "spending": 1524669,
+      "balance": 1687623
+    }
+  ]
+}

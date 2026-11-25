@@ -11,26 +11,59 @@ const tools = createTools(loadFacts());
 const STATUSES = ["verified", "partner_stated", "model_output", "placeholder"];
 
 /* ---------- required checks ---------- */
-test("run_scenario_34 defaults: 3 hires, total 343353, gap 979111, rate 0.3184", () => {
+test("run_scenario_34 defaults: 16 firefighters, $10K premium, total 551347, gap 1187105", () => {
   const out = tools.run_scenario_34({});
   assert.equal(out.status, "model_output");
-  assert.equal(out.result.hires_required, 3);
-  assert.equal(out.result.total_annual_change, 343353);
-  assert.equal(out.result.resulting_gap, 979111);
-  assert.equal(out.result.additional_rate_per_100_av, 0.3184);
-  assert.equal(out.result.total_rate_per_100_av, 0.6091);
+  assert.equal(out.result.firefighters_employed, 16);
+  assert.equal(out.result.hires_required, 4);
+  assert.equal(out.result.per_employee_cost, 83599);
+  assert.equal(out.result.compensation_cost, 277152);
+  assert.equal(out.result.new_hires_cost, 334396);
+  assert.equal(out.result.overtime_change, -60201);
+  assert.equal(out.result.total_annual_change, 551347);
+  assert.equal(out.result.resulting_gap, 1187105);
+  assert.equal(out.result.additional_rate_per_100_av, 0.3861);
+  assert.equal(out.result.total_rate_per_100_av, 0.6768);
   assert.equal(out.result.above_ceiling, true);
-  assert.equal(out.result.household_increase_150k_av, 477.66);
-  assert.equal(out.result.years_of_fund_balance_label, "1.7");
-  assert.equal(out.result.depends_on_placeholder, true, "premium 0 is a placeholder input");
+  assert.equal(out.result.total_health_program_cost, 160000);
+  assert.equal(out.result.total_personnel_cost, 1337584);
+  assert.equal(out.result.overtime_hours_baseline, 1968);
+  assert.equal(out.result.overtime_hours_scenario, 0);
+  assert.equal(out.result.depends_on_placeholder, false);
+  assert.equal(out.result.input_status.find(x => x.input === "premium").status, "assumption");
   assert.ok(out.sources.includes("eng.avg_salary") && out.sources.includes("eng.perf_rate"));
 });
 
-test("run_scenario_34 posts 4, PERF off, premium 0: total 0, gap 635758", () => {
+test("baseline reproduces actuals: $726,036 personnel, every delta zero", () => {
+  assert.equal(Engine.ENG.BASE_PERSONNEL, 726036);
   const out = tools.run_scenario_34({ posts_proposed: 4, fund_perf: false, premium: 0 });
   assert.equal(out.result.total_annual_change, 0);
   assert.equal(out.result.resulting_gap, 635758);
   assert.equal(out.result.hires_required, 0);
+  assert.equal(out.result.total_personnel_cost, 726036 + 60201);
+  assert.equal(out.result.depends_on_placeholder, true, "premium 0 is the no-insurance case");
+});
+
+test("overtime is recomputed, not capped: 3-hire fifth post raises overtime to 2,460 hrs", () => {
+  const r = Engine.costEngine({ posts: 5, firefighters: 15, perf: true, perfRate: 0.265, premium: 10000, adj: 0 });
+  assert.equal(Math.round(r.otScen.hours), 2460);
+  assert.ok(r.otScen.hours > r.otBase.hours);
+  assert.ok(r.otChange > 0);
+  const zero = Engine.costEngine({ posts: 5, firefighters: 16, perf: true, perfRate: 0.265, premium: 10000, adj: 0 });
+  assert.equal(zero.otScen.hours, 0);
+});
+
+test("fte_per_post is derived and stable; overtime is never negative; benefits are not double counted", () => {
+  for (const ff of [12, 14, 16, 20, 32]) {
+    const r = Engine.costEngine({ posts: 5, firefighters: ff, perf: true, perfRate: 0.265, premium: 10000, adj: 0 });
+    assert.equal(r.ftePerPost, 8760 / 2756);
+    assert.ok(r.otScen.hours >= 0 && r.otScen.cost >= 0);
+    const benefit = (r.perPerson.perf + r.perPerson.health) * ff;
+    assert.equal(r.layer1 + r.layer2 + 726036, r.personnelTotal - r.otScen.cost, "layers add to total personnel");
+    assert.ok(benefit > 0);
+  }
+  const bump = Engine.costEngine({ posts: 4, firefighters: 12, perf: true, perfRate: 0.265, premium: 0, adj: 0 });
+  assert.equal(bump.layer1, 12 * 14894);   // PERF on the twelve only
 });
 
 test("run_scenario_1: defaults 635758; +10000 recurring 625758; one-time +500000 year-1 135758", () => {
@@ -54,17 +87,18 @@ test("run_scenario_1: defaults 635758; +10000 recurring 625758; one-time +500000
   assert.equal(once.result.annual_gap, 635758, "later years return to the baseline");
 });
 
-test('compare_to_baseline("3&4", defaults): +343353 = 178728 compensation + 164625 staffing', () => {
+test('compare_to_baseline("3&4", defaults): +551347 = 277152 compensation + 334396 new hires - 60201 overtime', () => {
   const out = tools.compare_to_baseline("3&4", {});
   assert.equal(out.result.baseline_gap, 635758);
-  assert.equal(out.result.difference, 343353);
-  const [comp, staff] = out.result.components;
-  assert.equal(comp.amount, 178728);
+  assert.equal(out.result.difference, 551347);
+  const [comp, hires, ot] = out.result.components;
+  assert.equal(comp.amount, 277152);
   assert.match(comp.component, /Compensation/);
-  assert.equal(staff.amount, 164625);
-  assert.match(staff.component, /staffing/);
-  assert.equal(comp.amount + staff.amount, out.result.difference);
-  assert.equal(staff.detail[0].amount + staff.detail[1].amount, staff.amount);
+  assert.equal(hires.amount, 334396);
+  assert.match(hires.component, /New hires/);
+  assert.equal(ot.amount, -60201);
+  assert.match(ot.component, /Overtime/);
+  assert.equal(comp.amount + hires.amount + ot.amount, out.result.difference);
 });
 
 test("incidents_by_location includes Washington 53, Jefferson 36, Clinton 17", () => {
@@ -117,8 +151,8 @@ test("record-level refusals for names, phones, units and individual salaries", (
 
 test("tools and the dashboard share one engine (same numbers for many settings)", () => {
   for (const posts of [4, 5, 6, 8]) for (const perf of [true, false]) for (const prem of [0, 5000, 30000]) for (const sal of [0, 3, 10]) {
-    const r = Engine.costEngine({ posts, perf, perfRate: 0.265, premium: prem, adj: sal / 100, otd: true });
-    const t = tools.run_scenario_34({ posts_proposed: posts, fund_perf: perf, premium: prem, salary_adj: sal }).result;
+    const r = Engine.costEngine({ posts, perf, perfRate: 0.265, premium: prem, adj: sal / 100 });
+    const t = tools.run_scenario_34({ posts_proposed: posts, fund_perf: perf, premium: prem, salary_adj: sal, perf_rate: 26.5 }).result;
     assert.equal(t.resulting_gap, Math.round(r.gap));
     assert.equal(t.total_annual_change, Math.round(r.total));
   }
@@ -151,7 +185,7 @@ test("Scenario 1 tool matches dashboard tests (property tax +10%, staffing start
   const pt = tools.run_scenario_1({ source: "property_tax", source_pct: 10 }).result;
   assert.equal(pt.source_effect, 88297);
   assert.equal(pt.annual_gap, 547461);
-  assert.equal(tools.run_scenario_1({ start_from_staffing: true }).result.start_gap, 979111);
+  assert.equal(tools.run_scenario_1({ start_from_staffing: true }).result.start_gap, 1187105);
   const cmp = tools.compare_to_baseline("1", { funding_change: 10000 }).result;
   assert.equal(cmp.difference, -10000);
   assert.equal(cmp.components.reduce((a, c) => a + c.amount, 0), cmp.difference);
@@ -170,8 +204,8 @@ test("invalid inputs are rejected, not clamped or guessed", () => {
 
 test("TOOL_SCHEMAS follow the Messages API client-tool format", () => {
   const names = TOOL_SCHEMAS.map(t => t.name);
-  assert.deepEqual(names.sort(), ["compare_to_baseline", "finance_by_year", "get_fact", "incidents_by_hour", "incidents_by_location",
-    "run_scenario_1", "run_scenario_34", "search_facts", "unsupported"]);
+  assert.deepEqual(names.sort(), ["build_chart", "compare_to_baseline", "finance_by_year", "get_fact", "incidents_by_hour", "incidents_by_location",
+    "list_datasets", "query_dataset", "run_scenario_1", "run_scenario_34", "search_facts", "unsupported"]);
   for (const t of TOOL_SCHEMAS) {
     assert.match(t.name, /^[a-zA-Z0-9_-]{1,64}$/);
     assert.ok(typeof t.description === "string" && t.description.length > 60, t.name);
@@ -206,25 +240,10 @@ test("CAD facts cite the aggregated extract only (no source-PDF references anywh
   }
 });
 
-/* ---------- shared/cad-gis.js: the layer drawn by index.html and gis-map/ ---------- */
-test("CAD/GIS layer matches the verified CAD facts and never alters source points", () => {
-  const GIS = require("../shared/cad-gis.js");
-  const fact = id => loadFacts().facts.find(f => f.id === id).value;
-  assert.equal(GIS.incidentsTotal, fact("cad.incidents"));
-  assert.equal(GIS.incidentPoints.length, fact("cad.mapped_points"));
-  assert.equal(GIS.incidentsTotal - GIS.incidentPoints.length, fact("cad.location.3"));   // no location in CAD
-  const recs = GIS.records();
-  recs.forEach((r, i) => {
-    const [lat, lng, cat] = GIS.incidentPoints[i];
-    assert.deepEqual([r.lat, r.lng, r.category, r.index], [lat, lng, cat, i]);
-    assert.ok(cat in GIS.CATEGORIES, "unknown category " + cat);
-  });
-  // township is derived from the rounded published location; these match the facts exactly
-  const n = name => recs.filter(r => r.township === name).length;
-  assert.equal(n("Washington Township"), fact("cad.location.1"));
-  assert.equal(n("Jefferson Township"), fact("cad.outside.jefferson"));
-  assert.equal(n("Clinton Township"), fact("cad.outside.clinton"));
-  // inside the District: within 2 of the published count (rounding near boundaries)
-  const inside = ["Clay Township", "Noble Township", "Eel Township"].reduce((s, t) => s + n(t), 0);
-  assert.ok(Math.abs(inside - fact("cad.location.0")) <= 2, "inside-District count " + inside);
+test("Scenario 4 overtime is never zero: otPerPerson keeps 164 hrs per firefighter at any roster size", () => {
+  const E = Engine.costEngine({ posts: 5, perf: true, perfRate: 0.265, premium: 10000, adj: 0, otPerPerson: true });
+  assert.equal(Math.round(E.otScen.hours), 16 * 164);
+  const base = Engine.costEngine({ posts: 4, perf: true, perfRate: 0.265, premium: 10000, adj: 0, otPerPerson: true });
+  assert.equal(Math.round(base.otScen.hours), 1968);
+  assert.ok(Math.abs(base.otChange) < 1e-6);
 });

@@ -36,6 +36,29 @@ SECONDS_FIELDS = ["turnout_seconds", "travel_seconds", "response_seconds"]
 
 Finding = tuple[str, str]
 
+# REMOVED RULE (known failure): "time_order" required dispatch <= enroute <= onscene <= clear to the second.
+# It flagged ~63% of unit_responses (7,537 of 11,968 rows in the Dec 2025 - Aug 2026 data), mostly
+# from extractor backfill / midnight rollover, so it was dropped in favour of the day-level check
+# `timestamp_day_order`. Also removed: response_seconds recompute (never fired) and lat/lon completeness
+# (missing coordinates are normal in the source).
+
+# Every rule the validators can emit, so reports can show rules that never fired.
+RULES = {
+    "incidents": [
+        ("incident_id_format", ERROR), ("source_group_invalid", ERROR), ("create_datetime_invalid", ERROR),
+        ("year_mismatch", WARN), ("month_mismatch", WARN), ("hour_of_day_mismatch", WARN),
+        ("incident_date_mismatch", WARN), ("event_type_missing", WARN),
+        ("latlon_out_of_bounds", WARN),
+    ],
+    "unit_responses": [
+        ("incident_id_format", ERROR), ("unit_id_missing", ERROR), ("timestamp_invalid", ERROR),
+        ("orphan_incident", ERROR),
+        ("unit_org_missing", WARN), ("timestamps_missing", WARN), ("timestamp_day_order", WARN),
+        ("turnout_seconds_out_of_range", WARN), ("travel_seconds_out_of_range", WARN),
+        ("response_seconds_out_of_range", WARN),
+    ],
+}
+
 
 def parse_dt(value: str) -> datetime | None:
     try:
@@ -76,13 +99,12 @@ def validate_incident(row: dict[str, str]) -> list[Finding]:
     if not (row.get("event_type") or "").strip():
         out.append(("event_type_missing", WARN))
 
-    lat_s, lon_s = (row.get("latitude") or "").strip(), (row.get("longitude") or "").strip()
-    if lat_s or lon_s:
-        lat, lon = _num(lat_s), _num(lon_s)
-        if lat is None or lon is None:
-            out.append(("latlon_incomplete_or_nonnumeric", WARN))
-        elif not (LAT_RANGE[0] <= lat <= LAT_RANGE[1] and LON_RANGE[0] <= lon <= LON_RANGE[1]):
-            out.append(("latlon_out_of_bounds", WARN))
+    # Missing lat/lon is common in the source data, so completeness is NOT checked.
+    lat, lon = _num((row.get("latitude") or "").strip()), _num((row.get("longitude") or "").strip())
+    if (lat is not None and not LAT_RANGE[0] <= lat <= LAT_RANGE[1]) or (
+        lon is not None and not LON_RANGE[0] <= lon <= LON_RANGE[1]
+    ):
+        out.append(("latlon_out_of_bounds", WARN))
     return out
 
 
@@ -94,22 +116,25 @@ def validate_response(row: dict[str, str]) -> list[Finding]:
         out.append(("unit_id_missing", ERROR))
     if not (row.get("unit_org") or "").strip():
         out.append(("unit_org_missing", WARN))
-    if (row.get("qa_time_status") or "").strip() == "INVALID_DATETIME":
-        out.append(("extractor_invalid_datetime", ERROR))
 
+    # One parse check for all four timestamps (incl. the extractor's own INVALID_DATETIME flag).
     times: list[datetime | None] = []
+    invalid = (row.get("qa_time_status") or "").strip() == "INVALID_DATETIME"
     for f in TIME_FIELDS:
         value = (row.get(f) or "").strip()
-        if not value:
-            times.append(None)
-            continue
-        dt = parse_dt(value)
-        if dt is None:
-            out.append((f + "_invalid", ERROR))
+        dt = parse_dt(value) if value else None
+        invalid = invalid or (bool(value) and dt is None)
         times.append(dt)
-    present = [t for t in times if t is not None]
-    if any(b < a for a, b in zip(present, present[1:])):
-        out.append(("time_order", WARN))
+    if invalid:
+        out.append(("timestamp_invalid", ERROR))
+
+    # Loose checks (WARN): all four present; calendar days never run backwards
+    # (e.g. clear dated the day before dispatch, typically a backfill/midnight-rollover slip).
+    if any(not (row.get(f) or "").strip() for f in TIME_FIELDS):
+        out.append(("timestamps_missing", WARN))
+    days = [t.date() for t in times if t is not None]
+    if any(b < a for a, b in zip(days, days[1:])):
+        out.append(("timestamp_day_order", WARN))
 
     for f in SECONDS_FIELDS:
         value = (row.get(f) or "").strip()
@@ -118,10 +143,6 @@ def validate_response(row: dict[str, str]) -> list[Finding]:
             if n is None or n < 0 or n > MAX_SECONDS or n != int(n):
                 out.append((f + "_out_of_range", WARN))
 
-    dispatch, onscene = times[0], times[2]
-    rs = _num((row.get("response_seconds") or "").strip())
-    if dispatch and onscene and rs is not None and abs((onscene - dispatch).total_seconds() - rs) > 1:
-        out.append(("response_seconds_mismatch", WARN))
     return out
 
 

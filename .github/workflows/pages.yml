@@ -1,0 +1,90 @@
+name: Publish site
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pytest
+      - run: pytest -q pipeline/tests
+      - run: node --test shared/dataset.test.js assistant/tools.test.js assistant/chart.test.js
+      - run: python build_site.py
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  # Deploys the assistant Worker. Needs these GitHub repository secrets (Settings > Secrets and variables > Actions):
+  #   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, ANTHROPIC_API_KEY
+  # .env is git-ignored and never reaches CI; it only feeds local `python run.py`. Highcharts needs no key (core, from a CDN).
+  # Without the Cloudflare secrets this job is skipped and the site still publishes.
+  worker:
+    runs-on: ubuntu-latest
+    needs: deploy
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - name: Check secrets
+        id: gate
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ] && [ -n "$ANTHROPIC_API_KEY" ]; then echo "go=true" >> "$GITHUB_OUTPUT"; else echo "Worker secrets not set: skipping Worker deploy."; fi
+      - if: steps.gate.outputs.go == 'true'
+        uses: actions/checkout@v4
+      - if: steps.gate.outputs.go == 'true'
+        uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: worker/package-lock.json }
+      - if: steps.gate.outputs.go == 'true'
+        working-directory: worker
+        run: npm ci && npm test
+      - if: steps.gate.outputs.go == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          secrets: ANTHROPIC_API_KEY
+
+  # Multi-architecture (Intel/AMD + ARM) image for ./start.sh: ghcr.io/<owner>/ccfd1. Runs only after the tests in `deploy` pass.
+  image:
+    runs-on: ubuntu-latest
+    needs: deploy
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/ccfd1:latest
+            ghcr.io/${{ github.repository_owner }}/ccfd1:${{ github.sha }}

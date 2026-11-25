@@ -10,9 +10,8 @@
 <style>
 /* ============================================================
    HOW TO UPDATE THIS PAGE
-   1. DATA (script at the bottom of this file): real figures for the KPI cards,
-      CAD panels and the map. Edit numbers there; the panels
-      redraw from it. Leave a value as null to show sample data.
+   1. datasets/ (built into DATA when the page loads; run.py rewrites them): real figures for the KPI cards,
+      CAD panels and the map (map shapes are in assets/). Do not edit numbers in this file.
    2. EMBEDS (script at the bottom of this file): paste an ArcGIS embed URL into
       any slot to replace that panel with the ArcGIS element.
    ============================================================ */
@@ -56,19 +55,16 @@ a{color:inherit}
 .kpi.primary .label,.kpi.primary .src{color:#BFD0E4}
 .kpi.primary .value{color:#fff}
 .row{display:grid;gap:18px}
-.row.a{grid-template-columns:1.25fr 1fr 1.35fr}
+[hidden]{display:none!important}
+.row.a{grid-template-columns:1.25fr 1fr}
 .row.b{grid-template-columns:repeat(3,minmax(0,1fr))}
 .row.c{grid-template-columns:1.1fr 1fr}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-width:0;scroll-margin-top:16px}
 .panel header{display:flex;align-items:center;gap:8px;padding:14px 16px 10px}
 .panel h2{margin:0;font-size:15px;font-weight:600}
-.panel header .tag{margin-left:auto;font-size:11.5px;color:var(--muted);background:var(--tint);padding:3px 8px;border-radius:999px;white-space:nowrap}
-.panel header .tag.real{color:#fff;background:var(--ok);font-weight:600}
 .panel.updated{border-color:var(--ok);box-shadow:inset 0 3px 0 var(--ok)}
 .kpi.updated{border-color:var(--ok);box-shadow:inset 0 3px 0 var(--ok)}
-.kpi .badge{align-self:flex-start;font-size:11px;font-weight:600;color:#fff;background:var(--ok);padding:1px 7px;border-radius:999px}
 .foot .key{color:var(--ok);font-weight:600}
-.panel header .tag.model{color:#fff;background:#B26A00;font-weight:600}
 .panel.model{border-color:#B26A00;box-shadow:inset 0 3px 0 #B26A00}
 .foot .key.model{color:#B26A00}
 .scn select,.scn input.exact{width:100%;margin-top:4px;border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit;font-size:13px;background:#fff}
@@ -89,9 +85,6 @@ dialog.facts .fact small{display:block;color:var(--muted)}
 .st.verified{background:var(--ok)}.st.model_output{background:#B26A00}.st.partner_stated{background:var(--blue)}
 .panel header .maplink{flex:none;font-size:12px;font-weight:600;color:#fff;background:var(--navy-2);padding:4px 10px;border-radius:6px;text-decoration:none;white-space:nowrap}
 .panel header .maplink:hover{background:var(--blue)}
-.twmap .tw{stroke:#fff;stroke-width:1.2;transition:opacity .15s}
-.twmap .tw:hover{opacity:.75}
-.twmap text{font-size:9px;fill:#132033;pointer-events:none}
 .body{padding:0 16px 16px;flex:1;display:flex;flex-direction:column;min-height:0}
 .slot{flex:1;min-height:220px;position:relative}
 .slot iframe{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:6px}
@@ -130,14 +123,35 @@ dialog.facts .fact small{display:block;color:var(--muted)}
 .msg.wait{color:var(--muted);font-style:italic}
 .chip{display:inline-block;border:0;background:var(--tint);color:var(--blue);border-radius:999px;padding:0 7px;margin:0 1px;font:inherit;font-size:11.5px;font-weight:600;line-height:1.6;cursor:pointer;vertical-align:baseline}
 .chip:hover{background:#D7E4F3}
+
+.askwrap{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+.askwrap[data-pane="collapsed"]{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}
+.askwrap[data-pane="expanded"]{grid-template-columns:minmax(240px,300px) minmax(0,1fr)}
+.askwrap[data-pane="expanded"] .msgs{max-height:420px}
+.vpane{border:1px solid var(--line);border-radius:8px;background:#fff;padding:10px 12px;display:grid;gap:8px;min-width:0}
+.vpane[hidden]{display:none}
+.vhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.vhead h3{margin:0;font-size:14px;flex:1;min-width:0}
+.vhead button,.vmenu button{border:1px solid var(--line);background:#fff;color:var(--navy-2);border-radius:6px;padding:3px 9px;font:inherit;font-size:12.5px;cursor:pointer}
+.vhead button:hover,.vmenu button:hover{border-color:var(--blue)}
+.vbadge{font-size:11.5px;font-weight:600;border-radius:999px;padding:1px 8px;background:var(--tint);color:var(--blue)}
+.vbadge.model_output{background:#FFF1D6;color:#8A5A00}.vbadge.placeholder{background:#FBE3E3;color:#A12B2B;border:1px dashed #A12B2B}
+.vchart{width:100%;height:320px}
+.askwrap[data-pane="expanded"] .vchart{height:460px}
+.vmenu{display:flex;flex-wrap:wrap;gap:6px}
+.vmenu button[aria-current="true"]{background:var(--navy-2);color:#fff;border-color:var(--navy-2)}
+.vdata summary{cursor:pointer;font-size:12.5px;color:var(--muted)}
+.vdata table{border-collapse:collapse;font-size:12px;margin-top:6px}
+.vdata th,.vdata td{border:1px solid var(--line);padding:2px 8px;text-align:right}
+.vdata th:first-child,.vdata td:first-child{text-align:left}
+.chartlink{margin-top:6px}
+@media (max-width:900px){.askwrap[data-pane="collapsed"],.askwrap[data-pane="expanded"]{grid-template-columns:minmax(0,1fr)}}
 .panel.flash{animation:flash 1.6s ease-out}
 @keyframes flash{0%,40%{box-shadow:0 0 0 3px var(--blue)}100%{box-shadow:0 0 0 0 transparent}}
 dialog.facts .fact.hit{background:#FFF6E0;margin:0 -16px;padding:8px 16px}
 footer.foot{margin-top:auto;padding:12px 28px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 24px;background:#fff}
 footer.foot span:last-child{margin-left:auto}
 @media (max-width:1280px){
-  .row.a{grid-template-columns:1fr 1fr}
-  .row.a .panel:last-child{grid-column:1 / -1}
   .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media (max-width:860px){
@@ -155,30 +169,172 @@ footer.foot span:last-child{margin-left:auto}
   .content,.top{padding-left:16px;padding-right:16px}
   .search{min-width:0;flex:1 1 100%}
 }
-/* "Ask CCFD1 AI" section (assistant/viz-panel.js); scoped to #ai-viz */
-#ai-viz .msgs{max-height:760px}
-#ai-viz .msg.aiviz-answer{max-width:100%;width:100%}
-#ai-viz .aiviz-group{font-size:12px;color:var(--muted);font-weight:600;align-self:center}
-.aiviz-card{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);min-width:0}
-.aiviz-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-.aiviz-head h3{margin:0;font-size:14px;font-weight:600;flex:1 1 220px;min-width:0}
-.aiviz-badge{font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;color:#fff;background:var(--muted)}
-.aiviz-badge.actual{background:var(--ok)}.aiviz-badge.baseline{background:var(--blue)}.aiviz-badge.scenario,.aiviz-badge.projected{background:#B26A00}
-.aiviz-meta{font-size:12px;color:var(--muted);margin:4px 0 8px;overflow-wrap:anywhere}
-.aiviz-meta b{font-weight:600;color:var(--ink)}
-.aiviz-chart svg{width:100%;height:auto;display:block}
-.aiviz-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
-.aiviz-kpis .kpi .value{font-size:19px}
-.aiviz-table{overflow-x:auto;max-width:100%}
-.aiviz-table table{border-collapse:collapse;font-size:12px;width:100%;font-variant-numeric:tabular-nums}
-.aiviz-table th,.aiviz-table td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
-.aiviz-table th:first-child{text-align:left;white-space:normal;font-weight:500}
-.aiviz-table thead th{font-weight:600;color:var(--muted)}
-.aiviz-card details{font-size:12px;color:var(--muted);margin-top:6px}
-.aiviz-card summary{cursor:pointer;color:var(--blue)}
-.aiviz-card details ul{margin:4px 0;padding-left:18px}
-.aiviz-map{display:inline-block;margin-top:8px;font-size:12px;font-weight:600;color:#fff;background:var(--navy-2);padding:4px 10px;border-radius:6px;text-decoration:none}
-.aiviz-map:hover{background:var(--blue)}
+/* Tabs: Overview, Scenarios 1-5, Ask the data. The nav selects which pane shows in the bottom part. */
+.nav a[data-tab]{cursor:pointer}
+.kpi.model{border-color:#B26A00;box-shadow:inset 0 3px 0 #B26A00}
+.desc{margin:0;font-size:13px;color:var(--muted)}
+.ctitle{margin:0 0 4px;font-size:13px;font-weight:600}
+.cchart svg{width:100%;height:auto;display:block}
+/* Page scrolls normally; every panel has a fixed-height slot so rows can never overlap. */
+.tabpane{display:grid;gap:18px}
+.slot{flex:none;min-height:240px}
+.slot:has(>.scn),.slot:has(>.askwrap){min-height:0!important}
+.slot svg{height:auto}
+.slot>svg{max-height:380px}
+.panel,.body{overflow:visible}
+.row.shared{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:860px){.row.shared{grid-template-columns:1fr}}
+@media (min-width:1101px){
+  .scn.split{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;gap:18px}
+}
+
+/* ---------- Containment and spacing: every component sits in its own box ---------- */
+.content{gap:24px}
+.row,.tabpane{gap:24px}
+.panel header{padding:18px 22px 12px}
+.body{padding:0 22px 22px}
+.scn{gap:18px}
+.scn.split{gap:22px}
+.scn.split>.scn{border:1px solid var(--line);border-radius:12px;padding:20px;background:#FBFCFE;align-content:start;gap:16px}
+.scn.split>.scn>div:not(.result):not(.cchart):not(.ctrls),
+.scn.split>.scn>.ctrls:not(:has(.result)),
+.scn.split>.scn>label.toggle{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:#fff}
+.scn .ctrls{gap:16px 20px}
+.scn .ctrls>div{min-width:0}
+.scn.split .ctrls{grid-template-columns:1fr}
+.scn.split .result{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:1500px){.scn.split .result{grid-template-columns:1fr}}
+.scn input[type=range]{margin-top:8px}
+.scn input.exact{margin-top:10px}
+.result{border:1px solid var(--line);padding:16px;gap:14px 18px}
+.result div span{margin-bottom:2px}
+.scn .note{padding:0 2px;line-height:1.55}
+.cchart .ctitle{margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.cchart .legend{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);gap:8px 16px}
+.legend{margin-top:12px}
+.row.shared .body .legend{padding-top:12px;border-top:1px solid var(--line)}
+.row.shared .note{margin-top:12px}
+
+/* ---------- Service regions map ---------- */
+.row.map{grid-template-columns:minmax(0,1fr)}
+.mapwrap{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:22px;align-items:start}
+.mapstage{position:relative;border:1px solid var(--line);border-radius:12px;background:#F7FAFD;overflow:hidden}
+.mapstage svg.twmap{display:block;width:100%;height:auto;max-height:600px;user-select:none;-webkit-user-select:none}
+.twmap .tw{stroke:#fff;stroke-width:1.2;vector-effect:non-scaling-stroke;cursor:pointer;transition:opacity .15s,fill-opacity .15s;outline:none}
+.twmap .tw:hover{stroke:var(--navy);stroke-width:1.6}
+.twmap .tw:focus-visible{stroke:var(--navy);stroke-width:2.4}
+.twmap .tw.off{stroke:var(--line);stroke-dasharray:3 3}
+.twmap .tw.dim{opacity:.35}
+.twmap .tw.sel{stroke:var(--navy);stroke-width:2.6;stroke-dasharray:none}
+.twmap .dot{stroke:#fff;stroke-width:.6;vector-effect:non-scaling-stroke;fill-opacity:.85;cursor:pointer}
+.twmap .dot.dim{opacity:.18}
+.twmap .lbls text{fill:var(--ink);pointer-events:none;paint-order:stroke;stroke:rgba(255,255,255,.7);stroke-width:2.5px}
+.twmap .lbls text.dim{opacity:.35}
+.mapzoom{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(15,39,68,.12)}
+.mapzoom button{width:34px;height:34px;border:0;background:#fff;color:var(--navy-2);font:inherit;font-size:18px;line-height:1;cursor:pointer}
+.mapzoom button+button{border-top:1px solid var(--line)}
+.mapzoom button:hover:not(:disabled){background:var(--tint)}
+.mapzoom button:disabled{color:#B7C3D1;cursor:default}
+.maptip{position:absolute;z-index:3;pointer-events:none;background:var(--navy);color:#fff;border-radius:8px;padding:8px 10px;font-size:12.5px;line-height:1.4;display:grid;box-shadow:0 4px 12px rgba(15,39,68,.25);white-space:nowrap}
+.maptip[hidden]{display:none}
+.maptip span{color:#C9D6E6}
+.mapnote{margin:12px 2px 0}
+.mapside{display:grid;gap:16px}
+.mbox{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#fff}
+.mbox h3{margin:0;font-size:14px;font-weight:600}
+.mbox .mhint{margin:2px 0 10px;font-size:12px;color:var(--muted)}
+.mlist{display:grid;gap:4px}
+.lgbtn{display:flex;align-items:center;gap:10px;width:100%;border:1px solid transparent;background:none;padding:8px 10px;border-radius:8px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;text-align:left}
+.lgbtn:hover{background:var(--tint)}
+.lgbtn .sw{width:14px;height:14px;border-radius:3px;flex:none}
+.lgbtn .sw.dot{border-radius:50%}
+.lgbtn .ct{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.lgbtn[aria-pressed="false"]{opacity:.5}
+.lgbtn[aria-pressed="false"] .nm{text-decoration:line-through}
+.mtot{margin:8px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.mdetail{background:#FBFCFE}
+.mdetail .mfig{margin:0 0 10px;font-size:13px}
+.mdetail .mfig b{font-size:20px;font-variant-numeric:tabular-nums}
+.mchip{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;border:1px solid var(--line)}
+.mbars{display:grid;gap:8px}
+.mbars>div{display:grid;grid-template-columns:104px 1fr 40px;align-items:center;gap:10px;font-size:12.5px}
+.mbars b{text-align:right;font-variant-numeric:tabular-nums}
+.mtrack{height:8px;border-radius:4px;background:var(--tint);overflow:hidden}
+.mtrack i{display:block;height:100%;border-radius:4px}
+.mact{display:flex;gap:8px;margin-top:14px}
+.mact button{border:1px solid var(--line);background:#fff;color:var(--navy-2);border-radius:6px;padding:5px 12px;font:inherit;font-size:12.5px;cursor:pointer}
+.mact button:hover{border-color:var(--blue)}
+@media (max-width:1100px){.mapwrap{grid-template-columns:minmax(0,1fr)}}
+
+/* ---------- Fund balance, projected ---------- */
+.fp{display:grid;gap:16px}
+.fp-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.fp-stat{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#FBFCFE;display:flex;flex-direction:column;gap:2px;min-width:0}
+.fp-stat span{font-size:12px;color:var(--muted)}
+.fp-stat b{font-size:19px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.fp-stat b.neg{color:var(--alert)}
+.fp-stat em{font-style:normal;font-size:11.5px;color:var(--muted)}
+.fp-stat.warn{border-color:#E7B4B0;background:#FDF4F3}.fp-stat.warn b{color:var(--alert)}
+.fp-stat.ok b{color:var(--ok)}
+.fp-chart{position:relative;border:1px solid var(--line);border-radius:10px;padding:10px 8px 4px;background:#fff}
+.fp-chart svg{width:100%;height:auto;display:block;max-height:none!important}
+.fp-hit{outline:none;cursor:crosshair}
+.fp-tip{position:absolute;z-index:2;pointer-events:none;background:var(--navy);color:#fff;border-radius:8px;padding:8px 10px;font-size:12.5px;line-height:1.4;display:grid;gap:1px;transform:translate(-50%,calc(-100% - 16px));white-space:nowrap;box-shadow:0 4px 12px rgba(15,39,68,.25)}
+.fp-tip[hidden]{display:none}
+.fp-tip.left{transform:translate(calc(-100% - 12px),-50%)}
+.fp-tip.right{transform:translate(12px,-50%)}
+.fp-tip b{font-size:12px;color:#C9D6E6;font-weight:500}
+.fp-tip span{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.fp-tip em{font-style:normal;font-size:11.5px;color:#C9D6E6}
+.fp-tip em.neg{color:#FFB4AE;font-weight:600}
+@media (max-width:560px){.fp-stats{grid-template-columns:1fr}}
+
+/* ---------- Fixed layout: compact top strip (about a third of the screen) + scrolling scenario workspace ---------- */
+@media (min-width:1101px){
+  .app{height:100vh;min-height:0}
+  .main{height:100vh;overflow:hidden}
+  .content{flex:1;min-height:0;display:flex;flex-direction:column;gap:16px;padding:16px 24px 16px}
+  .topstrip{flex:none;height:clamp(270px,36vh,380px);display:grid;grid-template-columns:minmax(240px,1fr) minmax(230px,.9fr) minmax(0,2.2fr);gap:16px}
+  .topstrip .panel{height:100%;min-height:0;overflow:hidden}
+  .topstrip .panel header{padding:12px 16px 6px}
+  .topstrip .panel h2{font-size:14px}
+  .topstrip .body{padding:0 16px 12px;min-height:0;overflow:hidden}
+  .topstrip .slot{min-height:0;flex:1;overflow:hidden}
+  .topstrip .slot>svg{width:100%;height:100%;max-height:none}
+  .topstrip .note{font-size:11px;margin-top:6px;line-height:1.35}
+  .topstrip .srclink{margin-top:4px;font-size:11px}
+  .topstrip #overview .slot{flex:none}
+  .topstrip #overview .slot>svg{height:auto}
+  .lower{flex:1;min-height:0;overflow-y:auto;display:grid;gap:24px;align-content:start;padding:2px 10px 2px 2px;border-radius:12px}
+  .lower:focus-visible{outline-offset:-3px}
+  /* revenue donut: chart above, compact legend below */
+  .topstrip #revenue-sources .legend{margin:6px 0 0;gap:3px 12px;font-size:11px;justify-content:center}
+  .topstrip #revenue-sources .note,.topstrip #revenue-sources .srclink{display:none}
+  /* map: map | legends and detail */
+  .topstrip #gis .mapwrap{height:100%;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:stretch}
+  .topstrip #gis .mapcol{height:100%;min-height:0}
+  .topstrip #gis .mapstage{height:100%;aspect-ratio:var(--ar,.9);border-radius:10px}
+  .topstrip #gis .mapstage svg.twmap{height:100%;max-height:none}
+  .topstrip #gis .mapside{height:100%;overflow-y:auto;grid-template-columns:1fr;align-content:start;gap:8px;padding-right:4px}
+  .topstrip #gis .mbox{padding:10px 12px;border-radius:10px}
+  .topstrip #gis .mbox h3{font-size:12.5px;margin-bottom:6px}
+  .topstrip #gis .mhint{display:none}
+  .topstrip #gis .lgbtn{padding:3px 6px;font-size:12px;gap:8px}
+  .topstrip #gis .mlist{gap:1px}
+  .topstrip #gis .mtot{margin-top:4px;padding-top:6px;font-size:11.5px}
+  .topstrip #gis .mdetail{grid-column:auto}
+  .topstrip #gis .mdetail .mfig{margin-bottom:6px;font-size:12px}
+  .topstrip #gis .mdetail .mfig b{font-size:16px}
+  .topstrip #gis .mbars{gap:5px}
+  .topstrip #gis .mbars>div{grid-template-columns:96px 1fr 34px;font-size:12px}
+  .topstrip #gis .mact{margin-top:8px}
+  .topstrip #gis .mapside .mapnote{grid-column:1 / -1;margin:0}
+}
+@media (max-width:1100px){
+  .topstrip{display:grid;gap:16px}
+  .topstrip .slot>svg{max-height:380px}
+  .mapside .mapnote{margin:0}
+}
 </style>
 </head>
 <body>
@@ -190,15 +346,11 @@ footer.foot span:last-child{margin-left:auto}
     </div>
     <nav aria-label="Dashboard sections">
       <ul class="nav" id="nav">
-        <li><a href="#overview" aria-current="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z"/></svg>Overview</a></li>
-        <li><a href="#financial"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 20h3V10H4zm6.5 0h3V4h-3zM17 20h3v-7h-3z"/></svg>Financial</a></li>
-        <li><a href="#staffing"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M2 19c0-3.3 2.7-6 6-6s6 2.7 6 6zm12.5 0c0-2-.6-3.8-1.7-5.2A5 5 0 0 1 22 18v1z"/></svg>Staffing</a></li>
-        <li><a href="#gis"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>GIS and service area</a></li>
-        <li><a href="#uncompensated"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v4H4zm0 6h10v4H4zm0 6h6v4H4z"/></svg>Uncompensated service</a></li>
-        <li><a href="#cad"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 3h10l2 2v16H5V5zm2 5v2h6V8zm0 4v2h6v-2zm0 4v2h4v-2z"/></svg>Incidents (CAD)</a></li>
-        <li><a href="#scenario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Scenario analysis</a></li>
-        <li><a href="#funding-scenario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2.2 2.7 5 3.3 5 1.4 5 3.4-2.2 3.3-5 3.3-5-1.2-5-3.2"/></svg>Scenario 1: Funding</a></li>
-        <li><a href="#assistant"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12H8l-4 4z"/></svg>Ask the data</a></li>
+        <li><a href="#t-overview" data-tab="t-overview" aria-current="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z"/></svg>Overview</a></li>
+        <li><a href="#t-1" data-tab="t-1" aria-current="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2.2 2.7 5 3.3 5 1.4 5 3.4-2.2 3.3-5 3.3-5-1.2-5-3.2"/></svg>Funding and Revenue</a></li>
+        <li><a href="#t-3" data-tab="t-3" aria-current="false"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M2 19c0-3.3 2.7-6 6-6s6 2.7 6 6zm12.5 0c0-2-.6-3.8-1.7-5.2A5 5 0 0 1 22 18v1z"/></svg>Staffing</a></li>
+        <li><a href="#t-4" data-tab="t-4" aria-current="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Compensation and Benefits</a></li>
+        <li id="navAssistant" hidden><a href="#t-6" data-tab="t-6" aria-current="false"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12H8l-4 4z"/></svg>Ask the data</a></li>
       </ul>
     </nav>
     <div class="side-foot">Prototype for Cass County Fire District No. 1.<br>Figures trace to the project source log.</div>
@@ -215,218 +367,264 @@ footer.foot span:last-child{margin-left:auto}
     </header>
 
     <main class="content">
-      <!-- KPIs: financial values from Scope Document v2.0, Section 1.1; incident count from DATA -->
-      <section class="kpis" id="overview" aria-label="Key figures">
+      <!-- KPI figures: financial values from Scope Document v2.0, Section 1.1; incident count from DATA.
+           Kept (hidden) as the data source for the cost visual and the facts.json check. -->
+      <section class="kpis" id="kpi-data" aria-label="Key figures (data source for the cost visual)" hidden>
         <div class="kpi primary"><span class="label">Structural operating gap, 2027</span><span class="value">$635,758</span><span class="src">Budget minus recurring revenue</span></div>
         <div class="kpi"><span class="label">2027 proposed operating budget</span><span class="value">$1,795,950</span><span class="src">Gateway Form 1 proposal</span></div>
+        <!-- SOURCING OPEN ITEM: $1,160,192 is ~$119K below 2024 AFR operating revenue ($1,279,649). Basis not yet traced; see tmp/sourcing-open-items.html -->
         <div class="kpi"><span class="label">Recurring revenue</span><span class="value">$1,160,192</span><span class="src">2027 orientation basis; 2024 AFR operating revenue was $1,279,649 incl. interest</span></div>
-        <div class="kpi"><span class="label">Fund balance, end of 2025</span><span class="value alert" id="fbv">$1,624,691</span><span class="src">Per CCFD1 2025 annual report; down $307,952 from 2023 peak</span></div>
+        <div class="kpi"><span class="label">Fund balance, end of 2025</span><span class="value" id="fbv">$1,624,691</span><span class="src">Per CCFD1 2025 annual report; down $307,952 from 2023 peak</span></div>
         <div class="kpi" id="kpiIncCard"><span class="label">CCFD1 incidents</span><span class="value" id="kpiIncidents">–</span><span class="src" id="kpiIncidentsSrc">CAD, Fire and EMS</span></div>
       </section>
 
-      <div class="row a">
-        <section class="panel" id="financial">
-          <header><h2>Receipts and disbursements, 2011–2025</h2><span class="tag">Sample data</span></header>
-          <div class="body"><div class="slot" data-slot="revenue"></div>
-            <div class="legend"><span><i style="background:var(--blue-soft)"></i>Receipts</span><span><i style="background:var(--navy-2)"></i>Disbursements</span></div></div>
+      <div class="topstrip">
+        <section class="panel" id="overview">
+          <header><h2>Revenue, cost and operating gap, 2027</h2></header>
+          <div class="body"><div class="slot" data-slot="costviz"></div><p class="note" id="costNote"></p></div>
         </section>
         <section class="panel" id="revenue-sources">
-          <header><h2>Revenue by source</h2><span class="tag">Sample data</span></header>
+          <header><h2>Revenue by source</h2></header>
           <div class="body"><div class="slot" data-slot="funding"></div><div class="legend" id="fundLegend"></div></div>
         </section>
         <section class="panel" id="gis">
-          <header><h2>Townships and service area</h2><span class="tag">Sample layout</span><a class="maplink" href="gis-map/">Open Full Map</a></header>
-          <div class="body"><div class="slot" data-slot="map"></div>
-            <div class="legend"><span><i style="background:var(--blue)"></i>CCFD1 taxing townships</span><span><i style="background:var(--tint);border:1px solid var(--line)"></i>Other Cass County townships</span></div></div>
+          <header><h2>CCFD1 Service Regions and Call Locations</h2><a class="maplink" href="gis-map/">Open Full Map</a></header>
+          <div class="body"><div class="slot" data-slot="map"></div></div>
         </section>
       </div>
 
+      <div class="lower" id="lower" tabindex="0" role="region" aria-label="Scenario workspace (scrolls)">
+      <div class="bottom">
+      <div class="tabpane" id="t-overview" role="tabpanel" aria-label="Overview">
       <div class="row b">
-        <section class="panel" id="staffing">
-          <header><h2>Personnel vs. contracted service cost, 2011–2024</h2><span class="tag">Sample data</span></header>
-          <div class="body"><div class="slot" data-slot="staffing"></div></div>
+        <section class="panel" id="financial">
+          <header><h2>Receipts and disbursements, 2011–2025</h2></header>
+          <div class="body"><div class="slot" data-slot="revenue"></div>
+            <div class="legend"><span><i style="background:var(--blue-soft)"></i>Receipts</span><span><i style="background:var(--navy-2)"></i>Disbursements</span></div></div>
         </section>
         <section class="panel" id="uncompensated">
-          <header><h2>Responses outside the District</h2><span class="tag">Sample data</span></header>
+          <header><h2>Responses outside the District</h2></header>
           <div class="body"><div class="slot" data-slot="uncompensated"></div><p class="note" id="uncompNote"></p></div>
         </section>
         <section class="panel" id="cad">
-          <header><h2>Incidents by hour of day</h2><span class="tag">Sample data</span></header>
+          <header><h2>Incidents by hour of day</h2></header>
           <div class="body"><div class="slot" data-slot="cad"></div><p class="note" id="cadNote">Shows the daytime availability pattern.</p></div>
         </section>
       </div>
+      </div>
 
-      <div class="row c">
-        <section class="panel model" id="scenario">
-          <header><h2>Scenario analysis: staffing and compensation</h2><span class="tag model">Model: team cost engine v2</span></header>
-          <div class="body"><div class="slot" data-slot="scenario" style="min-height:0">
-            <div class="scn">
-              <div class="ctrls">
-                <div><label for="posts">Posts staffed, proposed (now 4) <output id="postsO">5</output></label>
-                  <input type="range" id="posts" min="4" max="8" step="1" value="5"></div>
-                <div><label for="sal">Base salary adjustment <output id="salO">0%</output></label>
-                  <input type="range" id="sal" min="0" max="10" step="0.5" value="0"></div>
-                <div><label for="perfRate">PERF 77 employer rate <output id="perfRateO">26.5%</output></label>
-                  <input type="range" id="perfRate" min="20" max="30" step="0.5" value="26.5"></div>
-                <div><label for="prem">Health premium per employee <output id="premO">No quote exists - placeholder</output></label>
-                  <input type="range" id="prem" min="0" max="30000" step="1000" value="0"></div>
-                <label class="toggle"><input type="checkbox" id="perf" checked> Fund PERF 77</label>
-                <label class="toggle"><input type="checkbox" id="otd" checked> Apply overtime displacement</label>
-              </div>
-              <div class="result">
-                <div class="wide"><span>Hires required</span><b id="hiresO">–</b></div>
-                <div><span>Compensation decision (existing staff)</span><b id="l1O">–</b></div>
-                <div><span>Net staffing decision (new hires)</span><b id="l2O">–</b></div>
-                <div><span>Total annual change</span><b id="totO">–</b></div>
-                <div><span>Resulting operating gap</span><b id="gapO">–</b></div>
-                <div><span>Additional rate per $100 AV</span><b id="addO">–</b></div>
-                <div><span>Total operating rate</span><b id="rateO">–</b><em class="flag" id="ceilO" hidden>Above the $0.40 ceiling</em></div>
-                <div><span>Household increase at $150,000 AV, per year</span><b id="hhO">–</b></div>
-                <div><span>Years of fund balance</span><b id="yrsO">–</b></div>
-              </div>
-              <p class="note" style="margin:0">Debt service is already inside the 2027 budget, so it is not added again. Rates are gross, before circuit-breaker caps, deductions and credits. PERF rate is partner-stated, not yet verified with INPRS. Health premium is a placeholder; see the workbook Sensitivity tab.</p>
-            </div></div></div>
-        </section>
+      <div class="tabpane" id="t-1" role="tabpanel" aria-label="Scenario 1: Funding" hidden>
         <section class="panel model" id="funding-scenario">
-          <header><h2>Scenario 1: Funding change</h2><span class="tag model">Model: Scenario 1 funding</span></header>
+          <header><h2>Scenario 1: Funding change</h2></header>
           <div class="body"><div class="slot" data-slot="fundingScenario" style="min-height:0">
-            <div class="scn">
-              <div><label for="fund">Funding change, $ per year <output id="fundO">$0</output></label>
-                <input type="range" id="fund" min="-500000" max="1000000" step="25000" value="0">
-                <input type="number" id="fundN" class="exact" min="-500000" max="1000000" step="1" value="0" aria-label="Funding change, exact dollars"></div>
-              <div class="ctrls">
-                <label class="toggle"><input type="radio" name="fundType" id="fundRec" value="recurring" checked> Recurring</label>
-                <label class="toggle"><input type="radio" name="fundType" id="fundOne" value="onetime"> One-time (year 1 only)</label>
+            <div class="scn split">
+              <div class="scn">
+                <p class="desc">Add new funding or change an existing revenue source.</p>
+                <div><label for="fund">Additional funding (new money), $ per year <output id="fundO">$0</output></label>
+                  <input type="range" id="fund" min="-500000" max="1000000" step="25000" value="0">
+                  <input type="number" id="fundN" class="exact" min="-500000" max="1000000" step="1" value="0" aria-label="Funding change, exact dollars"></div>
+                <div class="ctrls">
+                  <label class="toggle"><input type="radio" name="fundType" id="fundRec" value="recurring" checked> Recurring</label>
+                  <label class="toggle"><input type="radio" name="fundType" id="fundOne" value="onetime"> One-time (year 1 only)</label>
+                </div>
+                <div class="ctrls">
+                  <div><label for="srcSel">Or change an existing revenue source (2024 amount)</label>
+                    <select id="srcSel">
+                      <option value="">None</option>
+                      <option value="propertyTax">Property tax</option>
+                      <option value="incomeTax">Local income tax</option>
+                      <option value="excise">Vehicle excise tax</option>
+                      <option value="contracts">Fire protection contracts</option>
+                    </select></div>
+                  <div><label for="srcPct">Source change <output id="srcPctO">0%</output></label>
+                    <input type="range" id="srcPct" min="-50" max="50" step="1" value="0"></div>
+                </div>
+                <label class="toggle"><input type="checkbox" id="useStaff"> Start from the staffing scenario's gap</label>
               </div>
-              <div class="ctrls">
-                <div><label for="srcSel">Change one revenue source</label>
-                  <select id="srcSel">
-                    <option value="">None</option>
-                    <option value="propertyTax">Property tax</option>
-                    <option value="incomeTax">Local income tax</option>
-                    <option value="excise">Vehicle excise tax</option>
-                    <option value="contracts">Fire protection contracts</option>
-                  </select></div>
-                <div><label for="srcPct">Source change <output id="srcPctO">0%</output></label>
-                  <input type="range" id="srcPct" min="-50" max="50" step="1" value="0"></div>
+              <div class="scn">
+                <div class="result">
+                  <div><span>Recurring revenue, starting</span><b id="f_revStart">–</b></div>
+                  <div><span>Recurring revenue, adjusted</span><b id="f_revAdj">–</b><em class="sub" id="f_oneTime"></em></div>
+                  <div><span>2027 proposed budget</span><b id="f_budget">–</b></div>
+                  <div><span>Starting gap <em class="sub" id="f_basis"></em></span><b id="f_startGap">–</b></div>
+                  <div><span id="f_gapLbl">Resulting annual gap</span><b id="f_gap">–</b><em class="sub" id="f_y1"></em></div>
+                  <div><span>Years of fund balance</span><b id="f_yrs">–</b></div>
+                </div>
+                <p class="note" style="margin:0" id="f_src"></p>
+                <p class="note" style="margin:0">Planning comparison, not a forecast. Expenses and other revenue held flat. Revenue sources use 2024 AFR amounts. Property tax changes are limited by levy controls and circuit breakers (Scenario 5, pending).</p>
               </div>
-              <label class="toggle"><input type="checkbox" id="useStaff"> Start from the staffing scenario's gap</label>
-              <div class="result">
-                <div><span>Recurring revenue, starting</span><b id="f_revStart">–</b></div>
-                <div><span>Recurring revenue, adjusted</span><b id="f_revAdj">–</b><em class="sub" id="f_oneTime"></em></div>
-                <div><span>2027 proposed budget</span><b id="f_budget">–</b></div>
-                <div><span>Starting gap <em class="sub" id="f_basis"></em></span><b id="f_startGap">–</b></div>
-                <div><span id="f_gapLbl">Resulting annual gap</span><b id="f_gap">–</b><em class="sub" id="f_y1"></em></div>
-                <div><span>Years of fund balance</span><b id="f_yrs">–</b></div>
+              <div class="scn">
+                <div class="cchart"><h3 class="ctitle">Recurring revenue by source</h3><div id="srcChart"></div></div>
               </div>
-              <div class="fchart" id="fundChart"></div>
-              <p class="note" style="margin:0" id="f_src"></p>
-              <p class="note" style="margin:0">Planning comparison, not a forecast. Expenses and other revenue held flat. Revenue sources use 2024 AFR amounts. Property tax changes are limited by levy controls and circuit breakers (Scenario 5, pending).</p>
             </div></div></div>
         </section>
       </div>
 
-      <div class="row d">
+      <div class="tabpane" id="t-3" role="tabpanel" aria-label="Scenario 3: Staffing" hidden>
+        <section class="panel model" id="staffing-scenario">
+          <header><h2>Scenario 3: Staffing increase</h2></header>
+          <div class="body"><div class="slot" data-slot="staffingScenario" style="min-height:0">
+            <div class="scn split">
+              <div class="scn">
+                <p class="desc">Staff 5 posts instead of 4.</p>
+                <div><label for="posts">Posts staffed, proposed (now 4) <output id="postsO">5</output></label>
+                  <input type="range" id="posts" min="4" max="5" step="1" value="5"></div>
+                <div class="ctrls">
+                  <div class="result"><div class="wide"><span>Hours to staff per year</span><b id="hoursO">–</b><em class="sub" id="hoursSub"></em></div></div>
+                  <div class="result"><div class="wide"><span>Overtime hours worked last year</span><b id="otLastO">–</b><em class="sub" id="otLastSub"></em></div></div>
+                </div>
+              </div>
+              <div class="scn">
+                <div class="result">
+                  <div class="wide"><span>Hires required</span><b id="hiresO">–</b></div>
+                  <div><span>New hires</span><b id="l2O">–</b></div>
+                  <div><span>Overtime change</span><b id="otO">–</b><em class="sub" id="otSub"></em></div>
+                  <div><span>Total annual change</span><b id="totO">–</b></div>
+                  <div><span>Resulting operating gap</span><b id="gapO">–</b></div>
+                  <div><span>Years of fund balance</span><b id="yrsO">–</b></div>
+                </div>
+                <p class="note" style="margin:0">Debt service is already inside the 2027 budget, so it is not added again. Payroll tax is inside the $726,036 baseline, and items no scenario changes are held at 2026 levels. Zero overtime is a staffing target pending partner investigation, not a guaranteed result.</p>
+              </div>
+              <div class="scn">
+                <div class="cchart"><h3 class="ctitle">Firefighters needed to cover the posts vs. employed</h3><div id="staffChart"></div>
+                  <div class="legend"><span><i style="background:var(--blue-soft)"></i>Needed to cover posts</span><span><i style="background:var(--navy-2)"></i>Employed</span></div></div>
+              </div>
+            </div></div></div>
+        </section>
+      </div>
+
+      <div class="tabpane" id="t-4" role="tabpanel" aria-label="Scenario 4: Compensation" hidden>
+        <section class="panel model" id="scenario">
+          <header><h2>Scenario 4: Compensation changes</h2></header>
+          <div class="body"><div class="slot" data-slot="scenario" style="min-height:0">
+            <div class="scn split">
+              <div class="scn">
+                <p class="desc">Change base salary, the PERF 77 employer rate and the health premium per employee. Only base (first-class) salary is pensionable: a raise costs the salary plus the PERF share on top, while overtime, allowances and health premiums carry no pension cost. Per the partner, overtime is never zero: Scenario 4 assumes each firefighter works about the same overtime as last year (164 hrs), costed at the scenario salary.</p>
+                <div class="ctrls">
+                <div><label for="sal">Base salary adjustment <output id="salO">0%</output></label>
+                  <input type="range" id="sal" min="-10" max="10" step="0.5" value="0"></div>
+                <div><label for="perfRate"><span><a href="https://www.in.gov/inprs/" target="_blank" rel="noopener">PERF 77</a> employer rate</span> <output id="perfRateO">23.3%</output></label>
+                  <input type="range" id="perfRate" min="20" max="30" step="0.1" value="23.3"></div>
+                <div><label for="prem">Health premium per employee <output id="premO">$10,000 (assumption)</output></label>
+                  <input type="range" id="prem" min="0" max="30000" step="1000" value="10000"></div>
+                <label class="toggle"><input type="checkbox" id="perf" checked> Fund PERF 77</label>
+                </div>
+              </div>
+              <div class="scn">
+                <div class="result">
+                  <div class="wide"><span>Cost per firefighter, loaded</span><b id="perO">–</b><em class="sub" id="perSub"></em></div>
+                  <div><span>Total health program cost (whole service)</span><b id="healthO">–</b><em class="sub" id="healthSub"></em></div>
+                  <div><span>Total personnel cost (whole service)</span><b id="persTotO">–</b><em class="sub" id="persTotSub"></em></div>
+                  <div><span>Compensation decision (existing staff)</span><b id="l1O">–</b></div>
+                  <div><span>Additional rate per $100 AV</span><b id="addO">–</b></div>
+                  <div><span>Total operating rate</span><b id="rateO">–</b></div>
+                  <div><span>Household tax increase at $150,000 AV, per year</span><b id="hhO">–</b><em class="sub" id="hhSub"></em></div>
+                </div>
+                <p class="note" style="margin:0">Rates are gross, before circuit-breaker caps, deductions and credits. The PERF default is the 2026 rate (23.3%); the rate rises each year, so it is set to the 2026 rate for now and the 2027 rate (26.5%) is one slider move away. INPRS's page is inconsistent on 2026 (an older table shows 20.3%), so confirm with INPRS. The health premium is an assumption: there is no health insurance today and no quote exists.</p>
+              </div>
+              <div class="scn">
+                <div class="cchart"><h3 class="ctitle">Loaded cost per firefighter, today vs. scenario</h3><div id="costChart"></div>
+                  <div class="legend"><span><i style="background:var(--navy-2)"></i>Salary (pensionable)</span><span><i style="background:var(--blue)"></i>PERF 77</span><span><i style="background:var(--blue-soft)"></i>Payroll tax</span><span><i style="background:#C77700"></i>Health premium (not pensionable)</span></div></div>
+              </div>
+              <div class="scn">
+                <div class="cchart"><h3 class="ctitle">PERF 77 employer rate by year, and PERF cost per firefighter at the scenario salary</h3><div id="perfChart"></div>
+                  <div class="legend"><span><i style="background:var(--blue)"></i>INPRS employer rate</span><span><i style="background:var(--blue-soft)"></i>2026, confirm with INPRS</span><span><i style="background:#C77700"></i>Scenario rate</span></div>
+                  <p class="note" style="margin:8px 0 0">Members contribute 6% of base salary; the employer may pick up all or part of it. Cost per firefighter is the rate times the scenario salary.</p>
+                  <p class="note" id="perfYearNote" style="margin:4px 0 0"></p></div>
+              </div>
+            </div></div></div>
+        </section>
+      </div>
+      <div class="tabpane" id="t-6" role="tabpanel" aria-label="Ask the data" hidden>
         <section class="panel" id="assistant">
-          <header><h2>Ask the data</h2><span class="tag">Not connected</span></header>
+          <header><h2>Ask the data</h2></header>
           <div class="body"><div class="slot" data-slot="assistant" style="min-height:0">
+            <div class="askwrap" id="askWrap" data-pane="off">
             <div class="chat">
               <div class="msgs" id="msgs" aria-live="polite">
                 <div class="msg bot">Ask about any figure on this page. Answers will cite the source document for every number.</div>
               </div>
               <div class="suggest" id="askSuggest" hidden></div>
               <form class="ask" id="askForm"><input id="askIn" placeholder="Why is there a gap in 2027?" aria-label="Question"><button type="submit">Ask</button></form>
-              <p class="note" id="askNote" style="margin:0" hidden>Answers are generated by Claude from the dashboard's aggregated data and tools; check cited sources.</p>
+              <p class="note" id="askNote" style="margin:0" hidden>Answers are generated by Claude from the dashboard's aggregated data and tools; check cited sources. Charts use a sanitized incident table; locations are not included.</p>
+            </div>
+            <aside class="vpane" id="vpane" aria-label="Charts" hidden>
+              <div class="vhead"><h3 id="vTitle">Chart</h3><span class="vbadge" id="vBadge"></span>
+                <button type="button" id="vToggle" aria-expanded="false" title="Expand or collapse the chart pane (Alt+V)">Expand</button></div>
+              <div class="vchart" id="vChart" role="img" aria-label="Chart"></div>
+              <div id="vSources" class="note" style="margin:0"></div>
+              <details class="vdata" id="vData"><summary>View data table</summary><div id="vTable"></div></details>
+              <div class="vmenu" id="vMenu" role="group" aria-label="Charts from this session"></div>
+            </aside>
             </div></div></div>
         </section>
       </div>
-
-      <!-- Ask CCFD1 AI: chat + data-driven charts (assistant/viz-panel.js, assistant/viz-tools.js) -->
-      <div class="row d">
-        <section class="panel" id="ai-viz">
-          <header><h2>Ask CCFD1 AI</h2><span class="tag">Not connected</span></header>
-          <div class="body">
-            <p class="note" style="margin:0 0 10px">Ask questions about CCFD1 operational, GIS, financial, and scenario data and generate data-driven visualizations.</p>
-            <div class="chat">
-              <div class="msgs" id="aivMsgs" aria-live="polite">
-                <div class="msg bot">Ask about incidents, apparatus, townships, finances, or the scenarios. Charts are drawn from the dashboard's own data and scenario engine; projected values are labelled.</div>
-              </div>
-              <div class="suggest" id="aivSuggest"></div>
-              <form class="ask" id="aivForm"><input id="aivIn" placeholder="Show EMS calls by hour of day" aria-label="Question for Ask CCFD1 AI"><button type="submit">Ask</button></form>
-              <p class="note" style="margin:0">Answers are generated by Claude. Every chart number comes from validated project data or the scenario engine, never from the AI; check cited sources.</p>
-            </div>
-          </div>
+      </div>
+      <div class="row shared" id="scenOut" hidden>
+        <section class="panel" id="fund-proj">
+          <header><h2>Fund balance, projected</h2></header>
+          <div class="body"><div class="slot" data-slot="fundShared"></div>
+            <p class="note" id="fundSharedNote"></p></div>
         </section>
+        <section class="panel" id="spend-type">
+          <header><h2>Spending by type, 2027</h2></header>
+          <div class="body"><div class="slot" data-slot="spendShared"></div><div class="legend" id="spendLegend"></div>
+            <p class="note" id="spendNote"></p></div>
+        </section>
+      </div>
       </div>
     </main>
 
     <footer class="foot">
-      <span>Prototype. <span class="key">Green = real data, source named on the tag.</span> <span class="key model">Amber = model output from the team cost engine.</span> Grey = sample or not connected.</span>
+      <span>Prototype. <span class="key">Green outline = real data.</span> <span class="key model">Amber outline = model output from the team cost engine.</span> No outline = sample or not connected.</span>
       <span id="footUpdated">Last updated: –</span>
       <span>Sources: Indiana Gateway AFRs 2011–2024 (reconciled), Cass County E911 CAD (Sep 2025–Sep 2026), CCFD1 payroll aggregates.</span>
     </footer>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@12.6.2/highcharts.js" integrity="sha384-/HGbdmoSlRtfmBzDcqYxyT86040gFFFalhmj92Fry1SKkiqwdovRrxxfj4Fb1isO" crossorigin="anonymous"></script>
 <script src="shared/engine.js"></script>
 <script src="shared/cad-gis.js"></script>
+<script src="shared/dataset.js"></script>
 <script src="assistant/tools.js"></script>
 <script>
+(async()=>{
 /* "Ask the data" assistant: Cloudflare Worker that forwards to Claude (see worker/README.md).
-   Set to "" to show the panel as not connected. */
-const ASSISTANT_URL = "https://ccfd1-assistant.ccfd1-dashboard.workers.dev";
+   The URL comes from config.json (written by run.py when it deploys the Worker). Empty = panel hidden. */
+let ASSISTANT_URL = "";
+const CONFIG_READY = fetch("config.json",{cache:"no-store"}).then(r=>r.ok?r.json():{}).catch(()=>({}))
+  .then(c=>{ASSISTANT_URL=c.assistant_url||""; return c;});
 
 /* ============================================================
-   DATA: real figures. Edit here to update the page.
-   Set any entry to null to fall back to the sample visual.
+   DATA is built from datasets/ below. Do not type numbers here; run `python run.py`.
+   An entry that is null falls back to the sample visual.
    Source for all CAD figures: CCFD1 CAD extract (aggregated counts only)
    (Fire + EMS, de-duplicated), CCFD1 = CAD agency "DIST".
    ============================================================ */
-const DATA = {
-  updated: "November 4, 2026",
-  finance: {
-    // Indiana Gateway AFRs, Cass County Fire District #1, 2011–2024.
-    // Reconciled to AFR fund totals (177 checks, 0 mismatches). 2025 AFR pending.
-    // Operating figures exclude loan proceeds, interfund transfers and payroll pass-throughs.
-    years:             [2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024],
-    operatingRevenue:  [245306,303735,854028,966327,952993,1055713,996658,981150,1122409,1060043,1121481,1045228,1238278,1279649],
-    operatingSpending: [715327,984971,970849,939420,776912,869389,801658,784225,1336772,874535,950929,987886,1806802,1524669],
-    endingBalance:     [126403,115024,211970,443914,633880,820204,1015204,1212129,1397766,1583273,1753825,1811167,1932643,1687623],
-    sourceYear: 2024,
-    sources: [
-      ["Property tax", 882965],
-      ["Local income tax", 212041],
-      ["Interest and other", 98815],
-      ["Vehicle excise tax", 64785],
-      ["Fire protection contracts", 21042]
-    ]
-  },
-  staffingCost: {
-    // Gateway AFRs 2011–2024. Personnel = salaries and wages + AFR "Employee Benefits" line.
-    years:      [2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024],
-    personnel:  [0,0,0,0,0,0,0,0,1300,565791,648290,650716,704746,800075],
-    contracted: [622839,629997,623084,626527,624583,628038,646489,677458,727980,57217,57195,62992,60898,65481]
-  },
-  cadPeriod: CCFD1GIS.cadPeriod,   // shared/cad-gis.js
-
-  // KPI card: unique incidents where CCFD1 was dispatched (shared/cad-gis.js)
-  incidents: CCFD1GIS.incidentsTotal,
-
-  // Incidents by hour of day (index 0 = 00:00 ... 23 = 23:00), CCFD1 incidents
-  hourly: [20,12,14,14,12,8,18,25,30,38,29,36,27,36,35,36,38,30,27,30,27,21,20,21],
-
-  // Where CCFD1 incidents occurred, by township (incident lat/long joined to township boundaries)
-  // [label, incidents]. Outside the District = Jefferson 36, Clinton 17, Boone 7, other 13
-  outsideDistrict: [
-    ["Inside the District (Clay, Noble, Eel)", 451],
-    ["Contract: Washington Township", 53],
-    ["Outside the District", 73],
-    ["No location in CAD", 27]
-  ],
-
-  // Township boundaries and CCFD1 incident locations: shared/cad-gis.js (also drawn by gis-map/)
-  townships: CCFD1GIS.townships,
-  incidentPoints: CCFD1GIS.incidentPoints
-};
+const DATA = await (async function buildData(){
+  /* Single source of truth: datasets/ (rewritten by run.py). Nothing here is typed by hand.
+     A dataset that fails to load leaves its entries null/undefined and the page falls back to the sample visual. */
+  const D={updated:null,finance:null,staffingCost:null,cadPeriod:null,incidents:null,hourly:null,outsideDistrict:null,townships:null,incidentPoints:null};
+  const get=u=>fetch(u,{cache:"no-store"}).then(r=>{if(!r.ok) throw new Error(u+" HTTP "+r.status); return r.json();});
+  const [man,fin,staff,src,hour,loc,tw,pts]=await Promise.all([
+    get("datasets/index.json"),get("datasets/finance_by_year.json"),get("datasets/personnel_vs_contracted.json"),
+    get("datasets/revenue_by_source_2024.json"),get("datasets/cad_incidents_by_hour.json"),
+    get("datasets/cad_incidents_by_location.json"),get("assets/townships.json"),get("assets/incident_points.json")
+  ].map(p=>p.catch(e=>{console.warn("data not loaded:",e.message); return null;})));
+  const col=(ds,c)=>ds.rows.map(r=>r[c]);
+  const fmt=iso=>new Date(iso+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+  if(man&&man.updated) D.updated=new Date(man.updated+"T00:00:00").toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+  if(fin&&src) D.finance={years:col(fin,"year"),operatingRevenue:col(fin,"revenue"),operatingSpending:col(fin,"spending"),
+    endingBalance:col(fin,"balance"),sourceYear:2024,sources:src.rows.map(r=>[r.source,r.amount])};
+  if(staff) D.staffingCost={years:col(staff,"year"),personnel:col(staff,"personnel"),contracted:col(staff,"contracted")};
+  if(hour&&hour.rows.length===24){
+    D.hourly=col(hour,"incidents"); D.incidents=D.hourly.reduce((a,b)=>a+b,0);
+    const [a,b]=hour.period.split(" to "); D.cadPeriod=fmt(a)+" to "+fmt(b);
+  }
+  if(loc) D.outsideDistrict=loc.rows.map(r=>[r.location,r.incidents]);
+  D.townships=tw; D.incidentPoints=pts;
+  return D;
+})();
 
 /* ============================================================
    EMBEDS: paste ArcGIS embed URLs here.
@@ -449,8 +647,6 @@ const $ = s => document.querySelector(s);
 const money = n => (n<0?"-":"") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
 const num = n => Math.round(n).toLocaleString("en-US");
 function markReal(slotKey, text){
-  const tag=document.querySelector(`[data-slot="${slotKey}"]`)?.closest(".panel")?.querySelector(".tag");
-  if(tag){tag.textContent=text; tag.classList.add("real");}
   document.querySelector(`[data-slot="${slotKey}"]`)?.closest(".panel")?.classList.add("updated");
 }
 
@@ -614,14 +810,79 @@ const SAMPLES={revenue:finBars,funding:finDonut,map:townshipMap,
 if(DATA.incidents!=null){
   $("#kpiIncidents").textContent=num(DATA.incidents);
   $("#kpiIncidentsSrc").textContent=`${DATA.cadPeriod}, CAD, Fire and EMS`;
-  const kc=$("#kpiIncCard"); kc.classList.add("updated"); kc.insertAdjacentHTML("afterbegin",'<span class="badge">Updated</span>');
+  const kc=$("#kpiIncCard"); kc.classList.add("updated"); 
 }
-/* Financial KPI cards: sourced figures, so they get the same Updated badge; each keeps its .src line */
+/* Financial KPI cards: sourced figures, so they get the green outline; each keeps its .src line */
 document.querySelectorAll(".kpis .kpi").forEach(k=>{
   if(k.id==="kpiIncCard"||k.classList.contains("updated")) return;
-  k.classList.add("updated"); k.insertAdjacentHTML("afterbegin",'<span class="badge">Updated</span>');
+  k.classList.add("updated"); 
 });
 $("#footUpdated").textContent="Last updated: "+(DATA.updated||"–");
+
+/* ---------- Cost basis (top KPI cards) follows the active scenario tab ----------
+   Each card keeps its page value in data-base; factValue() reads that, so the facts.json check
+   is unaffected by a scenario. On Overview (and the blank tabs) the cards show the page values. */
+const KPIS=[...document.querySelectorAll(".kpis .kpi")].map(el=>{
+  const x={el,lab:el.querySelector(".label"),val:el.querySelector(".value"),src:el.querySelector(".src"),upd:el.classList.contains("updated")};
+  x.base={lab:x.lab.textContent,val:x.val.textContent,src:x.src.textContent};
+  x.val.dataset.base=x.base.val; return x;
+});
+const LAST={staffing:null,funding:null};   // latest engine results, set by the scenario panels below
+let activeTab="t-overview";
+function updateKpis(){
+  const sgn=v=>(v>0?"+":"")+money(v);
+  const ov={};   // card index -> {lab,val,src}
+  if(activeTab==="t-1"&&LAST.funding){
+    const r=LAST.funding;
+    ov[0]={val:money(r.laterGap),src:"Baseline "+money(r.startGap)};
+    ov[2]={val:money(r.adjustedRevenue),src:"Baseline "+money(S1.RECURRING_REVENUE)};
+    ov[3]={lab:"Years of fund balance",val:yearsLabel(r.years),src:"Fund balance, end of 2025: "+money(S1.FUND_BALANCE)};
+  } else if((activeTab==="t-3"||activeTab==="t-4")&&LAST.staffing){
+    const r=LAST.staffing;
+    ov[0]={val:money(r.gap),src:"Baseline "+money(ENG.BASE_GAP)};
+    ov[1]={val:money(S1.BUDGET_2027+r.total),src:"Baseline "+money(S1.BUDGET_2027)+"; change "+sgn(r.total)};
+    ov[3]={lab:"Years of fund balance",val:yearsLabel(r.years),src:"Fund balance, end of 2025: "+money(S1.FUND_BALANCE)};
+  }
+  KPIS.forEach((x,i)=>{
+    const o=ov[i], b=x.base;
+    x.lab.textContent=o&&o.lab||b.lab; x.val.textContent=o?o.val:b.val; x.src.textContent=o?o.src:b.src;
+    x.el.classList.toggle("model",!!o); x.el.classList.toggle("updated",!o&&x.upd);
+  });
+  /* Cost visual: revenue vs cost basis, with the operating gap between them */
+  const f=activeTab==="t-1"&&LAST.funding?LAST.funding:null, st=(activeTab==="t-3"||activeTab==="t-4")&&LAST.staffing?LAST.staffing:null;
+  const v={rev:f?f.adjustedRevenue:S1.RECURRING_REVENUE, budget:st?S1.BUDGET_2027+st.total:S1.BUDGET_2027,
+    gap:f?f.laterGap:st?st.gap:ENG.BASE_GAP, years:f?f.years:st?st.years:ENG.FUND_BALANCE/ENG.BASE_GAP, scen:!!(f||st)};
+  const slot=document.querySelector('[data-slot="costviz"]');
+  if(slot){ slot.innerHTML=costViz(v);
+    $("#costNote").textContent=v.scen?"Scenario view. Baseline gap "+money(ENG.BASE_GAP)+", revenue "+money(S1.RECURRING_REVENUE)+", budget "+money(S1.BUDGET_2027)+".":"Gap = proposed budget minus recurring revenue (Scope Document v2.0, Gateway Form 1)."; }
+  const hp=$("#overview"); if(hp) hp.classList.toggle("model",v.scen);
+}
+function costViz(v){
+  const W=300,L=0,m=Math.max(v.rev,v.budget,v.rev+Math.max(0,v.gap))*1.0, sc=(W-L)/m, surplus=v.gap<0;
+  const bar=(y,label,val,segs)=>{let g=`<text x="0" y="${y+12}" font-size="12" fill="${C.muted}">${label}</text><text x="${W}" y="${y+12}" font-size="13" font-weight="700" text-anchor="end" fill="${C.navy}">${val}</text>`, x=0;
+    segs.forEach(([w,c,t])=>{g+=`<rect x="${x*sc}" y="${y+18}" width="${Math.max(0,w*sc)}" height="26" fill="${c}"><title>${t}</title></rect>`;x+=w;}); return g;};
+  let g=bar(4,"Recurring revenue",money(v.rev),[[v.rev,C.soft,"Recurring revenue: "+money(v.rev)],...(!surplus&&v.gap>0?[[v.gap,C.alert,"Operating gap: "+money(v.gap)]]:[])]);
+  g+=bar(62,"Cost basis (proposed budget)",money(v.budget),[[v.budget,C.navy,"Proposed budget: "+money(v.budget)]]);
+  const gx=Math.min(v.rev,v.budget)*sc;
+  g+=`<text x="${W}" y="140" font-size="12" text-anchor="end" fill="${C.muted}">${surplus?"Operating surplus":"Operating gap"}</text>`;
+  g+=`<text x="${W}" y="166" font-size="26" font-weight="700" text-anchor="end" fill="${surplus?"#1E7B4F":C.alert}">${money(Math.abs(v.gap))}</text>`;
+  g+=`<text x="0" y="140" font-size="12" fill="${C.muted}">Fund balance, end of 2025</text><text x="0" y="166" font-size="20" font-weight="700" fill="${C.navy}">${money(ENG.FUND_BALANCE)}</text>`;
+  g+=`<text x="0" y="188" font-size="12" fill="${C.muted}">Years of fund balance: ${yearsLabel(v.years)}</text>`;
+  return `<svg viewBox="0 0 ${W} 196" role="img" aria-label="Recurring revenue ${money(v.rev)}, proposed budget ${money(v.budget)}, operating ${surplus?"surplus":"gap"} ${money(Math.abs(v.gap))}">${g}</svg>`;
+}
+
+/* ---------- Tabs: Overview, Scenarios 1-5, Ask the data ---------- */
+const TABS=[...document.querySelectorAll("#nav a[data-tab]")];
+function showTab(id){
+  if(!document.getElementById(id)) id="t-overview";
+  activeTab=id;
+  document.querySelectorAll(".tabpane").forEach(p=>{p.hidden=p.id!==id;});
+  TABS.forEach(a=>a.setAttribute("aria-current",a.dataset.tab===id?"true":"false"));
+  $("#scenOut").hidden=!["t-1","t-3","t-4"].includes(id);
+  const lw=$("#lower"); if(lw) lw.scrollTop=0;
+  updateKpis(); if(typeof renderShared==="function") renderShared();
+}
+TABS.forEach(a=>a.addEventListener("click",e=>{e.preventDefault();showTab(a.dataset.tab);}));
 
 /* ---------- Draw panels ---------- */
 document.querySelectorAll("[data-slot]").forEach(el=>{
@@ -630,62 +891,270 @@ document.querySelectorAll("[data-slot]").forEach(el=>{
   else if(!el.innerHTML.trim() && SAMPLES[key]) el.innerHTML=SAMPLES[key]();
 });
 
-/* ---------- Map: townships + CCFD1 incidents drawn from DATA (no external library) ---------- */
-function realMap(){
-  const T=DATA.townships; if(!T) return townshipMap();
-  // Symbology shared with gis-map/ (shared/cad-gis.js): [fill, opacity] and [label, colour]
-  const ROLE=Object.fromEntries(Object.entries(CCFD1GIS.ROLES).map(([k,v])=>[k,[v.fill,v.opacity]]));
-  const CAT=Object.fromEntries(Object.entries(CCFD1GIS.CATEGORIES).map(([k,v])=>[k,[v.label,v.color]]));
+/* ---------- Map: CCFD1 service regions + call locations, drawn from DATA (no external library) ----------
+   Two independent legends: township designation (fills) and event response (dots). Both are toggles.
+   Interaction: hover tooltips, click a township (or a dot) to focus it, drag to pan, +/- or Ctrl+scroll to zoom. */
+function buildServiceMap(el){
+  const T=DATA.townships; if(!T){ el.innerHTML=townshipMap(); return; }
+  const ROLES=[["CCFD1 Core","CCFD1 core",C.blue,.9],["Directly Involved","Directly involved",C.soft,.95],["Other Cass County","Other Cass County",C.tint,1]];
+  const CATS=[["M","Medical",C.navy],["F","Fire / hazard",C.alert],["V","Vehicle accident","#C77700"],["O","Other","#5B6B80"]];
+  const pts=DATA.incidentPoints||[];
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+  /* projection */
   let x0=180,x1=-180,y0=90,y1=-90;
   T.features.forEach(f=>f.geometry.coordinates[0].forEach(([x,y])=>{x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}));
-  const k=Math.cos((y0+y1)/2*Math.PI/180), W=440, pad=6, sc=(W-2*pad)/((x1-x0)*k), H=Math.round((y1-y0)*sc+2*pad);
-  const px=x=>pad+(x-x0)*k*sc, py=y=>pad+(y1-y)*sc;
-  let g="";
-  T.features.forEach(f=>{const r=ROLE[f.properties.role]||ROLE["Other Cass County"];
-    const d=f.geometry.coordinates.map(ring=>"M"+ring.map(([x,y])=>px(x).toFixed(1)+" "+py(y).toFixed(1)).join("L")+"Z").join("");
-    g+=`<path class="tw" d="${d}" fill="${r[0]}" fill-opacity="${r[1]}" fill-rule="evenodd"><title>${f.properties.name} (${f.properties.role})</title></path>`;});
-  (DATA.incidentPoints||[]).forEach(([lat,lng,c])=>{const q=CAT[c]||CAT.O;
-    g+=`<circle cx="${px(lng).toFixed(1)}" cy="${py(lat).toFixed(1)}" r="2.2" fill="${q[1]}" fill-opacity=".8"><title>${q[0]}</title></circle>`;});
-  T.features.forEach(f=>{const ring=f.geometry.coordinates[0];let sx=0,sy=0;ring.forEach(([x,y])=>{sx+=x;sy+=y;});
-    const nm=f.properties.name.replace(" Township","");
-    g+=`<text x="${px(sx/ring.length).toFixed(1)}" y="${py(sy/ring.length).toFixed(1)}" text-anchor="middle">${nm}</text>`;});
-  const lg=$("#gis .legend");
-  if(lg) lg.innerHTML=`<span><i style="background:${C.blue}"></i>CCFD1 core</span><span><i style="background:${C.soft}"></i>Directly involved</span><span><i style="background:${C.tint};border:1px solid var(--line)"></i>Other Cass County</span>`+
-    Object.values(CAT).map(([n,c])=>`<span><i class="dot" style="background:${c}"></i>${n}</span>`).join("")+
-    (DATA.incidentPoints?`<span>${num(DATA.incidentPoints.length)} mapped CCFD1 incidents</span>`:"");
+  const k0=Math.cos((y0+y1)/2*Math.PI/180), W=440, pad=8, sc=(W-2*pad)/((x1-x0)*k0), H=Math.round((y1-y0)*sc+2*pad);
+  const px=x=>pad+(x-x0)*k0*sc, py=y=>pad+(y1-y)*sc;
+
+  /* township shapes, centroids, and which township each mapped call falls in */
+  const inside=(x,y,rings)=>{let c=false; rings.forEach(r=>{for(let i=0,j=r.length-1;i<r.length;j=i++){
+    const [xi,yi]=r[i],[xj,yj]=r[j]; if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi) c=!c;}}); return c;};
+  const TW=T.features.map((f,i)=>{
+    const rings=f.geometry.coordinates, ring=rings[0]; let sx=0,sy=0,bx0=1e9,bx1=-1e9,by0=1e9,by1=-1e9;
+    ring.forEach(([x,y])=>{sx+=x;sy+=y;bx0=Math.min(bx0,px(x));bx1=Math.max(bx1,px(x));by0=Math.min(by0,py(y));by1=Math.max(by1,py(y));});
+    return {i,name:f.properties.name, short:f.properties.name.replace(" Township",""), role:f.properties.role in Object.fromEntries(ROLES)?f.properties.role:"Other Cass County",
+      d:rings.map(r=>"M"+r.map(([x,y])=>px(x).toFixed(1)+" "+py(y).toFixed(1)).join("L")+"Z").join(""),
+      cx:px(sx/ring.length), cy:py(sy/ring.length), bbox:[bx0,by0,bx1,by1], rings, n:0, cat:{M:0,F:0,V:0,O:0}};});
+  const PT=pts.map(([lat,lng,c])=>{const cat=CATS.some(q=>q[0]===c)?c:"O";
+    const t=TW.find(t=>inside(lng,lat,t.rings)); if(t){t.n++;t.cat[cat]++;}
+    return {x:px(lng),y:py(lat),cat,t:t?t.i:-1};});
+  const outsideN=PT.filter(p=>p.t<0).length;
+
+  /* state */
+  const st={hideRole:new Set(),hideCat:new Set(),sel:-1,k:1,x:0,y:0};
+
+  /* markup */
+  const svg=`<svg class="twmap" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="group" aria-label="Cass County townships and CCFD1 call locations. Select a township for detail.">`+
+    `<rect class="bg" x="0" y="0" width="${W}" height="${H}" fill="transparent"/>`+
+    `<g class="tws">${TW.map(t=>`<path class="tw" data-i="${t.i}" d="${t.d}" fill-rule="evenodd" tabindex="0" role="button" aria-pressed="false" aria-label="${esc(t.name)}, ${esc(t.role)}"/>`).join("")}</g>`+
+    `<g class="dots">${PT.map((p,i)=>`<circle class="dot" data-p="${i}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.4" fill="${CATS.find(q=>q[0]===p.cat)[2]}"/>`).join("")}</g>`+
+    `<g class="lbls">${TW.map(t=>`<text x="${t.cx.toFixed(1)}" y="${t.cy.toFixed(1)}" text-anchor="middle">${esc(t.short)}</text>`).join("")}</g></svg>`;
+  el.innerHTML=`<div class="mapwrap">
+    <div class="mapcol"><div class="mapstage">${svg}
+      <div class="mapzoom" role="group" aria-label="Map zoom"><button type="button" data-z="in" aria-label="Zoom in">+</button><button type="button" data-z="out" aria-label="Zoom out">&minus;</button><button type="button" data-z="reset" aria-label="Reset view">&#8634;</button></div>
+      <div class="maptip" hidden></div></div></div>
+    <aside class="mapside">
+      <div class="mbox" id="mbDesig"><h3>Township designation</h3><p class="mhint">Shading on the map. Click to show or hide.</p><div class="mlist"></div></div>
+      <div class="mbox" id="mbCall"><h3>Event response</h3><p class="mhint">Dots on the map. Click to show or hide.</p><div class="mlist"></div></div>
+      <div class="mbox mdetail" id="mbDetail" aria-live="polite"></div>
+      <p class="note mapnote">Click a township or dot to focus it. Drag to pan; + / &minus; or Ctrl + scroll to zoom. Dots are the ${num(pts.length)} CCFD1 incidents that could be mapped, not all calls.</p>
+    </aside></div>`;
+  el.querySelector(".mapwrap").style.setProperty("--ar",(W/H).toFixed(3));
+
+  const $$=(s,r=el)=>[...r.querySelectorAll(s)];
+  const svgEl=el.querySelector("svg"), tip=el.querySelector(".maptip"), stage=el.querySelector(".mapstage");
+  const paths=$$("path.tw"), dots=$$("circle.dot"), lbls=$$(".lbls text");
+
+  /* view (pan + zoom) */
+  function clampView(){ const vw=W/st.k, vh=H/st.k; st.x=Math.min(Math.max(st.x,0),W-vw); st.y=Math.min(Math.max(st.y,0),H-vh); }
+  function applyView(){
+    clampView(); svgEl.setAttribute("viewBox",`${st.x.toFixed(1)} ${st.y.toFixed(1)} ${(W/st.k).toFixed(1)} ${(H/st.k).toFixed(1)}`);
+    const s=Math.pow(st.k,.55); dots.forEach(d=>d.setAttribute("r",(2.4/s).toFixed(2)));
+    lbls.forEach(t=>t.style.fontSize=(9/s).toFixed(2)+"px");
+    svgEl.style.cursor=st.k>1?"grab":"default"; svgEl.style.touchAction=st.k>1?"none":"pan-y";
+    el.querySelector('[data-z="out"]').disabled=el.querySelector('[data-z="reset"]').disabled=st.k<=1;
+    el.querySelector('[data-z="in"]').disabled=st.k>=8;
+  }
+  function zoomTo(k,fx=st.x+W/st.k/2,fy=st.y+H/st.k/2){
+    const nk=Math.min(8,Math.max(1,k)); st.x=fx-(fx-st.x)*st.k/nk; st.y=fy-(fy-st.y)*st.k/nk; st.k=nk; applyView();
+  }
+  function fitTo(bbox){
+    const [a,b,c,d]=bbox, m=14, k=Math.min(8,Math.max(1,Math.min(W/(c-a+2*m),H/(d-b+2*m))));
+    st.k=k; st.x=(a+c)/2-W/k/2; st.y=(b+d)/2-H/k/2; applyView();
+  }
+  const clientToSvg=(cx,cy)=>{const r=svgEl.getBoundingClientRect(); return [st.x+(cx-r.left)/r.width*W/st.k, st.y+(cy-r.top)/r.height*H/st.k];};
+  el.querySelectorAll(".mapzoom button").forEach(b=>b.addEventListener("click",()=>{
+    if(b.dataset.z==="in") zoomTo(st.k*1.6); else if(b.dataset.z==="out") zoomTo(st.k/1.6); else {st.k=1;st.x=st.y=0;applyView();} }));
+  svgEl.addEventListener("wheel",e=>{ if(!(e.ctrlKey||e.metaKey)) return; e.preventDefault();
+    const [fx,fy]=clientToSvg(e.clientX,e.clientY); zoomTo(st.k*(e.deltaY<0?1.25:.8),fx,fy); },{passive:false});
+
+  /* drag to pan; a drag never counts as a click */
+  let drag=null, moved=false;
+  svgEl.addEventListener("pointerdown",e=>{ if(e.button!==0) return; drag={sx:e.clientX,sy:e.clientY,x:st.x,y:st.y}; moved=false; });
+  svgEl.addEventListener("pointermove",e=>{
+    if(!drag){ hover(e); return; }
+    const dx=e.clientX-drag.sx, dy=e.clientY-drag.sy;
+    if(!moved&&Math.hypot(dx,dy)>4&&st.k>1){ moved=true; svgEl.setPointerCapture(e.pointerId); tip.hidden=true; svgEl.style.cursor="grabbing"; }
+    if(moved){ const r=svgEl.getBoundingClientRect(); st.x=drag.x-dx/r.width*W/st.k; st.y=drag.y-dy/r.height*H/st.k; applyView(); }
+  });
+  const endDrag=()=>{ drag=null; if(st.k>1) svgEl.style.cursor="grab"; };
+  svgEl.addEventListener("pointerup",endDrag); svgEl.addEventListener("pointercancel",endDrag);
+  svgEl.addEventListener("pointerleave",()=>{tip.hidden=true;});
+
+  /* tooltips */
+  function hover(e){
+    const t=e.target; let html="";
+    if(t.classList.contains("dot")){ const p=PT[+t.dataset.p], c=CATS.find(q=>q[0]===p.cat); html=`<b>${c[1]}</b>${p.t>=0?`<span>${esc(TW[p.t].name)}</span>`:`<span>Outside mapped townships</span>`}`; }
+    else if(t.classList.contains("tw")){ const w=TW[+t.dataset.i]; html=`<b>${esc(w.name)}</b><span>${esc(ROLES.find(r=>r[0]===w.role)[1])}</span><span>${num(w.n)} mapped calls</span>`; }
+    if(!html){ tip.hidden=true; return; }
+    tip.innerHTML=html; tip.hidden=false;
+    const r=stage.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
+    tip.style.left=Math.min(Math.max(x+14,6),r.width-tip.offsetWidth-6)+"px"; tip.style.top=Math.min(y+14,r.height-tip.offsetHeight-6)+"px";
+  }
+
+  /* selection */
+  function select(i){ st.sel=(i===st.sel?-1:i); refresh(); }
+  svgEl.addEventListener("click",e=>{
+    if(moved){ moved=false; return; }
+    const t=e.target;
+    if(t.classList.contains("tw")) select(+t.dataset.i);
+    else if(t.classList.contains("dot")){ const p=PT[+t.dataset.p]; if(p.t>=0) select(p.t); }
+    else if(st.sel>=0){ st.sel=-1; refresh(); }
+  });
+  svgEl.addEventListener("keydown",e=>{ if((e.key==="Enter"||e.key===" ")&&e.target.classList.contains("tw")){ e.preventDefault(); select(+e.target.dataset.i); } });
+  el.addEventListener("keydown",e=>{ if(e.key==="Escape"&&st.sel>=0){ st.sel=-1; refresh(); } });
+
+  /* legends + detail card */
+  const scopeN=cat=>st.sel>=0?TW[st.sel].cat[cat]:PT.filter(p=>p.cat===cat).length;
+  function legends(){
+    el.querySelector("#mbDesig .mlist").innerHTML=ROLES.map(([key,lab,col])=>{
+      const ts=TW.filter(t=>t.role===key), n=ts.reduce((a,t)=>a+t.n,0), on=!st.hideRole.has(key);
+      return `<button type="button" class="lgbtn" data-role="${key}" aria-pressed="${on}"><i class="sw" style="background:${col};${key==="Other Cass County"?"border:1px solid var(--line)":""}"></i><span class="nm" title="${ts.length} townships">${lab} (${ts.length})</span><span class="ct">${num(n)}</span></button>`;}).join("");
+    el.querySelector("#mbCall .mlist").innerHTML=CATS.map(([key,lab,col])=>{
+      const on=!st.hideCat.has(key);
+      return `<button type="button" class="lgbtn" data-cat="${key}" aria-pressed="${on}"><i class="sw dot" style="background:${col}"></i><span class="nm">${lab}</span><span class="ct">${num(scopeN(key))}</span></button>`;}).join("")+
+      `<p class="mtot">${st.sel>=0?esc(TW[st.sel].name)+": ":"All mapped: "}${num(st.sel>=0?TW[st.sel].n:PT.length)} calls</p>`;
+  }
+  function detail(){
+    const box=el.querySelector("#mbDetail");
+    if(st.sel<0){
+      box.innerHTML=`<h3>Selected township</h3><p class="mhint">None selected. Click a township or call dot on the map.</p>
+        <p class="mfig"><b>${num(PT.length-outsideN)}</b> of ${num(PT.length)} mapped calls fall inside a township boundary; ${num(outsideN)} fall outside the county shapes.</p>`;
+      return;
+    }
+    const w=TW[st.sel], role=ROLES.find(r=>r[0]===w.role), max=Math.max(1,...CATS.map(c=>w.cat[c[0]]));
+    box.innerHTML=`<h3>${esc(w.name)}</h3><p class="mhint"><span class="mchip" style="background:${role[2]}"></span>${role[1]}</p>
+      <p class="mfig"><b>${num(w.n)}</b> mapped calls (${PT.length?Math.round(w.n/PT.length*100):0}% of all mapped)</p>
+      <div class="mbars">${CATS.map(([key,lab,col])=>`<div><span>${lab}</span><div class="mtrack"><i style="width:${w.cat[key]/max*100}%;background:${col}"></i></div><b>${num(w.cat[key])}</b></div>`).join("")}</div>
+      <div class="mact"><button type="button" data-act="zoom">Zoom to township</button><button type="button" data-act="clear">Clear</button></div>`;
+  }
+  function refresh(){
+    paths.forEach((p,i)=>{ const w=TW[i], r=ROLES.find(q=>q[0]===w.role), off=st.hideRole.has(w.role);
+      p.setAttribute("fill",off?"none":r[2]); p.setAttribute("fill-opacity",off?0:r[3]);
+      p.classList.toggle("off",off); p.classList.toggle("sel",i===st.sel); p.classList.toggle("dim",st.sel>=0&&i!==st.sel);
+      p.setAttribute("aria-pressed",i===st.sel); });
+    if(st.sel>=0) paths[st.sel].parentNode.appendChild(paths[st.sel]);   // draw the selected outline on top
+    dots.forEach((d,i)=>{ const p=PT[i]; d.style.display=st.hideCat.has(p.cat)?"none":""; d.classList.toggle("dim",st.sel>=0&&p.t!==st.sel); });
+    lbls.forEach((t,i)=>t.classList.toggle("dim",st.sel>=0&&i!==st.sel));
+    legends(); detail();
+  }
+  el.querySelector(".mapside").addEventListener("click",e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    const flip=(set,key)=>{ set.has(key)?set.delete(key):set.add(key); refresh(); };
+    if(b.dataset.role) flip(st.hideRole,b.dataset.role);
+    else if(b.dataset.cat) flip(st.hideCat,b.dataset.cat);
+    else if(b.dataset.act==="clear"){ st.sel=-1; refresh(); }
+    else if(b.dataset.act==="zoom"&&st.sel>=0) fitTo(TW[st.sel].bbox);
+  });
+  refresh(); applyView();
   markReal("map","Updated: CAD + GIS");
-  return `<svg class="twmap" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Cass County townships and CCFD1 incidents">${g}</svg>`;
 }
-if(!EMBEDS.map){const el=document.querySelector('[data-slot="map"]'); el.style.minHeight="300px"; el.innerHTML=realMap();}
+if(!EMBEDS.map){ buildServiceMap(document.querySelector('[data-slot="map"]')); }
 
 /* ---------- Scenario math: shared/engine.js ----------
    costEngine (Scenario 3&4), fundingEngine (Scenario 1), their constants and yearsLabel live in
    shared/engine.js, which assistant/tools.js also uses, so the panels and the assistant can
    never disagree. This page only reads the controls and displays the results. */
-const {ENG,S1,costEngine,fundingEngine,yearsLabel}=window.CCFD1Engine;
+const {ENG,S1,PERF,costEngine,fundingEngine,defaultFirefighters,yearsLabel}=window.CCFD1Engine;
 
-/* ---------- Scenario: team staffing and compensation cost engine v2 ---------- */
-function runScenario(){
+/* ---------- Scenario: staffing and compensation cost engine (spec v3) ---------- */
+function staffingInput(){
+  const posts=+$("#posts").value;
+  return {posts, firefighters:defaultFirefighters(posts), perf:$("#perf").checked, perfRate:+$("#perfRate").value/100,
+    premium:+$("#prem").value, adj:+$("#sal").value/100};
+}
+function runScenario(ev){
   if(!$("#posts")) return;
-  const i={posts:+$("#posts").value, perf:$("#perf").checked, perfRate:+$("#perfRate").value/100,
-    premium:+$("#prem").value, adj:+$("#sal").value/100, otd:$("#otd").checked};
-  $("#postsO").textContent=i.posts; $("#salO").textContent=(i.adj*100).toFixed(1).replace(/\.0$/,"")+"%";
+  const i=staffingInput();
+  $("#postsO").textContent=i.posts; $("#salO").textContent=(i.adj>0?"+":"")+(i.adj*100).toFixed(1).replace(/\.0$/,"")+"%";
+  $("#hoursO").textContent=num(i.posts*ENG.POST_HOURS)+" hrs";
+  $("#hoursSub").textContent=i.posts+" posts x "+num(ENG.POST_HOURS)+" hrs; today "+num(ENG.POSTS_NOW*ENG.POST_HOURS)+" hrs";
+  $("#otLastO").textContent=num(ENG.OT_HOURS_LAST)+" hrs";
+  $("#otLastSub").textContent="Implied by "+money(ENG.OT_COST_CAP)+" overtime in the 2026 timesheet, at 1.5x the average rate";
   $("#perfRateO").textContent=(i.perfRate*100).toFixed(1).replace(/\.0$/,"")+"%";
   $("#perfRate").disabled=!i.perf;
-  $("#premO").textContent=i.premium?money(i.premium):"No quote exists - placeholder";
-  const r=costEngine(i);
-  $("#hiresO").textContent=num(r.hires);
-  $("#l1O").textContent=money(r.layer1); $("#l2O").textContent=money(r.layer2);
-  $("#totO").textContent=money(r.total);
-  $("#gapO").textContent=money(r.gap); $("#gapO").style.color=r.gap>0?C.alert:"#1E7B4F";
+  $("#premO").textContent=i.premium?money(i.premium)+" (assumption)":"$0 (no insurance)";
+  const r3=costEngine(i);
+  const r=costEngine({...i,otPerPerson:true}), pp=r.perPerson;   // Scenario 4: partner says overtime is never zero, same hours per person as last year
+  $("#hiresO").textContent=num(r3.hires);
+  $("#perO").textContent=money(r.perEmployee);
+  $("#perSub").textContent="salary "+money(pp.salary)+" + PERF "+money(pp.perf)+" + payroll tax "+money(pp.tax)+" + health "+money(pp.health);
+  $("#healthO").textContent=money(r.healthTotal);
+  $("#healthSub").textContent=r.firefighters+" firefighters x "+money(pp.health)+" = "+r.healthShare.toFixed(1)+"% of personnel cost";
+  $("#persTotO").textContent=money(r.personnelTotal);
+  $("#persTotSub").textContent="today: "+money(ENG.BASE_PERSONNEL)+" plus "+money(r.otBase.cost)+" overtime; scenario overtime "+money(r.otScen.cost)+" ("+num(Math.round(ENG.OT_HOURS_PER_FF))+" hrs per firefighter, as last year)";
+  $("#l1O").textContent=money(r.layer1); $("#l2O").textContent=money(r3.layer2);
+  $("#otO").textContent=money(r3.otChange);
+  $("#otSub").textContent=num(Math.round(r3.otBase.hours))+" hrs now, "+num(Math.round(r3.otScen.hours))+" hrs in scenario"+(r3.otScen.hours===0?" (target, to be confirmed with partner)":"");
+  $("#totO").textContent=money(r3.total);
+  $("#gapO").textContent=money(r3.gap); $("#gapO").style.color=r3.gap>0?C.alert:"#1E7B4F";
   $("#addO").textContent="$"+r.addRate.toFixed(4);
   $("#rateO").textContent="$"+r.totalRate.toFixed(4);
-  $("#rateO").style.color=r.totalRate>ENG.CEILING?C.alert:"";
-  $("#ceilO").hidden=!(r.totalRate>ENG.CEILING);
-  $("#hhO").textContent="+$"+r.household.toFixed(2);
-  $("#yrsO").textContent=yearsLabel(r.years);
+  $("#hhO").textContent="+"+r.householdPct.toFixed(1)+"%";
+  $("#hhSub").textContent="+$"+r.household.toFixed(2)+" on the current operating rate of $"+ENG.CURRENT_RATE.toFixed(4);
+  $("#yrsO").textContent=yearsLabel(r3.years);
+  $("#staffChart").innerHTML=staffChart(r3,i);
+  $("#costChart").innerHTML=costChart(pp,i);
+  $("#perfChart").innerHTML=perfChart(pp,i);
+  const pr=PERF.EMPLOYER_RATES, d0=pr.find(x=>x[0]===PERF.DEFAULT_YEAR), nx=pr.find(x=>x[0]===PERF.DEFAULT_YEAR+1);
+  $("#perfYearNote").textContent="The rate rises every year: "+pr.map(x=>x[0]+" "+x[1].toFixed(1)+"%").join(", ")+". The scenario starts at the "+d0[0]+" rate"+(nx?"; the "+nx[0]+" rate adds "+money(Math.round(pp.salary*(nx[1]-d0[1])/100))+" per firefighter at this salary.":".");
+  LAST.staffing=r3; updateKpis(); renderShared();
 }
-["posts","perf","perfRate","prem","sal","otd"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runScenario)});
+/* Scenario 3 visual: firefighters needed to cover the posts (FTE) vs. firefighters employed, today and in the scenario */
+function staffChart(r,i){
+  const rows=[["Today, "+ENG.POSTS_NOW+" posts",ENG.POSTS_NOW*ENG.FTE_PER_POST,ENG.LINE_FF],
+    ["Scenario, "+i.posts+" posts",r.fteRequired,r.firefighters]];
+  const W=420,L=104,m=Math.max(...rows.flatMap(x=>[x[1],x[2]]),1), sc=(W-L-44)/m;
+  let g="";
+  rows.forEach(([n,need,emp],k)=>{const y=8+k*66;
+    g+=`<text x="0" y="${y+22}" font-size="12" fill="${C.muted}">${n}</text>`;
+    g+=`<rect x="${L}" y="${y+4}" width="${need*sc}" height="18" rx="3" fill="${C.soft}"><title>Needed to cover ${n.toLowerCase()}: ${need.toFixed(1)}</title></rect>`;
+    g+=`<text x="${L+need*sc+5}" y="${y+17}" font-size="11.5" fill="${C.muted}">${need.toFixed(1)}</text>`;
+    g+=`<rect x="${L}" y="${y+28}" width="${emp*sc}" height="18" rx="3" fill="${C.navy}"><title>Employed: ${emp}</title></rect>`;
+    g+=`<text x="${L+emp*sc+5}" y="${y+41}" font-size="11.5" fill="${C.muted}">${emp}</text>`;});
+  return `<svg viewBox="0 0 ${W} 148" role="img" aria-label="Firefighters needed to cover the posts and firefighters employed, today and in the scenario">${g}</svg>`;
+}
+/* Scenario 4 visuals. Loaded cost per firefighter, stacked by component, today (salary + payroll tax) vs. scenario,
+   with each segment labelled and the change vs. today spelled out. */
+function costChart(pp,i){
+  const kf=v=>"$"+(v/1000).toFixed(1)+"K";
+  const today={salary:ENG.AVG_SALARY,perf:0,tax:Math.floor(ENG.AVG_SALARY*ENG.PAYROLL_TAX),health:0};
+  const parts=[["salary","Salary",C.navy,"#fff"],["perf","PERF 77",C.blue,"#fff"],["tax","Payroll tax",C.soft,C.navy],["health","Health premium","#C77700","#fff"]];
+  const rows=[["Today",today],["Scenario",pp]], tot=p=>parts.reduce((a,q)=>a+p[q[0]],0);
+  const W=420,L=64,m=Math.max(...rows.map(([n,p])=>tot(p)),1), sc=(W-L-62)/m;
+  let g="";
+  rows.forEach(([n,p],r)=>{const y=8+r*48; let x=L;
+    g+=`<text x="0" y="${y+20}" font-size="12" fill="${C.muted}">${n}</text>`;
+    parts.forEach(([key,lab,col,ink])=>{const w=p[key]*sc; if(w<=0) return;
+      g+=`<rect x="${x}" y="${y+4}" width="${w}" height="24" fill="${col}"><title>${lab}: ${money(p[key])}</title></rect>`;
+      if(w>=44) g+=`<text x="${x+w/2}" y="${y+20}" font-size="10.5" font-weight="600" text-anchor="middle" fill="${ink}" pointer-events="none">${kf(p[key])}</text>`;
+      x+=w;});
+    g+=`<text x="${x+5}" y="${y+21}" font-size="11.5" font-weight="600" fill="${C.navy}">${money(tot(p))}</text>`;});
+  const d=tot(pp)-tot(today);
+  g+=`<text x="${L}" y="120" font-size="11.5" fill="${C.muted}">${d?(d>0?"+":"\u2212")+money(Math.abs(d))+" per firefighter vs. today":"Same as today"}; only salary earns PERF.</text>`;
+  return `<svg viewBox="0 0 ${W} 130" role="img" aria-label="Loaded cost per firefighter by component, today and in the scenario">${g}</svg>`;
+}
+/* PERF 77 employer rate by year (INPRS) with the scenario's chosen rate as a line, and the PERF cost per firefighter at the
+   scenario salary under each year's rate. Rates come from PERF in shared/engine.js. */
+function perfChart(pp,i){
+  const W=420,H=200,L=38,R=76,T=22,B=44,yMax=30, rates=PERF.EMPLOYER_RATES;
+  const sy=v=>T+(1-v/yMax)*(H-T-B), bw=(W-L-R)/rates.length, kf=v=>"$"+(v/1000).toFixed(1)+"K";
+  let g="";
+  [0,10,20,30].forEach(t=>{g+=`<line x1="${L}" x2="${W-R}" y1="${sy(t)}" y2="${sy(t)}" stroke="${C.line}"/><text x="${L-6}" y="${sy(t)+3.5}" font-size="10.5" text-anchor="end" fill="${C.muted}">${t}%</text>`;});
+  rates.forEach(([yr,rate],k)=>{const x=L+k*bw+bw*.18, w=bw*.64, unsure=yr===PERF.SCHEDULE_UNCONFIRMED, cost=Math.round(pp.salary*rate/100);
+    g+=`<rect x="${x}" y="${sy(rate)}" width="${w}" height="${sy(0)-sy(rate)}" rx="2" fill="${unsure?C.soft:C.blue}"><title>${yr}: ${rate.toFixed(1)}% employer rate, ${money(cost)} per firefighter at ${money(pp.salary)}${unsure?" (INPRS lists an older 20.3% for 2026; confirm)":""}</title></rect>`;
+    g+=`<text x="${x+w/2}" y="${sy(rate)-5}" font-size="11.5" font-weight="600" text-anchor="middle" fill="${C.navy}" stroke="#fff" stroke-width="3" paint-order="stroke">${rate.toFixed(1)}%</text>`;
+    g+=`<text x="${x+w/2}" y="${H-26}" font-size="11.5" font-weight="600" text-anchor="middle" fill="${C.navy}">${yr}</text>`;
+    g+=`<text x="${x+w/2}" y="${H-11}" font-size="10.5" text-anchor="middle" fill="${C.muted}">${kf(cost)}</text>`;});
+  g+=`<text x="${L-6}" y="${H-11}" font-size="10" text-anchor="end" fill="${C.muted}">per FF</text>`;
+  if($("#perf").checked){const ry=sy(i.perfRate*100);
+    g+=`<line x1="${L}" x2="${W-R+4}" y1="${ry}" y2="${ry}" stroke="#C77700" stroke-width="2" stroke-dasharray="5 3"/>`;
+    g+=`<text x="${W-R+8}" y="${ry-2}" font-size="11" font-weight="600" fill="#C77700">Scenario</text><text x="${W-R+8}" y="${ry+11}" font-size="11" font-weight="600" fill="#C77700">${(i.perfRate*100).toFixed(1)}%</text>`;
+  } else g+=`<text x="${W-R+8}" y="${sy(15)}" font-size="11" fill="${C.muted}">PERF not</text><text x="${W-R+8}" y="${sy(15)+13}" font-size="11" fill="${C.muted}">funded</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="PERF 77 employer rate by year, 2024 to 2027, with the scenario rate and the PERF cost per firefighter">${g}</svg>`;
+}
+["posts","perf","perfRate","prem","sal"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runScenario)});
 runScenario();
 
 /* ---------- Scenario 1: funding change (math in shared/engine.js) ----------
@@ -693,27 +1162,92 @@ runScenario();
 /* Current resulting gap from the staffing panel, read from its controls */
 function staffingGap(){
   if(!$("#posts")) return S1.BASE_GAP;
-  return costEngine({posts:+$("#posts").value, perf:$("#perf").checked, perfRate:+$("#perfRate").value/100,
-    premium:+$("#prem").value, adj:+$("#sal").value/100, otd:$("#otd").checked}).gap;
+  return costEngine(staffingInput()).gap;
 }
-function fundChart(r){
-  const ys=[S1.START_YEAR,...S1.YEARS], vs=[S1.FUND_BALANCE,...r.balances];
-  const W=420,H=170,L=48,T=12,B=22,step=500000;
-  const hi=Math.max(step,Math.ceil(Math.max(...vs)/step)*step), lo=Math.min(0,Math.floor(Math.min(...vs)/step)*step);
-  const sx=k=>L+8+k*(W-L-20)/(ys.length-1), sy=v=>T+(hi-v)/(hi-lo)*(H-T-B);
-  const lab=t=>t===0?"$0":(t<0?"-":"")+"$"+(Math.abs(t)/1e6).toFixed(1)+"M";
-  let g="";
+/* Scenario visual: projected fund balance. Rebuilt as a stat strip + interactive chart from the same data
+   (S1.FUND_BALANCE for the actual starting point, r.balances for each projected year, r.firstNegative). */
+function fundProjection(root,r){
+  const years=[S1.START_YEAR,...S1.YEARS], vals=[S1.FUND_BALANCE,...r.balances], last=vals.length-1;
+  const compact=v=>{const a=Math.abs(v), s=v<0?"-":""; return a>=1e6?s+"$"+(a/1e6).toFixed(2)+"M":a>=1e3?s+"$"+Math.round(a/1e3)+"K":s+"$"+Math.round(a);};
+  const axis=v=>v===0?"$0":(v<0?"-":"")+"$"+(Math.abs(v)/1e6).toFixed(Math.abs(v)%1e6?2:1)+"M";
+  const W=480,H=272,L=62,R=22,T=30,B=46;
+  /* y scale: step chosen so there are about 4-6 gridlines */
+  const raw=Math.max(...vals,0)-Math.min(...vals,0), step=[100e3,250e3,500e3,1e6,2e6].find(s=>raw/s<=5)||2e6;
+  const hi=Math.ceil(Math.max(...vals,0)/step)*step, lo=Math.floor(Math.min(...vals,0)/step)*step;
+  const sx=k=>L+k*(W-L-R)/last, sy=v=>T+(hi-v)/(hi-lo)*(H-T-B), y0=sy(0);
+  const delta=k=>k?vals[k]-vals[k-1]:null;
+  let g=`<defs><clipPath id="fpUp"><rect x="${L}" y="0" width="${W-L}" height="${y0}"/></clipPath><clipPath id="fpDn"><rect x="${L}" y="${y0}" width="${W-L}" height="${H}"/></clipPath></defs>`;
   for(let t=lo;t<=hi;t+=step){ if(t===0) continue;
-    g+=`<line x1="${L}" x2="${W}" y1="${sy(t)}" y2="${sy(t)}" stroke="${C.line}"/>`;
-    g+=`<text x="${L-4}" y="${sy(t)+4}" font-size="10" text-anchor="end" fill="${C.muted}">${lab(t)}</text>`;}
-  g+=`<line x1="${L}" x2="${W}" y1="${sy(0)}" y2="${sy(0)}" stroke="${C.muted}" stroke-dasharray="4 3"/>`;
-  g+=`<text x="${L-4}" y="${sy(0)+4}" font-size="10" text-anchor="end" fill="${C.muted}">$0</text>`;
-  g+=`<polyline points="${vs.map((v,k)=>sx(k)+","+sy(v)).join(" ")}" fill="none" stroke="${C.navy}" stroke-width="2" stroke-linejoin="round"/>`;
-  vs.forEach((v,k)=>{const neg=v<0, first=ys[k]===r.firstNegative;
-    g+=`<circle cx="${sx(k)}" cy="${sy(v)}" r="${first?5:3.2}" fill="${neg?C.alert:C.navy}" stroke="#fff" stroke-width="1"><title>${ys[k]}${k?" projected":" actual"} end-of-year fund balance: ${money(v)}</title></circle>`;
-    g+=`<text x="${sx(k)}" y="${H-6}" font-size="10" text-anchor="middle" fill="${C.muted}">${ys[k]}</text>`;
-    if(first) g+=`<text x="${sx(k)-9}" y="${Math.min(sy(v)+15,H-B-3)}" font-size="10.5" font-weight="600" text-anchor="end" fill="${C.alert}">Below $0 in ${ys[k]}</text>`;});
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Projected fund balance ${S1.YEARS[0]} to ${S1.YEARS[S1.YEARS.length-1]}">${g}</svg>`;
+    g+=`<line x1="${L}" x2="${W-R}" y1="${sy(t)}" y2="${sy(t)}" stroke="${C.line}"/><text x="${L-8}" y="${sy(t)+3.5}" font-size="10.5" text-anchor="end" fill="${C.muted}">${axis(t)}</text>`; }
+  /* area to the $0 line: blue above, red below */
+  const line=vals.map((v,k)=>`${sx(k).toFixed(1)},${sy(v).toFixed(1)}`).join(" "), area=`${sx(0)},${y0} ${line} ${sx(last)},${y0}`;
+  g+=`<polygon points="${area}" fill="${C.soft}" fill-opacity=".28" clip-path="url(#fpUp)"/><polygon points="${area}" fill="${C.alert}" fill-opacity=".16" clip-path="url(#fpDn)"/>`;
+  g+=`<line x1="${L}" x2="${W-R}" y1="${y0}" y2="${y0}" stroke="${C.muted}" stroke-width="1.2"/><text x="${L-8}" y="${y0+3.5}" font-size="10.5" font-weight="600" text-anchor="end" fill="${C.ink||"#132033"}">$0</text>`;
+  g+=`<polyline points="${line}" fill="none" stroke="${C.navy}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+  /* x axis: year + actual/projected */
+  years.forEach((y,k)=>{ g+=`<text x="${sx(k)}" y="${H-24}" font-size="11.5" font-weight="600" text-anchor="middle" fill="${C.navy}">${y}</text><text x="${sx(k)}" y="${H-10}" font-size="10" text-anchor="middle" fill="${C.muted}">${k?"projected":"actual"}</text>`; });
+  /* markers and value labels */
+  vals.forEach((v,k)=>{ const neg=v<0, first=years[k]===r.firstNegative, col=neg?C.alert:C.navy;
+    g+=`<g class="fp-pt" data-k="${k}"><circle class="halo" cx="${sx(k)}" cy="${sy(v)}" r="9" fill="${col}" fill-opacity="0"/>`+
+       `<circle cx="${sx(k)}" cy="${sy(v)}" r="${first?5.5:4.2}" fill="${k?col:"#fff"}" stroke="${k?"#fff":col}" stroke-width="${k?1.6:2.4}"/></g>`;
+    const above=!neg||k===0; const ty=above?sy(v)-12:sy(v)+20;
+    g+=`<text x="${sx(k)}" y="${ty}" font-size="11.5" font-weight="600" text-anchor="${k===0?"start":k===last?"end":"middle"}" dx="${k===0?8:k===last?4:0}" fill="${col}">${compact(v)}</text>`; });
+  /* hover guide + hit areas (one tall band per year; keyboard focusable) */
+  g+=`<line class="fp-guide" y1="${T-6}" y2="${H-B+4}" stroke="${C.navy}" stroke-width="1" stroke-dasharray="3 3" visibility="hidden"/>`;
+  const bw=(W-L-R)/last;
+  vals.forEach((v,k)=>{ g+=`<rect class="fp-hit" data-k="${k}" x="${sx(k)-bw/2}" y="0" width="${bw}" height="${H-B+8}" fill="transparent" tabindex="0" role="img" aria-label="${years[k]}${k?" projected":" actual"} end-of-year fund balance ${money(v)}"/>`; });
+
+  const endV=vals[last], change=endV-vals[0], neg0=r.firstNegative;
+  root.innerHTML=`<div class="fp">
+    <div class="fp-stats">
+      <div class="fp-stat"><span>End of ${years[0]} (actual)</span><b>${money(vals[0])}</b></div>
+      <div class="fp-stat"><span>End of ${years[last]} (projected)</span><b class="${endV<0?"neg":""}">${money(endV)}</b><em>${change<0?"down ":"up "}${money(Math.abs(change))} from ${years[0]}</em></div>
+      <div class="fp-stat ${neg0?"warn":"ok"}"><span>Balance falls below $0</span><b>${neg0?neg0:"Not by "+years[last]}</b><em>${neg0?"first year-end deficit":"stays positive through "+years[last]}</em></div>
+    </div>
+    <div class="fp-chart"><svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Projected end-of-year fund balance, ${years[0]} to ${years[last]}">${g}</svg>
+      <div class="fp-tip" hidden></div></div></div>`;
+
+  /* hover / focus tooltip */
+  const svg=root.querySelector("svg"), tip=root.querySelector(".fp-tip"), guide=svg.querySelector(".fp-guide");
+  const show=k=>{
+    guide.setAttribute("x1",sx(k)); guide.setAttribute("x2",sx(k)); guide.setAttribute("visibility","visible");
+    svg.querySelectorAll(".fp-pt .halo").forEach(h=>h.setAttribute("fill-opacity",+h.closest(".fp-pt").dataset.k===k?.18:0));
+    const d=delta(k);
+    tip.innerHTML=`<b>${years[k]} ${k?"projected":"actual"}</b><span>${money(vals[k])}</span>`+(d==null?"":`<em>${d<0?"-":"+"}${money(Math.abs(d))} vs ${years[k-1]}</em>`)+(vals[k]<0?`<em class="neg">Below $0</em>`:"");
+    tip.hidden=false; const pct=sx(k)/W*100; tip.style.left=pct+"%"; tip.style.top=(sy(vals[k])/H*100)+"%";
+    tip.className="fp-tip"+(pct>70?" left":pct<30?" right":"");
+  };
+  const hide=()=>{ tip.hidden=true; guide.setAttribute("visibility","hidden"); svg.querySelectorAll(".fp-pt .halo").forEach(h=>h.setAttribute("fill-opacity",0)); };
+  svg.querySelectorAll(".fp-hit").forEach(h=>{ const k=+h.dataset.k;
+    h.addEventListener("pointerenter",()=>show(k)); h.addEventListener("focus",()=>show(k)); h.addEventListener("blur",hide); });
+  svg.addEventListener("pointerleave",hide);
+}
+/* Shared visuals (above every tab): projected fund balance and spending by type follow the active scenario */
+function spendChart(r){
+  const loaded=r.firefighters*r.perPerson.salary, benefits=r.firefighters*(r.perPerson.perf+r.perPerson.tax), health=r.healthTotal,
+    other=S1.BUDGET_2027-ENG.BASE_PERSONNEL-r.otBase.cost;   // budget less today's personnel and overtime; held flat
+  const parts=[["Employee pay",loaded,C.navy],["Employee benefits (PERF, payroll tax)",benefits,C.blue],["Health premiums",health,"#C77700"],
+    ["Overtime",r.otScen.cost,C.alert],["Equipment, debt service and other (held flat)",other,C.soft]].filter(x=>x[1]>0);
+  const tot=parts.reduce((a,b)=>a+b[1],0);
+  let a=-Math.PI/2,g="";const cx=110,cy=110,R=90,rr=56;
+  const p=(ang,rad)=>`${cx+rad*Math.cos(ang)} ${cy+rad*Math.sin(ang)}`;
+  parts.forEach(([n,v,c])=>{const f=v/tot,a2=a+f*2*Math.PI,l=f>.5?1:0;
+    g+=`<path d="M${p(a,R)}A${R} ${R} 0 ${l} 1 ${p(a2,R)}L${p(a2,rr)}A${rr} ${rr} 0 ${l} 0 ${p(a,rr)}Z" fill="${c}" stroke="#fff" stroke-width="2"><title>${n}: ${money(v)} (${(f*100).toFixed(1)}%)</title></path>`;a=a2;});
+  g+=`<text x="${cx}" y="${cy+2}" font-size="19" font-weight="600" text-anchor="middle" fill="${C.navy}">$${(tot/1e6).toFixed(2)}M</text>`;
+  g+=`<text x="${cx}" y="${cy+19}" font-size="11" text-anchor="middle" fill="${C.muted}">2027 budget</text>`;
+  $("#spendLegend").innerHTML=parts.map(([n,v,c])=>`<span><i style="background:${c}"></i>${n} ${Math.round(v/tot*100)}%</span>`).join("");
+  $("#spendNote").textContent="Model output: the $1,795,950 budget split using the cost engine's personnel math; the remainder (equipment, debt service, everything else) is not broken down in the sources, so it is one slice.";
+  return `<svg viewBox="0 0 220 220" role="img" aria-label="2027 spending by type">${g}</svg>`;
+}
+function renderShared(){
+  const fs=document.querySelector('[data-slot="fundShared"]'), ss=document.querySelector('[data-slot="spendShared"]');
+  if(!fs||!ss||!LAST.staffing) return;
+  const fromStaffing=activeTab==="t-3"||activeTab==="t-4"||(LAST.funding&&$("#useStaff")&&$("#useStaff").checked);
+  const fr=activeTab==="t-3"||activeTab==="t-4"||!LAST.funding
+    ?fundingEngine({funding:0,oneTime:false,source:"",pct:0,useStaffing:true,staffingGap:LAST.staffing.gap}):LAST.funding;
+  fundProjection(fs,fr);
+  $("#fundSharedNote").textContent=(activeTab==="t-3"||activeTab==="t-4"||fromStaffing)?"Reflects the staffing and compensation scenario.":"Reflects the funding scenario (baseline until changed).";
+  ss.innerHTML=spendChart(LAST.staffing);
 }
 function runFunding(){
   if(!$("#fundN")) return;
@@ -722,7 +1256,8 @@ function runFunding(){
   const r=fundingEngine(i);
   const signed=v=>(v>0?"+":"")+money(v);
   $("#fundO").textContent=signed(i.funding)+(i.oneTime?" once":"");
-  $("#srcPctO").textContent=(i.pct>0?"+":"")+Math.round(i.pct*100)+"%";
+  const pctTxt=(i.pct>0?"+":"")+Math.round(i.pct*100)+"%", base=S1.SOURCES[i.source];
+  $("#srcPctO").textContent=base?`${money(base[1])} → ${money(base[1]+r.sourceEffect)} (${pctTxt})`:pctTxt;
   $("#srcPct").disabled=!i.source;
   $("#f_revStart").textContent=money(S1.RECURRING_REVENUE);
   $("#f_revAdj").textContent=money(r.adjustedRevenue);
@@ -739,16 +1274,36 @@ function runFunding(){
   const s=S1.SOURCES[i.source];
   $("#f_src").textContent=s?`${s[0]}: 2024 AFR amount ${money(s[1])}; ${(i.pct>0?"+":"")+Math.round(i.pct*100)}% = ${signed(r.sourceEffect)} per year (recurring).`:"";
   $("#f_src").hidden=!s;
-  $("#fundChart").innerHTML=fundChart(r);
+  $("#srcChart").innerHTML=srcChart(r,i);
+  LAST.funding=r; updateKpis(); renderShared();
   return r;
 }
+/* Scenario 1 visual: recurring revenue by source type (2024 AFR amounts) with the scenario's change on top */
+function srcChart(r,i){
+  const rows=Object.entries(S1.SOURCES).map(([k,[n,v]])=>({n,base:v,adj:v+(k===i.source?r.sourceEffect:0)}));
+  rows.push({n:i.oneTime?"New funding (once)":"New funding",base:0,adj:i.funding});
+  const W=420,L=132,m=Math.max(...rows.map(x=>Math.max(x.base,Math.abs(x.adj))),1), sc=(W-L-92)/m;
+  let g="";
+  rows.forEach((x,k)=>{const y=6+k*30, d=x.adj-x.base, lo=Math.min(x.base,x.adj), hi=Math.max(x.base,x.adj);
+    g+=`<text x="0" y="${y+16}" font-size="11.5" fill="${C.muted}">${x.n}</text>`;
+    if(x.base>0){
+      g+=`<rect x="${L}" y="${y+3}" width="${lo*sc}" height="18" rx="2" fill="${C.soft}"><title>${x.n}: ${money(x.base)} (2024)</title></rect>`;
+      if(d) g+=`<rect x="${L+lo*sc}" y="${y+3}" width="${(hi-lo)*sc}" height="18" rx="2" fill="${d>0?C.blue:C.alert}" fill-opacity="${d>0?1:.55}"><title>${x.n}: ${(d>0?"+":"")+money(d)} per year</title></rect>`;
+    } else if(x.adj){
+      g+=`<rect x="${L}" y="${y+3}" width="${Math.abs(x.adj)*sc}" height="18" rx="2" fill="${x.adj>0?C.blue:C.alert}" fill-opacity="${x.adj>0?1:.55}"><title>${x.n}: ${(x.adj>0?"+":"")+money(x.adj)}</title></rect>`;
+    }
+    const end=L+(x.base>0?hi:Math.abs(x.adj))*sc+5;
+    g+=`<text x="${end}" y="${y+16}" font-size="11.5" fill="#132033">${x.base>0?money(x.adj):(x.adj>0?"+":"")+money(x.adj)}</text>`;});
+  return `<svg viewBox="0 0 ${W} ${rows.length*30+8}" role="img" aria-label="Recurring revenue by source type with the scenario change">${g}</svg>`;
+}
 if($("#fund")){
+  [...$("#srcSel").options].forEach(o=>{const s=S1.SOURCES[o.value]; if(s) o.textContent=`${s[0]} (${money(s[1])})`;});
   $("#fund").addEventListener("input",()=>{$("#fundN").value=$("#fund").value;runFunding();});
   $("#fundN").addEventListener("input",()=>{$("#fund").value=$("#fundN").value;runFunding();});
   ["fundRec","fundOne","srcSel","srcPct","useStaff"].forEach(id=>$("#"+id).addEventListener("input",runFunding));
   $("#srcSel").addEventListener("change",runFunding);
   /* follow the staffing panel live */
-  ["posts","perf","perfRate","prem","sal","otd"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runFunding)});
+  ["posts","perf","perfRate","prem","sal"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",runFunding)});
   runFunding();
 }
 
@@ -759,19 +1314,25 @@ if($("#fund")){
    over http (GitHub Pages, or `python -m http.server`) for this to load. */
 const FACTS_URL="data/facts.json";
 let FACTS=null, FACTS_ERR=null;
-const FACT_PANELS={overview:"Key figures",financial:"Receipts and disbursements","revenue-sources":"Revenue by source",gis:"Townships and service area",
+/* Aggregate datasets for the assistant's list_datasets / query_dataset tools (see shared/dataset.js).
+   A failure here only disables those two tools; it never blocks the page or the facts tools. */
+const DATASETS_URL="datasets/";
+const DATASETS_READY=fetch(DATASETS_URL+"index.json").then(r=>{if(!r.ok) throw new Error("HTTP "+r.status); return r.json();})
+  .then(m=>Promise.all(m.datasets.map(d=>fetch(DATASETS_URL+d.file).then(r=>{if(!r.ok) throw new Error("HTTP "+r.status); return r.json();}))))
+  .catch(e=>{console.warn("datasets not loaded:",e.message); return [];});
+const FACT_PANELS={overview:"Key figures",financial:"Receipts and disbursements","revenue-sources":"Revenue by source",gis:"CCFD1 Service Regions and Call Locations",
   staffing:"Personnel vs. contracted service cost",uncompensated:"Responses outside the District",cad:"Incidents by hour of day",
-  scenario:"Scenario analysis: staffing and compensation","funding-scenario":"Scenario 1: Funding change"};
+  scenario:"Scenarios 3 and 4: staffing and compensation","funding-scenario":"Scenario 1: Funding change"};
 function factValue(path){
   const [root,...keys]=path.split(".");
   const walk=(o,ks)=>ks.reduce((v,k)=>v==null?undefined:v[k],o);
   if(root==="KPI"){const el=document.querySelectorAll(".kpis .kpi .value")[+keys[0]];
-    return el?+el.textContent.replace(/[^0-9.-]/g,""):undefined;}
+    return el?+(el.dataset.base||el.textContent).replace(/[^0-9.-]/g,""):undefined;}
   if(root==="DOM"){const el=document.getElementById(keys[0]);
     return el?(keys[0]==="perfRate"?+el.defaultValue/100:+el.defaultValue):undefined;}
   if(root==="MODEL"){
     const m=keys[0]==="staffing"
-      ?costEngine({posts:5,perf:true,perfRate:0.265,premium:0,adj:0,otd:true})
+      ?costEngine(window.CCFD1Engine.DEFAULTS.staffing)
       :fundingEngine({funding:0,oneTime:false,source:"",pct:0,useStaffing:false,staffingGap:ENG.BASE_GAP});
     return walk(m,keys.slice(1));}
   const roots={DATA,ENG,S1};
@@ -826,9 +1387,11 @@ let FACTS_READY=Promise.resolve(null);   // resolves to the facts.json document,
   const addLink=(panelId,after)=>{const btn=document.createElement("button");btn.type="button";btn.className="srclink";
     btn.textContent="Sources";btn.dataset.panel=panelId;btn.addEventListener("click",()=>showFacts(panelId));after(btn);return btn;};
   Object.keys(FACT_PANELS).forEach(id=>{
-    if(id==="overview"){const k=$(".kpis"); if(k) addLink(id,b=>k.after(b)); return;}
+    if(id==="overview"){const k=$("#overview .body"); if(k) addLink(id,b=>k.append(b)); return;}
     const body=document.getElementById(id)?.querySelector(".body"); if(body) addLink(id,b=>body.append(b));
   });
+  /* Scenario 3 shares the staffing and compensation sources with Scenario 4 */
+  const b3=document.getElementById("staffing-scenario")?.querySelector(".body"); if(b3) addLink("scenario",b=>b3.append(b));
   FACTS_READY=fetch(FACTS_URL).then(r=>{if(!r.ok) throw new Error("HTTP "+r.status); return r.json();})
     .then(j=>{FACTS=j.facts; checkFacts(FACTS);
       document.querySelectorAll(".srclink").forEach(b=>{const n=FACTS.filter(f=>f.panel===b.dataset.panel).length; b.textContent=`Sources (${n})`;});
@@ -844,7 +1407,8 @@ const ASK = {
   maxToolRounds: 8,                       // the Worker refuses a 9th round trip for one question
   freshThreadBytes: 15000,                // start a new thread before a question would push the body near the Worker's 20 KB cap
   suggestions: ["Which township has the most incidents?", "How does Scenario 3 & 4 compare with the baseline?",
-                "What does a $250,000 funding increase do?", "Can you project response times if CCFD1 expands?"],
+                "What does a $250,000 funding increase do?", "Chart Fire vs EMS calls by hour of day", "Chart call volume by day of week",
+                "Chart average time on medical vs fire calls", "Chart time on outside-area calls, Fire vs EMS"],
   friendly: {
     network: "I couldn't reach the assistant. Check your connection and try again.",
     busy: "The assistant is getting a lot of questions right now. Please wait a few minutes and try again.",
@@ -900,6 +1464,7 @@ function citeClick(target){
   if(target.fact&&FACTS){ showFacts(target.fact.panel,target.fact.id); return; }
   const el=target.panel==="overview"?$("#overview"):document.getElementById(target.panel);
   if(!el) return;
+  const pane=el.closest(".tabpane"); if(pane&&pane.id!==activeTab) showTab(pane.id);
   el.scrollIntoView({behavior:"smooth",block:"center"});
   const p=el.classList.contains("panel")?el:el.querySelector(".kpi")||el;
   [p,...(target.panel==="overview"?el.querySelectorAll(".kpi"):[])].forEach(x=>{x.classList.remove("flash");void x.offsetWidth;x.classList.add("flash");});
@@ -936,6 +1501,73 @@ function renderAnswer(el,text,usedIds){
     inline(p,line.replace(/^#+\s*/,""));
   });
 }
+
+/* ---------- chart pane: charts built by the assistant (Highcharts core), kept for this session ---------- */
+const askCharts=[];       // {chart_id,title,dataset,status,sources,options,summary,created,question}
+let askSelected=null, askPending=[], askQuestionText="", vInstance=null;
+const askWrap=()=>$("#askWrap");
+function hcReady(){ return typeof window.Highcharts==="object"&&typeof Highcharts.chart==="function"; }
+if(hcReady()) Highcharts.setOptions({chart:{style:{fontFamily:"inherit"}},lang:{thousandsSep:","}});
+/* Draw the config offscreen first so a bad chart is reported back to the model instead of the user. */
+function trialRender(options){
+  if(!hcReady()) return "Charts are not available (the Highcharts library did not load).";
+  let err=null; const off=document.createElement("div");
+  off.style.cssText="position:absolute;left:-9999px;top:0;width:600px;height:300px"; document.body.append(off);
+  const rm=Highcharts.addEvent(Highcharts,"displayError",e=>{ const m=(e&&e.message)||""; if(/^Highcharts warning/.test(m)) return; err=m||("Highcharts error "+(e&&e.code)); });
+  try{
+    const o=JSON.parse(JSON.stringify(options)); o.chart=Object.assign({},o.chart,{animation:false});
+    o.plotOptions=Object.assign({},o.plotOptions,{series:{animation:false}});
+    Highcharts.chart(off,o).destroy();
+  }catch(e){ err=e.message||"render failed"; }
+  finally{ rm(); off.remove(); }
+  return err;
+}
+function setPane(state){
+  const w=askWrap(); w.dataset.pane=state; $("#vpane").hidden=state==="off";
+  const t=$("#vToggle"); t.textContent=state==="expanded"?"Collapse":"Expand"; t.setAttribute("aria-expanded",state==="expanded"?"true":"false");
+  if(vInstance&&state!=="off") setTimeout(()=>{try{vInstance.reflow();}catch{}},60);
+}
+function addChart(entry){
+  entry.question=askQuestionText; askCharts.push(entry); askPending.push(entry.chart_id);
+  selectChart(entry.chart_id);
+  if(askWrap().dataset.pane==="off") setPane("collapsed");     // first chart: collapsed pane beside the chat
+}
+function selectChart(id){
+  const e=askCharts.find(c=>c.chart_id===id); if(!e) return;
+  askSelected=id;
+  if(askWrap().dataset.pane==="off") setPane("collapsed");
+  $("#vTitle").textContent=e.title;
+  const b=$("#vBadge"); b.textContent=e.status.replace("_"," "); b.className="vbadge "+e.status;
+  const host=$("#vChart"); host.setAttribute("aria-label",`${e.title}. ${e.summary.type.replace("_"," ")} chart with ${e.summary.points} points. A data table follows.`);
+  if(vInstance){ try{vInstance.destroy();}catch{} vInstance=null; }
+  host.textContent="";
+  if(hcReady()) vInstance=Highcharts.chart(host,JSON.parse(JSON.stringify(e.options)));
+  else host.textContent="Charts are not available because the Highcharts library did not load.";
+  const src=$("#vSources"); src.textContent="";
+  e.sources.forEach(id2=>{ const c=document.createElement("button"); c.type="button"; c.className="chip"; c.textContent=id2.replace(/^dataset\./,"");
+    c.title="Show the related panel"; c.addEventListener("click",()=>citeClick({panel:"cad"})); src.append(c); });
+  const tb=$("#vTable"); tb.textContent="";
+  const o=e.options, cats=(o.xAxis&&o.xAxis.categories)||(o.series[0].data||[]).map(p=>p.name);
+  const tbl=document.createElement("table"), hr=tbl.insertRow();
+  [""].concat(o.series.map(s=>s.name)).forEach(t=>{const th=document.createElement("th");th.textContent=t;hr.append(th);});
+  cats.forEach((c,k)=>{ const r=tbl.insertRow(); r.insertCell().textContent=c;
+    o.series.forEach(s=>{const d=s.data[k]; r.insertCell().textContent=d==null?"–":(typeof d==="object"?d.y:d);}); });
+  tb.append(tbl);
+  const menu=$("#vMenu"); menu.textContent="";
+  askCharts.forEach((c,k)=>{ const m=document.createElement("button"); m.type="button"; m.textContent=(k+1)+". "+c.title;
+    if(c.chart_id===id) m.setAttribute("aria-current","true"); m.addEventListener("click",()=>selectChart(c.chart_id)); menu.append(m); });
+  menu.hidden=askCharts.length<2;
+}
+document.addEventListener("keydown",e=>{
+  if(e.altKey&&e.code==="KeyV"&&askCharts.length){ e.preventDefault(); setPane(askWrap().dataset.pane==="expanded"?"collapsed":"expanded"); }
+});
+$("#vToggle").addEventListener("click",()=>setPane(askWrap().dataset.pane==="expanded"?"collapsed":"expanded"));
+/* Record-level data stays behind the Worker, which answers aggregate queries only. */
+async function remoteQuery(id,q){
+  const r=await fetch(ASSISTANT_URL+"/query",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dataset:id,query:q})});
+  const j=await r.json().catch(()=>({}));
+  return r.ok?j:{error:j.error||"The data service returned an error."};
+}
 class AskError extends Error{constructor(kind){super(kind);this.kind=kind;}}
 async function callWorker(messages){
   let r;
@@ -951,13 +1583,13 @@ async function askQuestion(q){
   if(askBusy) return;
   askMsg("me",q);
   if(!ASSISTANT_URL){ askMsg("bot",ASK.friendly.notConnected); return; }
-  askBusy=true; setAskBusy(true);
+  askBusy=true; setAskBusy(true); askPending=[]; askQuestionText=q;
   const wait=askMsg("bot wait","Checking the data...");
   try{
     if(!askTools){
       const doc=await FACTS_READY;
       if(!doc||!window.CCFD1Tools) throw new AskError("noData");
-      askTools=CCFD1Tools.createTools(doc);
+      askTools=CCFD1Tools.createTools(doc,await DATASETS_READY,{remoteQuery,trialRender,onChart:addChart});
     }
     // Work on a copy; it becomes the session history only if the question completes.
     let msgs=askConvo.concat([{role:"user",content:q}]);
@@ -969,12 +1601,12 @@ async function askQuestion(q){
       if(res.stop_reason!=="tool_use") break;
       if(rounds>=ASK.maxToolRounds) throw new AskError("rounds");
       rounds++;
-      const results=res.content.filter(b=>b.type==="tool_use").map(b=>{
+      const results=await Promise.all(res.content.filter(b=>b.type==="tool_use").map(async b=>{
         let out;
-        try{ out=CCFD1Tools.runTool(askTools,b.name,b.input); }catch{ out={result:null,error:"The tool failed.",sources:[],status:"error"}; }
+        try{ out=await CCFD1Tools.runTool(askTools,b.name,b.input); }catch{ out={result:null,error:"The tool failed.",sources:[],status:"error"}; }
         (out.sources||[]).forEach(id=>used.add(id));
         return Object.assign({type:"tool_result",tool_use_id:b.id,content:JSON.stringify(out)},out.status==="error"?{is_error:true}:{});
-      });
+      }));
       msgs.push({role:"user",content:results});
       if(bytesOf({messages:msgs})>19500) throw new AskError("tooLong");
     }
@@ -984,6 +1616,9 @@ async function askQuestion(q){
     askConvo=msgs;                                                   // commit (session memory only)
     wait.className="msg bot";
     renderAnswer(wait,text,used);
+    askPending.forEach(cid=>{ const c=askCharts.find(x=>x.chart_id===cid); if(!c) return;
+      const p=document.createElement("p"); p.className="chartlink"; const b=document.createElement("button"); b.type="button"; b.className="chip";
+      b.textContent="Show chart: "+c.title; b.addEventListener("click",()=>selectChart(cid)); p.append(b); wait.append(p); });
     if(res.stop_reason==="max_tokens"){ const n=document.createElement("p"); n.className="note"; n.style.margin="4px 0 0"; n.textContent="(The answer was cut short. Try a narrower question.)"; wait.append(n); }
   }catch(e){
     wait.className="msg bot";
@@ -998,27 +1633,33 @@ function setAskBusy(b){
   document.querySelectorAll("#askForm input,#askForm button,#askSuggest button").forEach(x=>x.disabled=b);
   if(!b) $("#askIn").focus({preventScroll:true});
 }
-(function initAssistant(){
+/* The assistant section stays hidden unless the Worker reports a working Anthropic API key
+   (GET /status). No URL, an unreachable Worker or a missing/invalid key all leave it hidden. */
+async function assistantAvailable(){
+  if(!ASSISTANT_URL) return false;
+  try{
+    const r=await fetch(ASSISTANT_URL+"/status",{cache:"no-store"});
+    return r.ok&&(await r.json()).available===true;
+  }catch(e){ return false; }
+}
+(async function initAssistant(){
   const form=$("#askForm"); if(!form) return;
+  await CONFIG_READY;
+  if(!(await assistantAvailable())) return;
+  $("#navAssistant").hidden=false;
   form.addEventListener("submit",e=>{e.preventDefault();const q=$("#askIn").value.trim();if(!q||askBusy)return;$("#askIn").value="";askQuestion(q);});
-  if(!ASSISTANT_URL) return;   // not connected: keep today's behaviour
-  const panel=$("#assistant"), tag=panel.querySelector(".tag");
-  panel.classList.add("model"); tag.className="tag model"; tag.textContent="AI assistant (beta)";
+  const panel=$("#assistant");
+  panel.classList.add("model");
   $("#askNote").hidden=false;
   const s=$("#askSuggest"); s.hidden=false;
   ASK.suggestions.forEach(q=>{const b=document.createElement("button");b.type="button";b.textContent=q;
     b.addEventListener("click",()=>askQuestion(q));s.append(b);});
 })();
 
-/* ---------- Highlight nav item for the section in view ---------- */
-const links=[...document.querySelectorAll("#nav a")];
-const obs=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting){
-  links.forEach(l=>l.setAttribute("aria-current",l.getAttribute("href")==="#"+en.target.id?"true":"false"));}}),{rootMargin:"-40% 0px -55% 0px"});
-links.forEach(l=>{const t=document.querySelector(l.getAttribute("href"));if(t)obs.observe(t);});
+showTab("t-overview");
+})();
 </script>
 <!-- Ask CCFD1 AI (loaded last so nothing above changes) -->
 <script src="shared/cad-metrics.js"></script>
-<script src="assistant/viz-tools.js"></script>
-<script src="assistant/viz-panel.js"></script>
 </body>
 </html>

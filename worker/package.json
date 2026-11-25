@@ -7,6 +7,7 @@
     "sync-tools": "node scripts/sync-tools.mjs",
     "check-tools": "node scripts/sync-tools.mjs --check",
     "test": "node scripts/sync-tools.mjs --check && node --test test/*.test.mjs",
+    "upload-data": "node scripts/upload-data.mjs",
     "dev": "wrangler dev --port 8787",
     "deploy": "node scripts/sync-tools.mjs --check && node --test test/*.test.mjs && wrangler deploy"
   },

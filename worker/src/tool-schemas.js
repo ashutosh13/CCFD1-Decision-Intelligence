@@ -42,6 +42,162 @@ export const TOOL_SCHEMAS = [
     }
   },
   {
+    "name": "list_datasets",
+    "description": "List the aggregate datasets available to chart or analyse (id, title, period, status, dimensions and measures). Use it first for any question about a series, trend, comparison or chart, then call query_dataset. Aggregated data only.",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "query_dataset",
+    "description": "Query one aggregate dataset by id (from list_datasets): filter rows, group by dimensions and aggregate measures, sort and limit. Returns columns (with units), rows, period, source, source_detail and status, ready to chart. Use it for finance by year, personnel vs contracted cost, 2024 revenue by source and incidents by hour. Never aggregate balances or other level measures with sum across years; use filter, min, max or avg.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "dataset": {
+          "type": "string",
+          "description": "Dataset id, e.g. \"finance_by_year\"."
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "select": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Columns to return when not aggregating. Default all."
+            },
+            "filter": {
+              "type": "object",
+              "description": "{column: value} or {column: {eq, ne, gt, gte, lt, lte, in}}. All conditions must hold. Example {\"year\":{\"gte\":2020}}."
+            },
+            "groupBy": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Dimension names to group by. Requires aggregate."
+            },
+            "aggregate": {
+              "type": "object",
+              "description": "{measure: \"sum\"|\"avg\"|\"min\"|\"max\"|\"count\"}. With no groupBy, returns one row."
+            },
+            "orderBy": {
+              "type": "object",
+              "properties": {
+                "column": {
+                  "type": "string"
+                },
+                "desc": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "column"
+              ],
+              "additionalProperties": false
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "description": "Maximum rows, default 500."
+            }
+          },
+          "required": [],
+          "additionalProperties": false,
+          "description": "Optional. Omit to return every row."
+        }
+      },
+      "required": [
+        "dataset"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "build_chart",
+    "description": "Draw an interactive chart beside the chat from a dataset (id from list_datasets). Use it for any request to chart, compare, plot or show a pattern (by hour, weekday, group, year). Pick the chart type, the x dimension, the y measure and an optional series dimension; query reuses query_dataset's filter/groupBy/aggregate and must return those columns (aggregate with groupBy on x and series; hours and weekdays are ordered automatically). Axis units, scales and the source label are filled in for you. Returns chart_id, a summary and the rows plotted; one chart per question unless asked. On error read the hint and retry.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "dataset": {
+          "type": "string",
+          "description": "Dataset id, e.g. \"cad_incidents_clean\"."
+        },
+        "query": {
+          "type": "object",
+          "description": "Same shape as query_dataset's query: {filter, groupBy, aggregate, orderBy, limit}. Example {\"groupBy\":[\"hour\",\"source_group\"],\"aggregate\":{\"incidents\":\"sum\"}}. Omit to plot the dataset's rows directly."
+        },
+        "chart": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "column",
+                "bar",
+                "line",
+                "area",
+                "pie",
+                "stacked_column"
+              ],
+              "description": "column, bar (horizontal), line, area, pie (one series) or stacked_column."
+            },
+            "x": {
+              "type": "string",
+              "description": "Dimension for the x axis (a column in the query result)."
+            },
+            "y": {
+              "type": "string",
+              "description": "Measure for the y axis (a column in the query result)."
+            },
+            "series": {
+              "type": "string",
+              "description": "Optional dimension that splits the data into one series per value (e.g. source_group)."
+            },
+            "title": {
+              "type": "string",
+              "description": "Chart title, plain words, max 120 characters."
+            },
+            "x_label": {
+              "type": "string",
+              "description": "Optional x axis title. Default is the column name."
+            },
+            "y_label": {
+              "type": "string",
+              "description": "Optional y axis title. Default is the column name plus its unit."
+            },
+            "categories_order": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Optional explicit order of x values. Hours and weekdays are ordered automatically."
+            }
+          },
+          "required": [
+            "type",
+            "x",
+            "y",
+            "title"
+          ],
+          "additionalProperties": false,
+          "description": "What to draw: type, x dimension, y measure, optional series, title and labels."
+        }
+      },
+      "required": [
+        "dataset",
+        "chart"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "finance_by_year",
     "description": "CCFD1 finances from the Indiana Gateway Annual Financial Reports, 2011-2024 (2025 AFR pending). Use it for questions about operating revenue, operating spending, ending fund balance, personnel vs contracted service cost, or 2024 revenue by source. Operating figures exclude loan proceeds, interfund transfers and payroll pass-throughs.",
     "input_schema": {
@@ -144,7 +300,13 @@ export const TOOL_SCHEMAS = [
               "type": "integer",
               "minimum": 4,
               "maximum": 8,
-              "description": "Continuously staffed posts after the change. Whole number 4-8; the district staffs 4 now. Default 5. Each added post needs 3 hires."
+              "description": "Continuously staffed posts after the change. Whole number 4-8; the district staffs 4 now. Default 5. Each added post needs 3.18 firefighters (8,760 / 2,756 hours)."
+            },
+            "firefighters": {
+              "type": "integer",
+              "minimum": 12,
+              "maximum": 32,
+              "description": "Line firefighters employed, 12-32. Omit to size the roster automatically to cover the posts (12 at 4 posts, 16 at 5). Fewer than 3.18 per post leaves overtime."
             },
             "fund_perf": {
               "type": "boolean",
@@ -154,23 +316,19 @@ export const TOOL_SCHEMAS = [
               "type": "number",
               "minimum": 20,
               "maximum": 30,
-              "description": "PERF 77 employer rate in percent, 20-30 (dashboard steps of 0.5). Default 26.5, which is partner-stated and not yet verified with INPRS. Ignored when fund_perf is false."
+              "description": "PERF 77 employer rate in percent, 20-30 (dashboard steps of 0.1). Default 23.3, the 2026 rate; it rises each year (2027: 26.5%) and is not yet verified with INPRS. Ignored when fund_perf is false."
             },
             "premium": {
               "type": "number",
               "minimum": 0,
               "maximum": 30000,
-              "description": "Health premium per employee in US dollars per year, 0-30000 (dashboard steps of 1000). Default 0, a placeholder because no quote exists - it understates cost."
+              "description": "Health premium per employee in US dollars per year, 0-30000 (dashboard steps of 1000). Default 10000, an assumption: there is no health insurance today and no quote exists. 0 is the no-benefit case."
             },
             "salary_adj": {
               "type": "number",
               "minimum": 0,
               "maximum": 10,
               "description": "Base salary adjustment in percent, 0-10 (dashboard steps of 0.5). Default 0. Applied before PERF."
-            },
-            "ot_displacement": {
-              "type": "boolean",
-              "description": "Let new hires displace overtime, capped at the overtime actually recorded ($61,569 a year, scaled by any salary adjustment). Default true."
             }
           },
           "required": [],
@@ -184,7 +342,7 @@ export const TOOL_SCHEMAS = [
   },
   {
     "name": "run_scenario_34",
-    "description": "Scenario 3&4 team cost engine v2: annual cost of adding staffed posts and/or funding PERF 77 pension and health benefits for existing firefighters, and the gross tax rate needed to fund it. Use it for questions about hiring, adding a post or shift position, benefits, pension, or what a change would do to the tax rate or a $150,000 household. Results are model_output; inputs carry their own status.",
+    "description": "Scenario 3&4 cost engine (spec v3): annual cost of adding staffed posts and/or funding PERF 77 pension and health benefits for existing firefighters, and the gross tax rate needed to fund it. Use it for questions about hiring, adding a post or shift position, benefits, pension, or what a change would do to the tax rate or a $150,000 household. Results are model_output; inputs carry their own status.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -192,7 +350,13 @@ export const TOOL_SCHEMAS = [
           "type": "integer",
           "minimum": 4,
           "maximum": 8,
-          "description": "Continuously staffed posts after the change. Whole number 4-8; the district staffs 4 now. Default 5. Each added post needs 3 hires."
+          "description": "Continuously staffed posts after the change. Whole number 4-8; the district staffs 4 now. Default 5. Each added post needs 3.18 firefighters (8,760 / 2,756 hours)."
+        },
+        "firefighters": {
+          "type": "integer",
+          "minimum": 12,
+          "maximum": 32,
+          "description": "Line firefighters employed, 12-32. Omit to size the roster automatically to cover the posts (12 at 4 posts, 16 at 5). Fewer than 3.18 per post leaves overtime."
         },
         "fund_perf": {
           "type": "boolean",
@@ -202,23 +366,19 @@ export const TOOL_SCHEMAS = [
           "type": "number",
           "minimum": 20,
           "maximum": 30,
-          "description": "PERF 77 employer rate in percent, 20-30 (dashboard steps of 0.5). Default 26.5, which is partner-stated and not yet verified with INPRS. Ignored when fund_perf is false."
+          "description": "PERF 77 employer rate in percent, 20-30 (dashboard steps of 0.1). Default 23.3, the 2026 rate; it rises each year (2027: 26.5%) and is not yet verified with INPRS. Ignored when fund_perf is false."
         },
         "premium": {
           "type": "number",
           "minimum": 0,
           "maximum": 30000,
-          "description": "Health premium per employee in US dollars per year, 0-30000 (dashboard steps of 1000). Default 0, a placeholder because no quote exists - it understates cost."
+          "description": "Health premium per employee in US dollars per year, 0-30000 (dashboard steps of 1000). Default 10000, an assumption: there is no health insurance today and no quote exists. 0 is the no-benefit case."
         },
         "salary_adj": {
           "type": "number",
           "minimum": 0,
           "maximum": 10,
           "description": "Base salary adjustment in percent, 0-10 (dashboard steps of 0.5). Default 0. Applied before PERF."
-        },
-        "ot_displacement": {
-          "type": "boolean",
-          "description": "Let new hires displace overtime, capped at the overtime actually recorded ($61,569 a year, scaled by any salary adjustment). Default true."
         }
       },
       "required": [],
@@ -227,7 +387,7 @@ export const TOOL_SCHEMAS = [
   },
   {
     "name": "compare_to_baseline",
-    "description": "Compare a scenario's resulting annual gap with the $635,758 structural gap and break the difference into its components (compensation vs staffing for Scenario 3&4; funding, source change and starting point for Scenario 1). Use it when the user asks how much a change adds or removes, or why the gap moved.",
+    "description": "Compare a scenario's resulting annual gap with the $635,758 structural gap and break the difference into its components (compensation, new hires and overtime for Scenario 3&4; funding, source change and starting point for Scenario 1). Use it when the user asks how much a change adds or removes, or why the gap moved.",
     "input_schema": {
       "type": "object",
       "properties": {
