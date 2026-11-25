@@ -26,14 +26,6 @@ export const MIN_GROUP_SIZE = 3;
 export const QUERY_LIMIT = { requests: 60, windowSeconds: 600 };
 const TOOL_NAMES = new Set(TOOL_SCHEMAS.map(t => t.name));
 
-/* "Ask CCFD1 AI" panel: POST /viz. Same model, key, origin check, rate limit and validation as the
-   "Ask the data" panel (POST /), with its own fixed system prompt and tool list. Every other path
-   behaves exactly as before. */
-export const VIZ_PATH = "/viz";
-export const VIZ_MAX_BODY_BYTES = 40 * 1024;   // chart answers carry larger tool results
-const VIZ_TOOL_NAMES = new Set(VIZ_TOOL_SCHEMAS.map(t => t.name));
-const VIZ = { system: VIZ_SYSTEM_PROMPT, tools: VIZ_TOOL_SCHEMAS, toolNames: VIZ_TOOL_NAMES, maxBody: VIZ_MAX_BODY_BYTES };
-
 /* ---------- responses ---------- */
 const SAFE = {
   origin: "Origin not allowed.",
@@ -291,8 +283,7 @@ export default {
 
     if (!(await checkRateLimit(request, env))) return fail(429, "rateLimited", allowed);
 
-    let route = null;   // null = "Ask the data" (unchanged); VIZ = "Ask CCFD1 AI"
-    try { if (new URL(request.url).pathname === VIZ_PATH) route = VIZ; } catch {}
+    const route = null;
     const raw = await readBody(request, route ? route.maxBody : MAX_BODY_BYTES);
     if (raw.tooLarge) return fail(413, "tooLarge", allowed);
     let body;
