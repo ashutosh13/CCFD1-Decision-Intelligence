@@ -1,7 +1,7 @@
 # CCFD1 dashboard assistant proxy. See README.md for setup.
 # Secrets are NOT set here. The API key is stored with `npx wrangler secret put ANTHROPIC_API_KEY`.
 name = "ccfd1-assistant"
-main = "src/index.js"
+main = "src/entry.js"
 compatibility_date = "2026-11-05"
 # Public URL: https://ccfd1-assistant.ccfd1-dashboard.workers.dev (no per-version preview URLs)
 workers_dev = true
