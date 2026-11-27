@@ -29,7 +29,7 @@
 <h2>1. Accounts needed</h2>
 <table>
 <tr><th>Account</th><th>Sign up</th><th>What to do</th></tr>
-<tr><td>GitHub</td><td><a href="https://github.com/signup">github.com/signup</a></td><td>After creation, send your username to the group to be added to be authorized for the project.</td></tr>
+<tr><td>GitHub</td><td><a href="https://github.com/signup">github.com/signup</a></td><td>After creation, send your username to the group to be added to be authorized for the project. Then <b>accept the invite</b> (check your email or <a href="https://github.com/notifications">github.com/notifications</a>). Nothing below works until you do.</td></tr>
 <tr><td>Anthropic API key (for the assistant)</td><td><a href="https://console.anthropic.com">console.anthropic.com</a></td><td>Open <b>Billing</b> and add $5. Open <b>API Keys</b>, click <b>Create Key</b>, copy it (starts with <code>sk-ant-</code>).</td></tr>
 </table>
 <blockquote><p>No key? You can skip it. The dashboard works, only the assistant is off.</p></blockquote>
@@ -37,14 +37,15 @@
 <h2>2. Installing Dependencies</h2>
 <table>
 <tr><th>Computer</th><th>Install this</th></tr>
-<tr><td>Mac</td><td>Docker Desktop (<a href="https://www.docker.com/products/docker-desktop">docker.com/products/docker-desktop</a>), then in Terminal run <code>xcode-select --install</code> for Git.</td></tr>
-<tr><td>Windows</td><td>Docker Desktop (<a href="https://www.docker.com/products/docker-desktop">docker.com/products/docker-desktop</a>), then Git from <a href="https://git-scm.com/install/windows">https://git-scm.com/install/windows</a>. Use <b>Git Bash</b> for every command below.</td></tr>
-<tr><td>Linux server</td><td><code>curl -fsSL https://get.docker.com | sh &amp;&amp; sudo apt-get install -y git</code></td></tr>
+<tr><td>Mac</td><td>Docker Desktop (<a href="https://www.docker.com/products/docker-desktop">docker.com/products/docker-desktop</a>), then in Terminal run <code>xcode-select --install</code> for Git, and install the GitHub CLI from <a href="https://cli.github.com">cli.github.com</a> (or <code>brew install gh</code>).</td></tr>
+<tr><td>Windows</td><td>Docker Desktop (<a href="https://www.docker.com/products/docker-desktop">docker.com/products/docker-desktop</a>), then Git from <a href="https://git-scm.com/install/windows">https://git-scm.com/install/windows</a>. Then the GitHub CLI: <code>winget install GitHub.cli</code>. Use <b>Git Bash</b> for every command below.</td></tr>
+<tr><td>Linux server</td><td><code>curl -fsSL https://get.docker.com | sh &amp;&amp; sudo apt-get install -y git gh</code></td></tr>
 </table>
 <blockquote><p>Open Docker Desktop once so it is running before you continue.</p></blockquote>
 
 <h2>3. Running code</h2>
 <ol>
+  <li>Sign in to GitHub once. Run <code>gh auth login</code> and choose <b>GitHub.com</b>, <b>HTTPS</b>, <b>Yes</b> to authenticate Git, then <b>Login with a web browser</b>. </li>
   <li>Paste this (it downloads the project, then starts it):
 <pre><code>git clone https://github.com/ashutosh13/CCFD1-Decision-Intelligence.git ~/ccfd1 &amp;&amp; cd ~/ccfd1 &amp;&amp; ./start.sh</code></pre></li>
   <li>The script checks for your Anthropic API key (from Step 1). If it is missing or not accepted, it asks you to paste a valid one. Press Enter to skip the assistant.</li>
@@ -61,7 +62,7 @@ cd ~/ccfd1 &amp;&amp; ./stop.sh   # stop it</code></pre>
 <tr><th>You see</th><th>Do this</th></tr>
 <tr><td><code>Cannot connect to the Docker daemon</code></td><td>Open Docker Desktop and wait until it says it is running.</td></tr>
 <tr><td>Assistant does not answer or page does not appear</td><td>The API key is missing or wrong. Run <code>./start.sh</code> again and paste a valid key when asked.</td></tr>
-<tr><td><code>git clone</code> or <code>git pull</code> fails</td><td>Sign in to GitHub, or ask team to check access.</td></tr>
+<tr><td><code>git clone</code> or <code>git pull</code> fails</td><td>Run <code>gh auth login</code> again, and check you accepted the GitHub invite ("repository not found" usually means you have not). If it still fails, ask the team to check access.</td></tr>
 </table>
 
 <h2>Next steps: Updating Data and project Matinence post-deployment</h2>
@@ -70,7 +71,9 @@ cd ~/ccfd1 &amp;&amp; ./stop.sh   # stop it</code></pre>
 <h3>One-time setup for updating</h3>
 <ol>
   <li>Install <a href="https://python.org">Python 3.10+</a>, <a href="https://nodejs.org">Node.js 20+</a> and Git (Git is already installed from step 2).</li>
-  <li>Sign in to GitHub so <code>git push</code> works. Your username must have write access (see Accounts needed).</li>
+  <li>Your <code>gh auth login</code> from step 3 also covers <code>git push</code>. Your username must have write access (see Accounts needed). Tell Git who you are, using the email on your GitHub account:
+<pre><code>git config --global user.name "Your Name"
+git config --global user.email "you@example.com"</code></pre></li>
   <li>In the GitHub repo, open <b>Settings &gt; Pages</b> and set <b>Source</b> to <b>GitHub Actions</b>.</li>
   <li>From <code>~/ccfd1</code> run <code>python3 run.py --setup</code>. It asks for your Anthropic API key, a Cloudflare API token (permissions: <b>Workers Scripts Edit</b> and <b>Workers KV Storage Edit</b>) and your Cloudflare account ID. They are saved in <code>.env</code> and never committed.
     <br>Mac: after running <code>--setup</code> once in Terminal, you can double-click <code>run.command</code>. Windows: use <code>run.bat --setup</code>.</li>
