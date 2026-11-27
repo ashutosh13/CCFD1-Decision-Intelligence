@@ -11,10 +11,32 @@ case "$1" in
   "") ;;
   *) echo "usage: ./start.sh [--dev]" >&2; exit 2 ;;
 esac
-if ! grep -q '^ANTHROPIC_API_KEY=.' .env 2>/dev/null; then
-  printf 'Paste your Anthropic API key (or press Enter to skip the assistant): '
-  read -r key
-  [ -n "$key" ] && echo "ANTHROPIC_API_KEY=$key" >> .env
+# Auto-detect the Anthropic key. If it is missing or rejected, ask for a valid one (Enter skips the assistant).
+key_ok() {  # 0 = valid, 1 = rejected by Anthropic, 2 = could not check (offline), so accept it
+  case "$1" in sk-ant-*) ;; *) return 1 ;; esac
+  code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 https://api.anthropic.com/v1/models \
+    -H "x-api-key: $1" -H "anthropic-version: 2023-06-01") || return 2
+  case "$code" in 200) return 0 ;; 401|403) return 1 ;; *) return 2 ;; esac
+}
+current=$(grep '^ANTHROPIC_API_KEY=' .env 2>/dev/null | tail -1 | cut -d= -f2-)
+need_key=1
+if [ -n "$current" ]; then key_ok "$current"; [ $? -ne 1 ] && need_key=0 || echo "The saved Anthropic API key was rejected."; fi
+if [ "$need_key" = 1 ]; then
+  tries=0
+  while [ $tries -lt 3 ]; do
+    printf 'Paste your Anthropic API key (or press Enter to skip the assistant): '
+    read -r key
+    [ -z "$key" ] && break
+    key_ok "$key"; rc=$?
+    if [ $rc -ne 1 ]; then
+      [ -f .env ] && grep -v '^ANTHROPIC_API_KEY=' .env > .env.tmp; mv .env.tmp .env 2>/dev/null
+      echo "ANTHROPIC_API_KEY=$key" >> .env
+      [ $rc -eq 2 ] && echo "Could not reach Anthropic to check it; saved anyway."
+      break
+    fi
+    echo "That key was not accepted. It should start with sk-ant- and be active."
+    tries=$((tries + 1))
+  done
 fi
 if [ -f ccfd1-image.tar ]; then docker load -i ccfd1-image.tar        # offline copy, if you were given one
 elif [ "$1" != "--dev" ]; then docker pull "$IMAGE"; fi
