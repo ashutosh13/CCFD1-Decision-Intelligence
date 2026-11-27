@@ -17,19 +17,19 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: 20 }
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with: { python-version: "3.12" }
       - run: pip install pytest
       - run: pytest -q pipeline/tests
       - run: node --test shared/dataset.test.js assistant/tools.test.js assistant/chart.test.js
       - run: python build_site.py
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with: { path: site }
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   # Deploys the assistant Worker. Needs these GitHub repository secrets (Settings > Secrets and variables > Actions):
   #   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, ANTHROPIC_API_KEY
@@ -48,9 +48,9 @@ jobs:
         run: |
           if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ] && [ -n "$ANTHROPIC_API_KEY" ]; then echo "go=true" >> "$GITHUB_OUTPUT"; else echo "Worker secrets not set: skipping Worker deploy."; fi
       - if: steps.gate.outputs.go == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - if: steps.gate.outputs.go == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with: { node-version: 20, cache: npm, cache-dependency-path: worker/package-lock.json }
       - if: steps.gate.outputs.go == 'true'
         working-directory: worker
@@ -71,15 +71,15 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile
