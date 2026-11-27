@@ -54,7 +54,7 @@ const question = [{ role: "user", content: "What is the 2027 structural gap?" }]
 
 /* ---------- origin ---------- */
 test("requests from a disallowed origin are rejected (and never forwarded)", async () => {
-  for (const origin of ["https://evil.example", "https://ashutosh13.github.io.evil.example", "http://localhost:3000", null]) {
+  for (const origin of ["https://evil.example", "https://ashutosh13.github.io.evil.example", "http://localhost:3000", "http://localhost:8000", null]) {
     const { res, json } = await send({ messages: question }, { origin });
     assert.equal(res.status, 403, String(origin));
     assert.equal(res.headers.get("Access-Control-Allow-Origin"), null);
@@ -65,13 +65,14 @@ test("requests from a disallowed origin are rejected (and never forwarded)", asy
   assert.equal(calls.length, 0);
 });
 
-test("allowed origins get CORS headers, including the localhost test origin", async () => {
+test("allowed origins get CORS headers; localhost only when the host passes it via env", async () => {
   const pre = await send(null, { method: "OPTIONS" });
   assert.equal(pre.res.status, 204);
   assert.equal(pre.res.headers.get("Access-Control-Allow-Origin"), ALLOWED);
-  const local = await send({ messages: question }, { origin: "http://localhost:8000" });
-  assert.equal(local.res.status, 200);
-  assert.equal(local.res.headers.get("Access-Control-Allow-Origin"), "http://localhost:8000");
+  const local = await worker.fetch(new Request("https://w.example/status", { headers: { Origin: "http://localhost:8000" } }),
+    { ANTHROPIC_API_KEY: FAKE_KEY, ALLOWED_ORIGINS: "http://localhost:8000" });
+  assert.equal(local.status, 200);
+  assert.equal(local.headers.get("Access-Control-Allow-Origin"), "http://localhost:8000");
 });
 
 /* ---------- forbidden fields ---------- */

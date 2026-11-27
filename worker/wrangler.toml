@@ -16,4 +16,5 @@ binding = "RATE_LIMIT"
 id = "841e9bd3246e4886999f56172c3e4830"
 
 [vars]
-ALLOWED_ORIGINS = "https://ashutosh13.github.io,http://localhost:8000"
+# Production origin only. Local runs (./start.sh) get their own origin from docker/server.mjs, never from here.
+ALLOWED_ORIGINS = "https://ashutosh13.github.io"

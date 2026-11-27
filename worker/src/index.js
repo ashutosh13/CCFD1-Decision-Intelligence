@@ -13,8 +13,9 @@ import Dataset from "../../shared/dataset.js";
 
 export const MODEL = "claude-haiku-5-5";
 export const MAX_TOKENS = 1536;
-export const ALLOWED_ORIGINS = ["https://ashutosh13.github.io", "http://localhost:8000"];
-/* run.py writes the real list into wrangler.toml [vars] ALLOWED_ORIGINS (comma separated) from config.json. */
+export const ALLOWED_ORIGINS = ["https://ashutosh13.github.io"];
+/* Production only. run.py writes the real list into wrangler.toml [vars] ALLOWED_ORIGINS (comma separated) from config.json.
+   localhost is never listed here: ./start.sh runs this code in docker/server.mjs, which passes its own origin via env. */
 const originsFor = env => (env && env.ALLOWED_ORIGINS ? String(env.ALLOWED_ORIGINS).split(",").map(x => x.trim()).filter(Boolean) : ALLOWED_ORIGINS);
 export const MAX_BODY_BYTES = 20 * 1024;
 export const MAX_TOOL_ROUND_TRIPS = 8;
