@@ -3,47 +3,79 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CCFD1 Dashboard Setup</title>
+<title>CCFD1 Dashboard Handoff</title>
 <style>
-  body{font:17px/1.55 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 16px;color:#1a1a1a}
-  h1{font-size:26px} h2{font-size:19px;margin-top:32px}
-  code,pre{font-family:ui-monospace,Menlo,monospace;font-size:14.5px}
-  pre{background:#f3f4f6;padding:12px 14px;border-radius:6px;overflow-x:auto}
-  li{margin:10px 0}
-  .note{color:#555}
+  body{font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;max-width:800px;margin:32px auto;padding:0 16px;color:#1f2328;background:#fff}
+  h1,h2{border-bottom:1px solid #d1d9e0;padding-bottom:.3em;line-height:1.25}
+  h1{font-size:2em;margin:0 0 16px} h2{font-size:1.5em;margin:28px 0 16px}
+  p,ul,ol,pre,table,blockquote{margin:0 0 16px}
+  li+li{margin-top:.25em}
+  a{color:#0969da;text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:85%}
+  code{background:#818b981f;padding:.2em .4em;border-radius:6px}
+  pre{background:#f6f8fa;padding:16px;border-radius:6px;overflow:auto;line-height:1.45}
+  pre code{background:none;padding:0;font-size:100%}
+  blockquote{color:#59636e;border-left:.25em solid #d1d9e0;padding:0 1em}
+  blockquote p{margin:8px 0}
+  table{border-collapse:collapse;display:block;overflow:auto}
+  th,td{border:1px solid #d1d9e0;padding:6px 13px;text-align:left;vertical-align:top}
+  th{font-weight:600} tr:nth-child(2n) td{background:#f6f8fa}
 </style>
 </head>
 <body>
-<h1>CCFD1 Dashboard: Setup</h1>
-<p class="note">About 15 minutes. Do these in order.</p>
+<h1>CCFD1 Dashboard: Handoff</h1>
+<blockquote><p>Setup takes about 15 minutes. This handoff runs the dashboard using the already ingested data. For future updates see the 'Updating Data' Section below.</p></blockquote>
 
-<h2>Accounts</h2>
+<h2>1. Accounts needed</h2>
+<table>
+<tr><th>Account</th><th>Sign up</th><th>What to do</th></tr>
+<tr><td>GitHub</td><td><a href="https://github.com/signup">github.com/signup</a></td><td>After creation, send your username to the group to be added to be authorized for the project. Then <b>accept the invite</b> (check your email or <a href="https://github.com/notifications">github.com/notifications</a>). Nothing below works until you do.</td></tr>
+<tr><td>Anthropic API key (for the assistant)</td><td><a href="https://console.anthropic.com">console.anthropic.com</a></td><td>Open <b>Billing</b> and add $5. Open <b>API Keys</b>, click <b>Create Key</b>, copy it (starts with <code>sk-ant-</code>).</td></tr>
+</table>
+<blockquote><p>No key? You can skip it. The dashboard works, only the assistant is off.</p></blockquote>
+
+<h2>2. Installing Dependencies</h2>
+<table>
+<tr><th>Computer</th><th>Install this</th></tr>
+<tr><td>Mac</td><td>Docker Desktop (<a href="https://www.docker.com/products/docker-desktop">docker.com/products/docker-desktop</a>), then in Terminal run <code>xcode-select --install</code> for Git, and install the GitHub CLI from <a href="https://cli.github.com">cli.github.com</a> (or <code>brew install gh</code>).</td></tr>
+<tr><td>Windows</td><td>Docker Desktop (<a href="https://www.docker.com/products/docker-desktop">docker.com/products/docker-desktop</a>), then Git from <a href="https://git-scm.com/install/windows">https://git-scm.com/install/windows</a>. Then the GitHub CLI: <code>winget install GitHub.cli</code>. Use <b>Git Bash</b> for every command below.</td></tr>
+<tr><td>Linux server</td><td><code>curl -fsSL https://get.docker.com | sh &amp;&amp; sudo apt-get install -y git gh</code></td></tr>
+</table>
+<blockquote><p>Open Docker Desktop once so it is running before you continue.</p></blockquote>
+
+<h2>3. Running code</h2>
 <ol>
-  <li><b>Get a GitHub account:</b> go to <code>github.com/signup</code> and complete with your email. Send me your username so I can add you to the project.</li>
-  <li><b>Get an Anthropic API key:</b> go to <code>console.anthropic.com</code> and sign up. Open <b>Billing</b> and add $5 of credit. Open <b>API Keys</b>, click <b>Create Key</b>, and copy it (starts with <code>sk-ant-</code>).</li>
+  <li>Sign in to GitHub once. Run <code>gh auth login</code> and choose <b>GitHub.com</b>, <b>HTTPS</b>, <b>Yes</b> to authenticate Git, then <b>Login with a web browser</b>. </li>
+  <li>Paste this (it downloads the project, then starts it):
+<pre><code>git clone https://github.com/ashutosh13/CCFD1-Decision-Intelligence.git ~/ccfd1 &amp;&amp; cd ~/ccfd1 &amp;&amp; ./start.sh</code></pre></li>
+  <li>The script checks for your Anthropic API key (from Step 1). If it is missing or not accepted, it asks you to paste a valid one. Press Enter to skip the assistant.</li>
+  <li>Open <code>http://localhost:8000</code> (on a server: <code>http://YOUR-SERVER-IP:8000</code>).</li>
 </ol>
-
-<h2>Option A: Run on your own computer (Mac or Windows)</h2>
-<ol start="3">
-  <li><b>Install Docker:</b> go to <code>docker.com/products/docker-desktop</code>, download, install, and open it.</li>
-  <li><b>Install Git:</b> Mac: open Terminal and run <code>xcode-select --install</code>. Windows: go to <code>git-scm.com</code> and install, then use <b>Git Bash</b> for the next step.</li>
-  <li><b>Download and start it</b> (paste your API key when asked):
-<pre>git clone https://github.com/ashutosh13/CCFD1-Decision-Intelligence.git ~/ccfd1 &amp;&amp; cd ~/ccfd1 &amp;&amp; ./start.sh</pre></li>
-  <li><b>Open it:</b> go to <code>http://localhost:8000</code></li>
-</ol>
-
-<h2>Option B: Run on a server (Linux, Ubuntu)</h2>
-<ol start="3">
-  <li><b>Install Docker and Git:</b>
-<pre>curl -fsSL https://get.docker.com | sh &amp;&amp; sudo apt-get install -y git</pre></li>
-  <li><b>Download and start it</b> (paste your API key when asked):
-<pre>git clone https://github.com/ashutosh13/CCFD1-Decision-Intelligence.git ~/ccfd1 &amp;&amp; cd ~/ccfd1 &amp;&amp; sudo ./start.sh</pre></li>
-  <li><b>Open it:</b> go to <code>http://YOUR-SERVER-IP:8000</code></li>
-</ol>
+<blockquote><p>On a server put <code>sudo</code> in front of <code>./start.sh</code>. For another port: <code>PORT=9000 ./start.sh</code>.</p></blockquote>
 
 <h2>Day to day</h2>
-<pre>cd ~/ccfd1 &amp;&amp; git pull &amp;&amp; ./start.sh     # get the latest and restart
-cd ~/ccfd1 &amp;&amp; ./stop.sh                  # stop it</pre>
-<p class="note">Use <code>sudo</code> in front of these on a server. To use a different port, run <code>PORT=9000 ./start.sh</code>.</p>
-</body>
-</html>
+<pre><code>cd ~/ccfd1 &amp;&amp; ./start.sh   # get the latest and restart
+cd ~/ccfd1 &amp;&amp; ./stop.sh   # stop it</code></pre>
+
+<h2>If something goes wrong</h2>
+<table>
+<tr><th>You see</th><th>Do this</th></tr>
+<tr><td><code>Cannot connect to the Docker daemon</code></td><td>Open Docker Desktop and wait until it says it is running.</td></tr>
+<tr><td>Assistant does not answer or page does not appear</td><td>The API key is missing or wrong. Run <code>./start.sh</code> again and paste a valid key when asked.</td></tr>
+<tr><td><code>git clone</code> or <code>git pull</code> fails</td><td>Run <code>gh auth login</code> again, and check you accepted the GitHub invite ("repository not found" usually means you have not). If it still fails, ask the team to check access.</td></tr>
+</table>
+
+<h2>Next steps: Updating Data and project Matinence post-deployment</h2>
+<blockquote><p><b>Next steps.</b> Everything above gets the dashboard running with the data already loaded. Do this part later, when new Daily Blotter PDFs arrive. Updating data is a different job from running the dashboard, and it needs extra tools and accounts.</p></blockquote>
+
+<h3>One-time setup for updating</h3>
+<ol>
+  <li>Install <a href="https://python.org">Python 3.10+</a>, <a href="https://nodejs.org">Node.js 20+</a> and Git (Git is already installed from step 2).</li>
+  <li>Your <code>gh auth login</code> from step 3 also covers <code>git push</code>. Your username must have write access (see Accounts needed). Tell Git who you are, using the email on your GitHub account:
+<pre><code>git config --global user.name "Your Name"
+git config --global user.email "you@example.com"</code></pre></li>
+  <li>In the GitHub repo, open <b>Settings &gt; Pages</b> and set <b>Source</b> to <b>GitHub Actions</b>.</li>
+  <li>From <code>~/ccfd1</code> run <code>python3 run.py --setup</code>. It asks for your Anthropic API key, a Cloudflare API token (permissions: <b>Workers Scripts Edit</b> and <b>Workers KV Storage Edit</b>) and your Cloudflare account ID. They are saved in <code>.env</code> and never committed.
+    <br>Mac: after running <code>--setup</code> once in Terminal, you can double-click <code>run.command</code>. Windows: use <code>run.bat --setup</code>.</li>
+</ol>
+‰

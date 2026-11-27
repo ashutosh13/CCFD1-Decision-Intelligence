@@ -829,18 +829,23 @@ const KPIS=[...document.querySelectorAll(".kpis .kpi")].map(el=>{
 });
 const LAST={staffing:null,funding:null};   // latest engine results, set by the scenario panels below
 let activeTab="t-overview";
+/* Combined result of every scenario tab (funding on top of staffing/compensation). The shared visuals and KPI cards
+   use this, so they do not change when the active tab changes. */
+function combined(){
+  const st=LAST.staffing, fi=LAST.fundingInput||{funding:0,oneTime:false,source:"",pct:0};
+  const r=fundingEngine({funding:fi.funding,oneTime:fi.oneTime,source:fi.source,pct:fi.pct,useStaffing:true,staffingGap:st?st.gap:ENG.BASE_GAP});
+  const budget=S1.BUDGET_2027+(st?st.total:0);
+  return {r,st,budget,scen:!!(st&&st.total!==0)||r.revenueChange!==0};
+}
 function updateKpis(){
   const sgn=v=>(v>0?"+":"")+money(v);
   const ov={};   // card index -> {lab,val,src}
-  if(activeTab==="t-1"&&LAST.funding){
-    const r=LAST.funding;
-    ov[0]={val:money(r.laterGap),src:"Baseline "+money(r.startGap)};
+  const cb=combined();
+  if(cb.scen){
+    const {r,st}=cb;
+    ov[0]={val:money(r.laterGap),src:"Baseline "+money(ENG.BASE_GAP)};
+    ov[1]={val:money(cb.budget),src:"Baseline "+money(S1.BUDGET_2027)+(st?"; change "+sgn(st.total):"")};
     ov[2]={val:money(r.adjustedRevenue),src:"Baseline "+money(S1.RECURRING_REVENUE)};
-    ov[3]={lab:"Years of fund balance",val:yearsLabel(r.years),src:"Fund balance, end of 2025: "+money(S1.FUND_BALANCE)};
-  } else if((activeTab==="t-3"||activeTab==="t-4")&&LAST.staffing){
-    const r=LAST.staffing;
-    ov[0]={val:money(r.gap),src:"Baseline "+money(ENG.BASE_GAP)};
-    ov[1]={val:money(S1.BUDGET_2027+r.total),src:"Baseline "+money(S1.BUDGET_2027)+"; change "+sgn(r.total)};
     ov[3]={lab:"Years of fund balance",val:yearsLabel(r.years),src:"Fund balance, end of 2025: "+money(S1.FUND_BALANCE)};
   }
   KPIS.forEach((x,i)=>{
@@ -849,9 +854,7 @@ function updateKpis(){
     x.el.classList.toggle("model",!!o); x.el.classList.toggle("updated",!o&&x.upd);
   });
   /* Cost visual: revenue vs cost basis, with the operating gap between them */
-  const f=activeTab==="t-1"&&LAST.funding?LAST.funding:null, st=(activeTab==="t-3"||activeTab==="t-4")&&LAST.staffing?LAST.staffing:null;
-  const v={rev:f?f.adjustedRevenue:S1.RECURRING_REVENUE, budget:st?S1.BUDGET_2027+st.total:S1.BUDGET_2027,
-    gap:f?f.laterGap:st?st.gap:ENG.BASE_GAP, years:f?f.years:st?st.years:ENG.FUND_BALANCE/ENG.BASE_GAP, scen:!!(f||st)};
+  const v={rev:cb.r.adjustedRevenue, budget:cb.budget, gap:cb.r.laterGap, years:cb.r.years, scen:cb.scen};
   const slot=document.querySelector('[data-slot="costviz"]');
   if(slot){ slot.innerHTML=costViz(v);
     $("#costNote").textContent=v.scen?"Scenario view. Baseline gap "+money(ENG.BASE_GAP)+", revenue "+money(S1.RECURRING_REVENUE)+", budget "+money(S1.BUDGET_2027)+".":"Gap = proposed budget minus recurring revenue (Scope Document v2.0, Gateway Form 1)."; }
@@ -1242,11 +1245,9 @@ function spendChart(r){
 function renderShared(){
   const fs=document.querySelector('[data-slot="fundShared"]'), ss=document.querySelector('[data-slot="spendShared"]');
   if(!fs||!ss||!LAST.staffing) return;
-  const fromStaffing=activeTab==="t-3"||activeTab==="t-4"||(LAST.funding&&$("#useStaff")&&$("#useStaff").checked);
-  const fr=activeTab==="t-3"||activeTab==="t-4"||!LAST.funding
-    ?fundingEngine({funding:0,oneTime:false,source:"",pct:0,useStaffing:true,staffingGap:LAST.staffing.gap}):LAST.funding;
-  fundProjection(fs,fr);
-  $("#fundSharedNote").textContent=(activeTab==="t-3"||activeTab==="t-4"||fromStaffing)?"Reflects the staffing and compensation scenario.":"Reflects the funding scenario (baseline until changed).";
+  const cb=combined();
+  fundProjection(fs,cb.r);
+  $("#fundSharedNote").textContent=cb.scen?"Reflects the combined funding, staffing and compensation scenarios.":"Baseline (no scenario changes yet).";
   ss.innerHTML=spendChart(LAST.staffing);
 }
 function runFunding(){
@@ -1275,7 +1276,7 @@ function runFunding(){
   $("#f_src").textContent=s?`${s[0]}: 2024 AFR amount ${money(s[1])}; ${(i.pct>0?"+":"")+Math.round(i.pct*100)}% = ${signed(r.sourceEffect)} per year (recurring).`:"";
   $("#f_src").hidden=!s;
   $("#srcChart").innerHTML=srcChart(r,i);
-  LAST.funding=r; updateKpis(); renderShared();
+  LAST.funding=r; LAST.fundingInput={funding:i.funding,oneTime:i.oneTime,source:i.source,pct:i.pct}; updateKpis(); renderShared();
   return r;
 }
 /* Scenario 1 visual: recurring revenue by source type (2024 AFR amounts) with the scenario's change on top */
