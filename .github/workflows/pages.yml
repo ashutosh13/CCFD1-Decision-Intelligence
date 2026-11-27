@@ -12,11 +12,10 @@ concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
-  deploy:
+  # Tests, build and upload happen here; publishing is a separate job (the layout GitHub documents), because
+  # deploy-pages in the same job found 0 artifacts right after the upload finalized.
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -29,6 +28,14 @@ jobs:
       - run: python build_site.py
       - uses: actions/upload-pages-artifact@v5
         with: { path: site }
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v5
 
