@@ -24,7 +24,7 @@ What changed from Version 12
   detected in the PDF vs. rows written, with pages.
 * Incident parsing is unchanged from V12.
 
-Works with PyMuPDF (preferred) or falls back to pdfplumber.
+Reads PDFs with pdfplumber (MIT). PyMuPDF (AGPL) is not used.
 """
 
 import os
@@ -32,14 +32,6 @@ import re
 import csv
 from collections import defaultdict, Counter
 from datetime import datetime
-
-try:
-    import pymupdf as fitz
-except ImportError:
-    try:
-        import fitz
-    except ImportError:
-        fitz = None
 
 try:
     import pdfplumber
@@ -235,33 +227,6 @@ def minutes_between(start_text, end_text):
 # READ PDF
 # ============================================================
 
-def _fitz_words(page):
-    """
-    PyMuPDF reports word boxes in the UNROTATED page space. This blotter's
-    pages are stored portrait with /Rotate 90, so without this transform
-    x and y are swapped and no table row lines up. Map every box into the
-    displayed (rotated) orientation, which is what the column logic expects.
-    """
-    matrix = getattr(page, "rotation_matrix", None)
-    if matrix is None:
-        matrix = getattr(page, "rotationMatrix", None)   # very old PyMuPDF
-    rotated = bool(page.rotation) and matrix is not None
-
-    words = []
-    for w in page.get_text("words", sort=False):
-        text = str(w[4]).strip()
-        if not text:
-            continue
-        x0, y0, x1, y1 = w[0], w[1], w[2], w[3]
-        if rotated:
-            p1 = fitz.Point(x0, y0) * matrix
-            p2 = fitz.Point(x1, y1) * matrix
-            x0, x1 = min(p1.x, p2.x), max(p1.x, p2.x)
-            y0, y1 = min(p1.y, p2.y), max(p1.y, p2.y)
-        words.append({"x0": x0, "x1": x1, "top": y0, "text": text})
-    return words
-
-
 def _plumber_words(page):
     return [
         {"x0": w["x0"], "x1": w["x1"], "top": w["top"], "text": w["text"]}
@@ -272,22 +237,10 @@ def _plumber_words(page):
 def read_pdf(pdf_path):
     """
     Returns (document, pages). Each page dict carries:
-      text / text_lines  - used by incident parsing (same as V12 with PyMuPDF)
+      text / text_lines  - used by incident parsing
       words              - positioned words, used by unit-table parsing
     """
     pages = []
-
-    if fitz is not None:
-        document = fitz.open(pdf_path)
-        for page_number, page in enumerate(document, start=1):
-            text = page.get_text("text", sort=False)
-            pages.append({
-                "page_number": page_number,
-                "text": text,
-                "text_lines": [l.strip() for l in text.splitlines() if l.strip()],
-                "words": _fitz_words(page),
-            })
-        return document, pages
 
     if pdfplumber is not None:
         document = pdfplumber.open(pdf_path)
@@ -301,7 +254,7 @@ def read_pdf(pdf_path):
             })
         return document, pages
 
-    raise ImportError("Install PyMuPDF (pip install pymupdf) or pdfplumber.")
+    raise ImportError("Install pdfplumber (pip install pdfplumber).")
 
 
 def group_words_into_lines(words, tolerance=LINE_TOLERANCE):

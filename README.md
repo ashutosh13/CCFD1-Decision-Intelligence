@@ -65,6 +65,6 @@ Running again with the same files does nothing new. `python3 run.py --dry-run` o
   settings, so it was not migrated). Retiring it means moving its sourced scalars into a dataset and pointing the
   assistant's older tools at `query_dataset`.
 - The by-township split and the map's incident points are not derived from SQLite (no township join yet).
-- PyMuPDF (AGPL) is used for extraction; decide on licensing before making the repository public.
+- Extraction uses pdfplumber (MIT). PyMuPDF (AGPL) was removed because of public-use restrictions.
 
 - `gis-map/`: CAD & GIS Incident Analysis page (opened from "Open Full Map" on the Overview map); uses `shared/cad-gis.js` (township boundaries and de-identified incident layer) and `shared/cad-metrics.js` (pure metric functions, tests in `shared/cad-metrics.test.js`). `pipeline/build_gis_detail.py` builds the git-ignored `data/cad-gis-detail.json` for local use only.

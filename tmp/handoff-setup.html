@@ -38,38 +38,33 @@
 <table>
 <tr><th>Computer</th><th>Install this</th></tr>
 <tr><td>Mac</td><td>Docker Desktop (<a href="https://www.docker.com/products/docker-desktop">docker.com/products/docker-desktop</a>), then in Terminal run <code>xcode-select --install</code> for Git.</td></tr>
-<tr><td>Windows</td><td>Docker Desktop, then Git from <a href="https://git-scm.com">git-scm.com</a>. Use <b>Git Bash</b> for every command below.</td></tr>
+<tr><td>Windows</td><td>Docker Desktop (<a href="https://www.docker.com/products/docker-desktop">docker.com/products/docker-desktop</a>), then Git from <a href="https://git-scm.com/install/windows">https://git-scm.com/install/windows</a>. Use <b>Git Bash</b> for every command below.</td></tr>
 <tr><td>Linux server</td><td><code>curl -fsSL https://get.docker.com | sh &amp;&amp; sudo apt-get install -y git</code></td></tr>
 </table>
 <blockquote><p>Open Docker Desktop once so it is running before you continue.</p></blockquote>
 
-<h2>3. Running Start</h2>
+<h2>3. Running code</h2>
 <ol>
   <li>Paste this (it downloads the project, then starts it):
 <pre><code>git clone https://github.com/ashutosh13/CCFD1-Decision-Intelligence.git ~/ccfd1 &amp;&amp; cd ~/ccfd1 &amp;&amp; ./start.sh</code></pre></li>
-  <li>The script checks for your Anthropic API key. If it is missing or not accepted, it asks you to paste a valid one (up to 3 tries). Press Enter to skip the assistant.</li>
+  <li>The script checks for your Anthropic API key (from Step 1). If it is missing or not accepted, it asks you to paste a valid one. Press Enter to skip the assistant.</li>
   <li>Open <code>http://localhost:8000</code> (on a server: <code>http://YOUR-SERVER-IP:8000</code>).</li>
 </ol>
 <blockquote><p>On a server put <code>sudo</code> in front of <code>./start.sh</code>. For another port: <code>PORT=9000 ./start.sh</code>.</p></blockquote>
 
 <h2>Day to day</h2>
-<pre><code>cd ~/ccfd1 &amp;&amp; git pull &amp;&amp; ./start.sh     # get the latest and restart
-cd ~/ccfd1 &amp;&amp; ./stop.sh                  # stop it</code></pre>
+<pre><code>cd ~/ccfd1 &amp;&amp; ./start.sh   # get the latest and restart
+cd ~/ccfd1 &amp;&amp; ./stop.sh   # stop it</code></pre>
 
 <h2>If something goes wrong</h2>
 <table>
 <tr><th>You see</th><th>Do this</th></tr>
 <tr><td><code>Cannot connect to the Docker daemon</code></td><td>Open Docker Desktop and wait until it says it is running.</td></tr>
-<tr><td>Page will not load</td><td>Run <code>./start.sh</code> again. Try <code>PORT=9000 ./start.sh</code> if something else uses port 8000.</td></tr>
-<tr><td>Assistant does not answer</td><td>The API key is missing or wrong. Run <code>./start.sh</code> again and paste a valid key when asked.</td></tr>
-<tr><td><code>git clone</code> or <code>git pull</code> fails</td><td>Sign in to GitHub, or ask me for access.</td></tr>
+<tr><td>Assistant does not answer or page does not appear</td><td>The API key is missing or wrong. Run <code>./start.sh</code> again and paste a valid key when asked.</td></tr>
+<tr><td><code>git clone</code> or <code>git pull</code> fails</td><td>Sign in to GitHub, or ask team to check access.</td></tr>
 </table>
 
-<h2>Git Quick script</h2>
-[ -d ~/ccfd1 ] || git clone https://github.com/ashutosh13/CCFD1-Decision-Intelligence.git ~/ccfd1 || exit 1
-cd ~/ccfd1 &amp;&amp; git pull &amp;&amp; ./start.sh</code></pre>
-
-<h2>Next steps: Updating Data (Day 2)</h2>
+<h2>Next steps: Updating Data and project Matinence post-deployment</h2>
 <blockquote><p><b>Next steps.</b> Everything above gets the dashboard running with the data already loaded. Do this part later, when new Daily Blotter PDFs arrive. Updating data is a different job from running the dashboard, and it needs extra tools and accounts.</p></blockquote>
 
 <h3>One-time setup for updating</h3>
@@ -80,24 +75,4 @@ cd ~/ccfd1 &amp;&amp; git pull &amp;&amp; ./start.sh</code></pre>
   <li>From <code>~/ccfd1</code> run <code>python3 run.py --setup</code>. It asks for your Anthropic API key, a Cloudflare API token (permissions: <b>Workers Scripts Edit</b> and <b>Workers KV Storage Edit</b>) and your Cloudflare account ID. They are saved in <code>.env</code> and never committed.
     <br>Mac: after running <code>--setup</code> once in Terminal, you can double-click <code>run.command</code>. Windows: use <code>run.bat --setup</code>.</li>
 </ol>
-
-<h3>Every update</h3>
-<ol>
-  <li>Put the new Daily Blotter PDFs in <code>inbox/</code>. File names must contain <b>FIRE</b> or <b>EMS</b>. (Already-extracted folders containing <code>incidents.csv</code> and <code>unit_responses.csv</code> also work.)</li>
-  <li>Run <code>python3 run.py</code> (or double-click <code>run.command</code> / <code>run.bat</code>). It extracts the PDFs, validates and loads them, exports the datasets, runs every test, builds a preview of the site, then asks to commit and push.</li>
-  <li>After the push, GitHub's workflow publishes the site and deploys the assistant. Nothing else to do.</li>
-</ol>
-<p>Running again with the same files does nothing new. <code>python3 run.py --dry-run</code> only validates, without changing anything. The script stops at the first failure.</p>
-
-<h3>Update messages</h3>
-<table>
-<tr><th>Message</th><th>Meaning</th></tr>
-<tr><td><code>too many rows failed validation</code></td><td>A file has more than 5% bad rows. See <code>reports/</code>. Nothing was loaded.</td></tr>
-<tr><td><code>cannot tell FIRE or EMS</code></td><td>Rename the PDF so its name contains FIRE or EMS.</td></tr>
-<tr><td><code>A check failed</code></td><td>A test failed and nothing was pushed. Run <code>git checkout datasets</code> to undo local data changes.</td></tr>
-<tr><td><code>Cloudflare rejected</code></td><td>Re-check the token and account ID in <code>.env</code>.</td></tr>
-<tr><td><code>git push failed</code></td><td>Sign in to GitHub and check write access.</td></tr>
-<tr><td><code>WARNING: incidents by location ...</code></td><td>The by-township split is still hand-maintained. Update <code>datasets/cad_incidents_by_location.json</code>.</td></tr>
-</table>
-</body>
-</html>
+‰
